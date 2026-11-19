@@ -19,6 +19,7 @@ class XAccount:
     auth_token: str
     ct0: str
     pool_key: str
+    proxy: str | None = None
 
 
 class AccountPool:
@@ -50,16 +51,26 @@ class AccountPool:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
         pools: dict[str, list[XAccount]] = {}
 
-        lanes_raw = raw.get("lanes", {})
+        lanes_raw = raw.get("lanes")
+        if lanes_raw is None:
+            lanes_raw = raw.get("primary_lanes", {})
+
         if isinstance(lanes_raw, list):
-            for idx, items in enumerate(lanes_raw):
-                key = f"lane_{idx}"
+            for idx, entry in enumerate(lanes_raw):
+                if isinstance(entry, dict) and "accounts" in entry:
+                    lane_num = int(entry.get("lane", idx + 1))
+                    key = f"lane_{lane_num - 1}" if lane_num >= 1 else f"lane_{idx}"
+                    items = entry["accounts"]
+                else:
+                    key = f"lane_{idx}"
+                    items = entry
                 pools[key] = [
                     XAccount(
                         username=a["username"],
                         auth_token=a.get("auth_token", ""),
                         ct0=a.get("ct0", ""),
                         pool_key=key,
+                        proxy=a.get("proxy"),
                     )
                     for a in items
                 ]
@@ -72,6 +83,7 @@ class AccountPool:
                         auth_token=a.get("auth_token", ""),
                         ct0=a.get("ct0", ""),
                         pool_key=key,
+                        proxy=a.get("proxy"),
                     )
                     for a in items
                 ]
@@ -83,6 +95,7 @@ class AccountPool:
                 auth_token=a.get("auth_token", ""),
                 ct0=a.get("ct0", ""),
                 pool_key="validator",
+                proxy=a.get("proxy"),
             )
             for a in val_raw
         ]

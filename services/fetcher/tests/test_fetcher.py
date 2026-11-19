@@ -104,6 +104,18 @@ def test_account_pool_loads_lanes_enforces_800_cap_and_rotates(tmp_path: Path) -
     assert recovered.username in {"l0_a", "l0_c"}
 
 
+def test_account_pool_loads_primary_lanes_example_schema() -> None:
+    from nti_fetcher.accounts import AccountPool
+
+    example_path = Path(__file__).resolve().parents[3] / "infra" / "x_accounts.example.json"
+    pool = AccountPool.from_file(example_path)
+    assert len(pool.lane_accounts(0)) == 3
+    assert len(pool.lane_accounts(1)) == 3
+    assert len(pool.lane_accounts(2)) == 3
+    assert len(pool.validator_accounts()) == 3
+    assert pool.lane_accounts(0)[0].username == "acct_l1_1"
+
+
 @pytest.mark.asyncio
 async def test_twitterapi_io_strict_50_usd_monthly_cap(tmp_path: Path) -> None:
     from nti_fetcher.adapters import BudgetExceededError, TwitterApiIoSource
