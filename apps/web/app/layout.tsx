@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import { AppShell } from "@/components/AppShell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -39,9 +38,7 @@ export default function RootLayout({
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
       <body className="min-h-screen bg-[#06070A] font-sans text-[#F3F5F8] antialiased selection:bg-[#B8FF2E]/25 selection:text-[#F3F5F8]">
-        <Providers>
-          <AppShell>{children}</AppShell>
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

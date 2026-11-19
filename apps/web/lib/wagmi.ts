@@ -12,7 +12,7 @@ const connectors = wcProjectId
         metadata: {
           name: "NTI — Narrative Mindshare Index",
           description: "Institutional crypto narrative intelligence terminal on Robinhood Chain.",
-          url: "https://nti.terminal",
+          url: "https://nti-nine.vercel.app",
           icons: [],
         },
       }),
@@ -21,6 +21,7 @@ const connectors = wcProjectId
 
 export const wagmiConfig = createConfig({
   chains: [robinhoodTestnet, robinhoodMainnet],
+  multiInjectedProviderDiscovery: true,
   connectors,
   transports: {
     [robinhoodTestnet.id]: http(

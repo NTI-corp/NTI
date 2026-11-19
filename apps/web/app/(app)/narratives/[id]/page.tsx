@@ -33,8 +33,8 @@ export default async function NarrativeDetailPage({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1B2028] pb-4">
         <div>
           <div className="flex items-center gap-2 font-mono text-[11px] text-[#556173]">
-            <Link href="/" className="hover:text-[#EDF1F7]">
-              OVERVIEW
+            <Link href="/terminal" className="hover:text-[#EDF1F7]">
+              TERMINAL
             </Link>
             <span>/</span>
             <span className="text-[#8A96A8]">NARRATIVE #{meta.id}</span>
