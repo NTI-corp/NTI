@@ -51,6 +51,24 @@ class TwscrapeSource:
     def _ensure_api(self) -> Any:
         if self._api is None:
             import twscrape  # type: ignore[import-not-found]
+            import twscrape.queue_client as qc  # type: ignore[import-not-found]
+            from twscrape.xclid import XClIdParseError  # type: ignore[import-not-found]
+
+            if not getattr(qc.XClIdGenStore, "_nti_fallback", False):
+                orig_get = qc.XClIdGenStore.get
+
+                class _NoopXClIdGen:
+                    def calc(self, method: str, path: str) -> str:  # noqa: ARG002
+                        return ""
+
+                async def _safe_xclid_get(*args: Any, **kwargs: Any) -> Any:
+                    try:
+                        return await orig_get(*args, **kwargs)
+                    except XClIdParseError:
+                        return _NoopXClIdGen()
+
+                qc.XClIdGenStore.get = _safe_xclid_get  # type: ignore[method-assign]
+                qc.XClIdGenStore._nti_fallback = True  # type: ignore[attr-defined]
 
             self._api = twscrape.API(self._db_path)
         return self._api

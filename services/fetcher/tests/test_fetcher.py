@@ -149,6 +149,27 @@ def test_login_batch_parses_mixed_identifiers_and_distributes_json(tmp_path: Pat
 
 
 @pytest.mark.asyncio
+async def test_twscrape_source_installs_xclid_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import twscrape.queue_client as qc
+    from nti_fetcher.adapters import TwscrapeSource
+    from twscrape.xclid import XClIdParseError
+
+    async def _boom(*args: object, **kwargs: object) -> object:
+        raise XClIdParseError("Signing script not found")
+
+    monkeypatch.setattr(qc.XClIdGenStore, "get", _boom)
+    monkeypatch.delattr(qc.XClIdGenStore, "_nti_fallback", raising=False)
+
+    src = TwscrapeSource(db_path=tmp_path / "accounts.db")
+    src._ensure_api()
+    gen = await qc.XClIdGenStore.get("u", proxy=None, cookies={})
+    assert gen.calc("GET", "/i/api/graphql/x") == ""
+
+
+@pytest.mark.asyncio
 async def test_twitterapi_io_strict_50_usd_monthly_cap(tmp_path: Path) -> None:
     from nti_fetcher.adapters import BudgetExceededError, TwitterApiIoSource
 
