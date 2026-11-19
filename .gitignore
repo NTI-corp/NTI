@@ -32,8 +32,11 @@ __pycache__/
 # Foundry / Solidity
 contracts/out/
 contracts/cache/
-contracts/broadcast/*/dry-run/
+contracts/broadcast/
 lcov.info
+
+# Vercel
+.vercel/
 
 # Internal planning documents (kept local only)
 NTI-Brief-Final.md
@@ -47,3 +50,6 @@ data/state/
 *.lock.pid
 .DS_Store
 Thumbs.db
+
+.vercel
+.env*
