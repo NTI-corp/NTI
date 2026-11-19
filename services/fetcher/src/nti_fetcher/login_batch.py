@@ -86,6 +86,7 @@ async def import_cookies_to_twscrape_db(
     import twscrape  # type: ignore[import-not-found]
 
     pool_cfg = AccountPool.from_file(x_accounts_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     api = twscrape.API(str(db_path))
     imported = 0
 
@@ -133,6 +134,7 @@ async def batch_login_and_export(
         tws_imap.add_imap_mapping(imap_user.split("@")[-1], "imap.gmail.com")
         tws_login.imap_login = _shared_imap_login
 
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     api = twscrape.API(str(db_path))
     for s in seeds:
         await api.pool.add_account(
