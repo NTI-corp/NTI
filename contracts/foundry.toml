@@ -1,0 +1,33 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib", "../node_modules"]
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+via_ir = true
+bytecode_hash = "none"
+remappings = [
+  "@openzeppelin/contracts/=../node_modules/@openzeppelin/contracts/",
+  "forge-std/=lib/forge-std/src/",
+]
+fs_permissions = [
+  { access = "read-write", path = "../packages/sdk" },
+  { access = "read", path = "../config" },
+]
+
+[fuzz]
+runs = 1000
+max_test_rejects = 65536
+
+[invariant]
+runs = 256
+depth = 64
+fail_on_revert = true
+
+[rpc_endpoints]
+robinhood_mainnet = "${RPC_URL_MAINNET}"
+robinhood_testnet = "${RPC_URL_TESTNET}"

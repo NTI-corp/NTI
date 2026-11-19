@@ -1,0 +1,49 @@
+# Secrets & environment
+.env
+.env.*
+!.env.example
+infra/.env
+infra/.env.*
+!infra/.env.example
+secrets/
+*.pem
+*.key
+accounts.json
+x_accounts*.json
+!infra/x_accounts.example.json
+
+# Node / JS / Next.js
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+.vercel/
+
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+*.egg-info/
+
+# Foundry / Solidity
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/dry-run/
+lcov.info
+
+# Internal planning documents (kept local only)
+NTI-Brief-Final.md
+NTI-Implementation-Plan.md
+
+# Runtime data & snapshots
+data/snapshots/
+data/cache/
+data/state/
+*.log
+*.lock.pid
+.DS_Store
+Thumbs.db

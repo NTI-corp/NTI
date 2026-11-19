@@ -1,0 +1,33 @@
+{
+  "primary_lanes": [
+    {
+      "lane": 1,
+      "accounts": [
+        { "username": "acct_l1_1", "auth_token": "", "ct0": "", "proxy": null },
+        { "username": "acct_l1_2", "auth_token": "", "ct0": "", "proxy": null },
+        { "username": "acct_l1_3", "auth_token": "", "ct0": "", "proxy": null }
+      ]
+    },
+    {
+      "lane": 2,
+      "accounts": [
+        { "username": "acct_l2_1", "auth_token": "", "ct0": "", "proxy": null },
+        { "username": "acct_l2_2", "auth_token": "", "ct0": "", "proxy": null },
+        { "username": "acct_l2_3", "auth_token": "", "ct0": "", "proxy": null }
+      ]
+    },
+    {
+      "lane": 3,
+      "accounts": [
+        { "username": "acct_l3_1", "auth_token": "", "ct0": "", "proxy": null },
+        { "username": "acct_l3_2", "auth_token": "", "ct0": "", "proxy": null },
+        { "username": "acct_l3_3", "auth_token": "", "ct0": "", "proxy": null }
+      ]
+    }
+  ],
+  "validator_pool": [
+    { "username": "acct_val_1", "auth_token": "", "ct0": "", "proxy": null },
+    { "username": "acct_val_2", "auth_token": "", "ct0": "", "proxy": null },
+    { "username": "acct_val_3", "auth_token": "", "ct0": "", "proxy": null }
+  ]
+}

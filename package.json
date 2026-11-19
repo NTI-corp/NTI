@@ -1,0 +1,27 @@
+{
+  "name": "nti-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @nti/web dev",
+    "build:web": "pnpm --filter @nti/web build",
+    "build:sdk": "pnpm --filter @nti/sdk build",
+    "build:indexer": "pnpm --filter @nti/indexer build",
+    "build": "pnpm build:sdk && pnpm build:indexer && pnpm build:web",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm --filter @nti/web lint",
+    "contracts:build": "forge build --root contracts",
+    "contracts:test": "forge test --root contracts",
+    "py:test": "uv run --directory services pytest",
+    "py:lint": "uv run --directory services ruff check .",
+    "check": "pnpm contracts:test && pnpm py:test && pnpm typecheck"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "5.4.0",
+    "typescript": "^5.8.3"
+  }
+}

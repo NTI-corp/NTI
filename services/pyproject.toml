@@ -1,0 +1,58 @@
+[project]
+name = "nti-services"
+version = "0.1.0"
+description = "NTI off-chain Python services workspace"
+requires-python = ">=3.11"
+dependencies = [
+  "nti-core",
+  "nti-fetcher",
+  "nti-classifier",
+  "nti-engine",
+  "nti-oracle-node",
+  "nti-discovery",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.25.0",
+  "hypothesis>=6.120.0",
+  "ruff>=0.9.0",
+]
+
+[tool.uv.workspace]
+members = [
+  "nti_core",
+  "fetcher",
+  "classifier",
+  "engine",
+  "oracle_node",
+  "discovery",
+]
+
+[tool.uv.sources]
+nti-core = { workspace = true }
+nti-fetcher = { workspace = true }
+nti-classifier = { workspace = true }
+nti-engine = { workspace = true }
+nti-oracle-node = { workspace = true }
+nti-discovery = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = [
+  "nti_core/tests",
+  "fetcher/tests",
+  "classifier/tests",
+  "engine/tests",
+  "oracle_node/tests",
+  "discovery/tests",
+]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
