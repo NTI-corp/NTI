@@ -104,6 +104,40 @@ class SupabaseStorage:
             prefer="return=minimal",
         )
 
+    async def select(
+        self,
+        table: str,
+        *,
+        columns: str = "*",
+        filters: dict[str, str] | None = None,
+        order: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, str] = {"select": columns}
+        if filters:
+            params.update(filters)
+        if order:
+            params["order"] = order
+        if limit is not None:
+            params["limit"] = str(limit)
+        data = await self._request("GET", table, params=params)
+        return list(data) if isinstance(data, list) else []
+
+    async def insert_returning(
+        self,
+        table: str,
+        rows: Sequence[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not rows:
+            return []
+        data = await self._request(
+            "POST",
+            table,
+            json_body=list(rows),
+            prefer="return=representation",
+        )
+        return list(data) if isinstance(data, list) else []
+
     async def upsert_fetch_cycles(self, rows: Sequence[dict[str, Any]]) -> Any:
         return await self.upsert("fetch_cycles", rows)
 

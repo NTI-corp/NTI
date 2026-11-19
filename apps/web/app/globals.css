@@ -1,18 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --bg-canvas: #090b0e;
-  --bg-surface: #0e1117;
-  --bg-panel: #131820;
-  --border-hairline: #1b2028;
-  --border-active: #2a3342;
-  --ink-primary: #edf1f7;
-  --ink-secondary: #8a96a8;
-  --ink-muted: #556173;
-  --signal-up: #10b981;
-  --signal-down: #ef4444;
+  --bg-canvas: #06070a;
+  --bg-surface: #0b0d12;
+  --bg-panel: #11141c;
+  --border-hairline: #1b202c;
+  --border-active: #2b3345;
+  --ink-primary: #f3f5f8;
+  --ink-secondary: #8b94a7;
+  --ink-muted: #5a6478;
+  --signal-lime: #b8ff2e;
+  --signal-teal: #23f7dd;
+  --signal-up: #b8ff2e;
+  --signal-down: #f43f5e;
   --signal-warn: #f59e0b;
-  --signal-cyan: #38bdf8;
+  --signal-cyan: #23f7dd;
 }
 
 @theme inline {
@@ -23,6 +25,8 @@
   --color-ink: var(--ink-primary);
   --color-ink-secondary: var(--ink-secondary);
   --color-ink-muted: var(--ink-muted);
+  --color-lime: var(--signal-lime);
+  --color-teal: var(--signal-teal);
   --color-up: var(--signal-up);
   --color-down: var(--signal-down);
   --color-warn: var(--signal-warn);
@@ -43,11 +47,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Swiss tactical hairline + subtle dot matrix */
 .terminal-grid-bg {
   background-image:
-    linear-gradient(to right, rgba(27, 32, 40, 0.45) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(27, 32, 40, 0.45) 1px, transparent 1px);
-  background-size: 40px 40px;
+    radial-gradient(rgba(139, 148, 167, 0.14) 1px, transparent 1px),
+    linear-gradient(to right, rgba(27, 32, 44, 0.55) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(27, 32, 44, 0.55) 1px, transparent 1px);
+  background-size: 16px 16px, 64px 64px, 64px 64px;
 }
 
 .panel-surface {
@@ -60,18 +66,67 @@ body {
   border: 1px solid var(--border-hairline);
 }
 
-/* Subtle custom scrollbars for terminal tables */
+/* Corner reticle bracket ticks inspired by zkblast / tactical HUDs */
+.reticle-frame {
+  position: relative;
+  border: 1px solid var(--border-hairline);
+  background-color: rgba(11, 13, 18, 0.88);
+  backdrop-filter: blur(12px);
+}
+
+.reticle-frame::before,
+.reticle-frame::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  width: 9px;
+  height: 9px;
+}
+
+.reticle-frame::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1.5px solid var(--signal-lime);
+  border-left: 1.5px solid var(--signal-lime);
+}
+
+.reticle-frame::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1.5px solid var(--signal-teal);
+  border-right: 1.5px solid var(--signal-teal);
+}
+
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ticker {
+  animation: ticker-scroll 42s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ticker {
+    animation: none;
+  }
+}
+
+/* Custom thin scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090b0e;
+  background: #06070a;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1b2028;
-  border-radius: 3px;
+  background: #1b202c;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2a3342;
+  background: #2b3345;
 }

@@ -50,10 +50,10 @@ export function MarketsListClient({
               key={tab}
               type="button"
               onClick={() => setFilter(tab)}
-              className={`rounded border px-3 py-1.5 uppercase transition-colors ${
+              className={`cursor-pointer border px-3 py-1.5 uppercase transition-colors ${
                 filter === tab
-                  ? "border-[#38BDF8]/50 bg-[#38BDF8]/12 text-[#EDF1F7]"
-                  : "border-[#1B2028] bg-[#0E1117] text-[#8A96A8] hover:text-[#EDF1F7]"
+                  ? "border-[#B8FF2E]/60 bg-[#B8FF2E]/12 text-[#B8FF2E]"
+                  : "border-[#1B202C] bg-[#0B0D12] text-[#8B94A7] hover:text-[#F3F5F8]"
               }`}
             >
               {tab}
@@ -82,12 +82,12 @@ export function MarketsListClient({
                     </span>
                   </div>
                   <span
-                    className={`rounded border px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                    className={`border px-2 py-0.5 text-[10px] font-semibold uppercase ${
                       m.status === "open"
-                        ? "border-[#10B981]/35 bg-[#10B981]/10 text-[#10B981]"
+                        ? "border-[#B8FF2E]/40 bg-[#B8FF2E]/10 text-[#B8FF2E]"
                         : m.status === "locked"
                           ? "border-[#F59E0B]/35 bg-[#F59E0B]/10 text-[#F59E0B]"
-                          : "border-[#38BDF8]/35 bg-[#38BDF8]/10 text-[#38BDF8]"
+                          : "border-[#23F7DD]/35 bg-[#23F7DD]/10 text-[#23F7DD]"
                     }`}
                   >
                     {m.status}
@@ -96,36 +96,36 @@ export function MarketsListClient({
 
                 <Link
                   href={`/markets/${m.marketId}`}
-                  className="mt-2.5 block font-display text-lg font-semibold text-[#EDF1F7] hover:text-[#38BDF8]"
+                  className="mt-2.5 block font-display text-lg font-semibold text-[#F3F5F8] hover:text-[#B8FF2E]"
                 >
                   {m.narrativeALabel}{" "}
-                  <span className="font-mono text-xs font-normal text-[#556173]">vs</span>{" "}
+                  <span className="font-mono text-xs font-normal text-[#5A6478]">vs</span>{" "}
                   {m.narrativeBLabel}
                 </Link>
 
                 {/* Live relative delta telemetry */}
-                <div className="mt-2 grid grid-cols-3 gap-2 rounded border border-[#1B2028] bg-[#0B0E13] px-3 py-2 font-mono text-[11px] tabular-nums">
+                <div className="mt-2 grid grid-cols-3 gap-2 border border-[#1B202C] bg-[#06070A] px-3 py-2 font-mono text-[11px] tabular-nums">
                   <div>
-                    <div className="text-[9px] text-[#556173]">SIDE A ({m.narrativeALabel.slice(0, 10)})</div>
-                    <div className="text-[#EDF1F7]">
+                    <div className="text-[9px] text-[#5A6478]">SIDE A ({m.narrativeALabel.slice(0, 10)})</div>
+                    <div className="text-[#F3F5F8]">
                       {formatBpsPercent(m.baseIA, 1)} → {formatBpsPercent(m.currentIA, 1)}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[9px] text-[#556173]">SIDE B ({m.narrativeBLabel.slice(0, 10)})</div>
-                    <div className="text-[#EDF1F7]">
+                    <div className="text-[9px] text-[#5A6478]">SIDE B ({m.narrativeBLabel.slice(0, 10)})</div>
+                    <div className="text-[#F3F5F8]">
                       {formatBpsPercent(m.baseIB, 1)} → {formatBpsPercent(m.currentIB, 1)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[9px] text-[#556173]">LIVE Δ LEAD</div>
+                    <div className="text-[9px] text-[#5A6478]">LIVE Δ LEAD</div>
                     <div
                       className={
                         delta > 0
-                          ? "font-semibold text-[#10B981]"
+                          ? "font-semibold text-[#B8FF2E]"
                           : delta < 0
-                            ? "font-semibold text-[#38BDF8]"
-                            : "text-[#8A96A8]"
+                            ? "font-semibold text-[#23F7DD]"
+                            : "text-[#8B94A7]"
                       }
                     >
                       {delta >= 0 ? "+" : ""}
@@ -137,19 +137,19 @@ export function MarketsListClient({
                 {/* Pool Split Bar */}
                 <div className="mt-3">
                   <div className="mb-1 flex justify-between font-mono text-[11px] tabular-nums">
-                    <span className="text-[#10B981]">
+                    <span className="text-[#B8FF2E]">
                       A: {formatEth(m.poolAEth, 2)} ({pctA}%)
                     </span>
-                    <span className="text-[#8A96A8]">
+                    <span className="text-[#8B94A7]">
                       TOTAL {formatEth(totalPool, 2)} / {m.maxPoolEth} ETH CAP
                     </span>
-                    <span className="text-[#38BDF8]">
+                    <span className="text-[#23F7DD]">
                       B: {formatEth(m.poolBEth, 2)} ({pctB}%)
                     </span>
                   </div>
-                  <div className="flex h-2 w-full overflow-hidden rounded-full bg-[#1B2028]">
-                    <div className="bg-[#10B981]" style={{ width: `${pctA}%` }} />
-                    <div className="bg-[#38BDF8]" style={{ width: `${pctB}%` }} />
+                  <div className="flex h-2 w-full overflow-hidden bg-[#1B202C]">
+                    <div className="bg-[#B8FF2E]" style={{ width: `${pctA}%` }} />
+                    <div className="bg-[#23F7DD]" style={{ width: `${pctB}%` }} />
                   </div>
                 </div>
               </div>

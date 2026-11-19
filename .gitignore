@@ -44,6 +44,7 @@ NTI-Implementation-Plan.md
 
 # Runtime data & snapshots
 data/snapshots/
+data/deltas/
 data/cache/
 data/state/
 *.log

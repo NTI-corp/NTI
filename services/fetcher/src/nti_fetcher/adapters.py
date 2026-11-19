@@ -86,7 +86,9 @@ class TwscrapeSource:
         now = datetime.now(UTC)
         posts: list[RawPost] = []
         try:
-            async for tw in api.user_tweets(user_id, limit=limit):
+            # api.user_tweets always iterates from newest backwards; scan deeper when max_id is set
+            scan_limit = max(limit * 6, 120) if max_id is not None else limit
+            async for tw in api.user_tweets(user_id, limit=scan_limit):
                 tid = int(tw.id)
                 if since_id is not None and tid <= since_id:
                     continue

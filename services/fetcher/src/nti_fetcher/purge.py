@@ -7,6 +7,9 @@ Policy:
 
 from __future__ import annotations
 
+import asyncio
+import json
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -55,3 +58,25 @@ class RetentionPurger:
             body_cutoff=body_cutoff,
             metrics_cutoff=metrics_cutoff,
         )
+
+
+def main() -> int:
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_SERVICE_KEY", "")
+    if not url or not key:
+        raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_KEY are required for purge")
+    report = asyncio.run(RetentionPurger(SupabaseStorage(url, key)).run())
+    print(
+        json.dumps(
+            {
+                "ran_at": report.ran_at.isoformat(),
+                "body_cutoff": report.body_cutoff.isoformat(),
+                "metrics_cutoff": report.metrics_cutoff.isoformat(),
+            }
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -38,7 +38,7 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-screen bg-[#090B0E] font-sans text-[#EDF1F7] antialiased selection:bg-[#38BDF8]/25 selection:text-[#EDF1F7]">
+      <body className="min-h-screen bg-[#06070A] font-sans text-[#F3F5F8] antialiased selection:bg-[#B8FF2E]/25 selection:text-[#F3F5F8]">
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>

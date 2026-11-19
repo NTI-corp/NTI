@@ -64,10 +64,10 @@ export function ContributorsTable({
                       {formatBpsPercent(c.shareBps, 2)}
                     </td>
                     <td className="w-44 px-4 py-2.5">
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#1B2028]">
+                      <div className="h-1.5 w-full overflow-hidden bg-[#1B202C]">
                         <div
-                          className={`h-full rounded-full ${
-                            c.capped ? "bg-[#F59E0B]" : "bg-[#38BDF8]"
+                          className={`h-full ${
+                            c.capped ? "bg-[#F59E0B]" : "bg-[#B8FF2E]"
                           }`}
                           style={{ width: `${barPct}%` }}
                         />
