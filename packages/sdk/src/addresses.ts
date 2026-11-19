@@ -131,8 +131,25 @@ const EMPTY_PROTOCOL: ProtocolAddresses = {
   kolRegistry: null,
 };
 
-/** Populated by C9 deployment generator once contracts are deployed. */
+/** Populated from live deployment manifests (`contracts/deployments/{chainId}.json`). */
 export const PROTOCOL_ADDRESSES: Record<SupportedChainId, ProtocolAddresses> = {
   [ROBINHOOD_MAINNET_ID]: { ...EMPTY_PROTOCOL },
-  [ROBINHOOD_TESTNET_ID]: { ...EMPTY_PROTOCOL },
+  [ROBINHOOD_TESTNET_ID]: {
+    registry: "0x6253BB6f36102AC40Df17ca1D173f8C6dE5cb9f4",
+    ntiToken: "0x8f13Ce903e37EDB2aDeAAeB000792a66CAaF83CE",
+    staking: "0xbfCA03EBB9A2274acd67d5b4b83200b28222f7e2",
+    configRegistry: "0xe3742D81dC3a9d8A087E5Fbf523b4afe9019f85F",
+    oracleCommit: "0x8Fd88A223C5a73Bd13f1e100bEDBB2cA2389Fee4",
+    dispute: "0x2526eFc15FeFafee9C51a8ff2e078e3494794B71",
+    narrativeMarket: "0xA3D54141719d7937f5c2e1EAa2aaC97d44359DBE",
+    feeRouter: "0x25D2D1f8aC4B4673585dC3D69EF2B93daC715f25",
+    buybackAdapterV3: null,
+    buybackAdapterV4: null,
+    basketFactory: "0x49bE60aAAF1c0CCeB8214aDe88cc3c8Ffdf51A09",
+    grants: "0x4f600E5bf2Bc7a9DEb35F77F946E280F8900D3E5",
+    governor: "0x82328D31742c133F791daA4e8014A9CcA682e9D0",
+    timelock: "0x11a35A4Ca88A20e6d2F9B73aEB4F5b760F60391A",
+    insuranceFund: "0x289C161854D3FdD0129156aE28E8307129D3eAb9",
+    kolRegistry: "0x4f7ec78dF7f4b6a83FE357c277367b188Cf0A8F3",
+  },
 };

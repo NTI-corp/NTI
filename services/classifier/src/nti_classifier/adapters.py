@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from typing import Any
@@ -103,20 +104,32 @@ class GeminiAdapter:
             },
         }
         params = {"key": self._api_key} if self._api_key else None
-        if self._client is not None:
-            resp = await self._client.post(url, params=params, json=payload)
-        else:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.post(url, params=params, json=payload)
+        resp: httpx.Response | None = None
+        for attempt in range(3):
+            if self._client is not None:
+                resp = await self._client.post(url, params=params, json=payload)
+            else:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    resp = await client.post(url, params=params, json=payload)
+            if resp.status_code not in (500, 502, 503, 504) or attempt == 2:
+                break
+            await asyncio.sleep(1.0 * (attempt + 1))
 
-        if resp.status_code == 429:
-            raise RateLimitError(f"Gemini HTTP 429 rate limit: {resp.text}")
+        assert resp is not None
+        if resp.status_code in (429, 503):
+            raise RateLimitError(f"Gemini HTTP {resp.status_code} rate/capacity limit: {resp.text}")
         if resp.status_code >= 400:
             raise InvalidResponseError(f"Gemini HTTP {resp.status_code}: {resp.text}")
 
         data = resp.json()
         try:
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            parts = data["candidates"][0]["content"]["parts"]
+            text_parts = [
+                p["text"]
+                for p in parts
+                if isinstance(p, dict) and not p.get("thought") and "text" in p
+            ]
+            text = text_parts[-1] if text_parts else parts[0]["text"]
         except (KeyError, IndexError, TypeError) as exc:
             raise InvalidResponseError(f"Unexpected Gemini response envelope: {exc}") from exc
 

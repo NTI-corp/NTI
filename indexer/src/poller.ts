@@ -196,11 +196,30 @@ export class IndexerPoller {
       const chunkEnd =
         cursor + this.batchBlocks - 1n < toBlock ? cursor + this.batchBlocks - 1n : toBlock;
 
-      const rawLogs = await this.client.getLogs({
-        address: this.addresses.length > 0 ? this.addresses : undefined,
-        fromBlock: cursor,
-        toBlock: chunkEnd,
-      });
+      const rawLogs: RawChainLog[] = [];
+      if (this.addresses.length <= 8) {
+        const logs = await this.client.getLogs({
+          address: this.addresses.length > 0 ? this.addresses : undefined,
+          fromBlock: cursor,
+          toBlock: chunkEnd,
+        });
+        rawLogs.push(...logs);
+      } else {
+        for (let i = 0; i < this.addresses.length; i += 8) {
+          const slice = this.addresses.slice(i, i + 8);
+          const logs = await this.client.getLogs({
+            address: slice,
+            fromBlock: cursor,
+            toBlock: chunkEnd,
+          });
+          rawLogs.push(...logs);
+        }
+        rawLogs.sort((a, b) => {
+          const ab = a.blockNumber ?? 0n;
+          const bb = b.blockNumber ?? 0n;
+          return ab !== bb ? (ab < bb ? -1 : 1) : (a.logIndex ?? 0) - (b.logIndex ?? 0);
+        });
+      }
 
       const eventRows: ChainEventRow[] = [];
       const mirrors: MirrorUpsert[] = [];
