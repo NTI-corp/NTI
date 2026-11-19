@@ -234,3 +234,17 @@ def test_agreement_evaluator_85_pct_and_99_pct_json_gate() -> None:
         total_responses=200,
     )
     assert report_fail.passed is False
+
+
+@pytest.mark.asyncio
+async def test_gemini_adapter_timeout_raises_rate_limit_for_failover() -> None:
+    from nti_classifier.adapters import GeminiAdapter, RateLimitError
+
+    async def _timeout_handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(_timeout_handler)) as client:
+        adapter = GeminiAdapter(api_key="test-key", model="gemini-3.5-flash-lite", client=client)
+        spec = PromptSpec(version="v1", system_prompt="classify", narratives=(1, 2, 3))
+        with pytest.raises(RateLimitError):
+            await adapter.classify(_make_posts(1), spec)

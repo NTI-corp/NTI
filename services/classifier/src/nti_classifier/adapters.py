@@ -79,14 +79,14 @@ class GeminiAdapter:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "gemini-4-hydrogen",
+        model: str | None = None,
         base_url: str = "https://generativelanguage.googleapis.com/v1beta",
         client: httpx.AsyncClient | None = None,
-        timeout: float = 60.0,
+        timeout: float = 120.0,
     ) -> None:
         self._api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
-        self._model = model
-        self.version = model
+        self._model = model or os.environ.get("GEMINI_MODEL", "gemini-4-hydrogen")
+        self.version = self._model
         self._base_url = base_url.rstrip("/")
         self._client = client
         self._timeout = timeout
@@ -105,17 +105,28 @@ class GeminiAdapter:
         }
         params = {"key": self._api_key} if self._api_key else None
         resp: httpx.Response | None = None
+        last_exc: Exception | None = None
         for attempt in range(3):
-            if self._client is not None:
-                resp = await self._client.post(url, params=params, json=payload)
-            else:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
-                    resp = await client.post(url, params=params, json=payload)
+            try:
+                if self._client is not None:
+                    resp = await self._client.post(url, params=params, json=payload)
+                else:
+                    async with httpx.AsyncClient(timeout=self._timeout) as client:
+                        resp = await client.post(url, params=params, json=payload)
+                last_exc = None
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                last_exc = exc
+                resp = None
+                if attempt == 2:
+                    break
+                await asyncio.sleep(1.0 * (attempt + 1))
+                continue
             if resp.status_code not in (500, 502, 503, 504) or attempt == 2:
                 break
             await asyncio.sleep(1.0 * (attempt + 1))
 
-        assert resp is not None
+        if resp is None:
+            raise RateLimitError(f"Gemini transport/timeout after retries: {last_exc}")
         if resp.status_code in (429, 503):
             raise RateLimitError(f"Gemini HTTP {resp.status_code} rate/capacity limit: {resp.text}")
         if resp.status_code >= 400:
