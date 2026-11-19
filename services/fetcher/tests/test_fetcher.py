@@ -116,6 +116,38 @@ def test_account_pool_loads_primary_lanes_example_schema() -> None:
     assert pool.lane_accounts(0)[0].username == "acct_l1_1"
 
 
+def test_login_batch_parses_mixed_identifiers_and_distributes_json(tmp_path: Path) -> None:
+    from nti_fetcher.accounts import AccountPool
+    from nti_fetcher.login_batch import distribute_accounts_to_x_json, parse_account_lines
+
+    raw = "\n".join(
+        [
+            "miaw3@asiff.live",
+            "@playmochirun",
+            "miaw2@asifaq.com:custompw:miaw2@asifaq.com",
+        ]
+    )
+    seeds = parse_account_lines(raw, default_password="pw123")
+    assert len(seeds) == 3
+    assert seeds[0].username == "miaw3@asiff.live"
+    assert seeds[0].password == "pw123"
+    assert seeds[1].username == "playmochirun"
+    assert seeds[1].email == ""
+    assert seeds[2].password == "custompw"
+
+    out_path = tmp_path / "x_accounts.json"
+    cookies = [
+        {"username": f"u{i}", "auth_token": f"tok{i}", "ct0": f"ct{i}", "proxy": None}
+        for i in range(12)
+    ]
+    distribute_accounts_to_x_json(cookies, out_path)
+    pool = AccountPool.from_file(out_path)
+    assert len(pool.lane_accounts(0)) == 3
+    assert len(pool.lane_accounts(1)) == 3
+    assert len(pool.lane_accounts(2)) == 3
+    assert len(pool.validator_accounts()) == 3
+
+
 @pytest.mark.asyncio
 async def test_twitterapi_io_strict_50_usd_monthly_cap(tmp_path: Path) -> None:
     from nti_fetcher.adapters import BudgetExceededError, TwitterApiIoSource
