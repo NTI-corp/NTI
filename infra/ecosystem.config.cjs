@@ -6,10 +6,21 @@
 module.exports = {
   apps: [
     {
+      name: "nti-indexer",
+      cwd: "/home/ubuntu/apps/nti/indexer",
+      script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
+      args: "node dist/index.js",
+      autorestart: true,
+      max_memory_restart: "180M",
+      env: {
+        NODE_ENV: "production",
+      },
+    },
+    {
       name: "nti-fetcher",
       cwd: "/home/ubuntu/apps/nti/services",
-      script: "uv",
-      args: "run python -m nti_fetcher",
+      script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
+      args: "uv run python -m nti_fetcher",
       cron_restart: "0 */4 * * *",
       autorestart: false,
       max_memory_restart: "256M",
@@ -21,8 +32,8 @@ module.exports = {
     {
       name: "nti-oracle-operator",
       cwd: "/home/ubuntu/apps/nti/services",
-      script: "uv",
-      args: "run python -m nti_oracle --role operator",
+      script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
+      args: "uv run python -m nti_oracle --role operator",
       cron_restart: "25 1,5,9,13,17,21 * * *",
       autorestart: false,
       max_memory_restart: "180M",
@@ -33,29 +44,20 @@ module.exports = {
     {
       name: "nti-oracle-validators",
       cwd: "/home/ubuntu/apps/nti/services",
-      script: "uv",
-      args: "run python -m nti_oracle --role validator",
-      autorestart: true,
+      script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
+      args: "uv run python -m nti_oracle --role validator",
+      cron_restart: "28 1,5,9,13,17,21 * * *",
+      autorestart: false,
       max_memory_restart: "200M",
       env: {
         PYTHONUNBUFFERED: "1",
       },
     },
     {
-      name: "nti-indexer",
-      cwd: "/home/ubuntu/apps/nti/indexer",
-      script: "dist/index.js",
-      autorestart: true,
-      max_memory_restart: "180M",
-      env: {
-        NODE_ENV: "production",
-      },
-    },
-    {
       name: "nti-keeper",
       cwd: "/home/ubuntu/apps/nti/services",
-      script: "uv",
-      args: "run python -m nti_oracle --role keeper",
+      script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
+      args: "uv run python -m nti_oracle --role keeper",
       cron_restart: "15 * * * *",
       autorestart: false,
       max_memory_restart: "128M",
@@ -66,8 +68,8 @@ module.exports = {
     {
       name: "nti-purge",
       cwd: "/home/ubuntu/apps/nti/services",
-      script: "uv",
-      args: "run python -m nti_fetcher.purge",
+      script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
+      args: "uv run python -m nti_fetcher.purge",
       cron_restart: "0 2 * * *",
       autorestart: false,
       max_memory_restart: "128M",

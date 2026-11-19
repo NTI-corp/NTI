@@ -45,9 +45,10 @@ export function loadIndexerConfig(env: NodeJS.ProcessEnv = process.env): Indexer
     rawChainId === ROBINHOOD_MAINNET_ID ? ROBINHOOD_MAINNET_ID : ROBINHOOD_TESTNET_ID;
 
   const rpcUrl =
-    chainId === ROBINHOOD_MAINNET_ID
+    env.INDEXER_RPC_URL ||
+    (chainId === ROBINHOOD_MAINNET_ID
       ? env.RPC_URL_MAINNET ?? getChain(chainId).rpcUrls.default.http[0]!
-      : env.RPC_URL_TESTNET ?? getChain(chainId).rpcUrls.default.http[0]!;
+      : env.RPC_URL_TESTNET ?? getChain(chainId).rpcUrls.default.http[0]!);
 
   const envAddresses = (env.INDEXER_ADDRESSES ?? "")
     .split(",")
