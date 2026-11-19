@@ -9,6 +9,9 @@ requires-python = ">=3.11"
 dependencies = [
   "nti-core",
   "nti-engine",
+  "nti-fetcher",
+  "eth-account>=0.13.0",
+  "httpx>=0.28.0",
 ]
 
 [tool.hatch.build.targets.wheel]

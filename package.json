@@ -16,6 +16,8 @@
     "lint": "pnpm --filter @nti/web lint",
     "contracts:build": "forge build --root contracts",
     "contracts:test": "forge test --root contracts",
+    "sdk:abis": "node contracts/script/export-sdk-abis.mjs",
+    "indexer:test": "pnpm --filter @nti/indexer test",
     "py:test": "uv run --directory services pytest",
     "py:lint": "uv run --directory services ruff check .",
     "check": "pnpm contracts:test && pnpm py:test && pnpm typecheck"

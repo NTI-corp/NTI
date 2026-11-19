@@ -1,0 +1,188 @@
+"""LLM adapters for Gemini (primary) and MiMo (OpenAI-compatible fallback)."""
+
+from __future__ import annotations
+
+import json
+import os
+from typing import Any
+
+import httpx
+from pydantic import TypeAdapter, ValidationError
+
+from nti_classifier.protocol import ClassResult, PostIn, PromptSpec
+
+_RESULT_LIST_ADAPTER = TypeAdapter(list[ClassResult])
+
+
+class RateLimitError(RuntimeError):
+    """Raised on HTTP 429 or upstream rate limit from an LLM provider."""
+
+
+class InvalidResponseError(ValueError):
+    """Raised when an LLM returns malformed JSON or violates ClassResult schema."""
+
+
+def _format_user_payload(batch: list[PostIn]) -> str:
+    rows = [{"tweet_id": p.tweet_id, "handle": p.handle, "text": p.text} for p in batch]
+    return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
+
+
+def parse_classification_json(
+    raw_text: str,
+    expected_ids: set[int],
+    valid_narratives: tuple[int, ...],
+) -> list[ClassResult]:
+    """Parse and Pydantic-validate JSON array into ClassResult entries."""
+    cleaned = raw_text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise InvalidResponseError(f"Malformed JSON from LLM: {exc}") from exc
+
+    if isinstance(parsed, dict) and "results" in parsed and isinstance(parsed["results"], list):
+        parsed = parsed["results"]
+    if not isinstance(parsed, list):
+        raise InvalidResponseError("Expected top-level JSON array of ClassResult objects")
+
+    try:
+        items = _RESULT_LIST_ADAPTER.validate_python(parsed)
+    except ValidationError as exc:
+        raise InvalidResponseError(f"Schema validation failed: {exc}") from exc
+
+    valid_set = set(valid_narratives)
+    by_id: dict[int, ClassResult] = {}
+    for item in items:
+        if item.tweet_id not in expected_ids:
+            continue
+        filtered_q = {nid: prob for nid, prob in item.q.items() if nid in valid_set}
+        by_id[item.tweet_id] = ClassResult(tweet_id=item.tweet_id, q=filtered_q)
+
+    if len(by_id) != len(expected_ids):
+        missing = sorted(expected_ids - set(by_id.keys()))
+        raise InvalidResponseError(f"Missing tweet_ids in LLM output: {missing[:5]}")
+
+    return [by_id[tid] for tid in sorted(by_id.keys())]
+
+
+class GeminiAdapter:
+    """Primary classifier adapter using Google Generative Language REST API."""
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str = "gemini-4-hydrogen",
+        base_url: str = "https://generativelanguage.googleapis.com/v1beta",
+        client: httpx.AsyncClient | None = None,
+        timeout: float = 60.0,
+    ) -> None:
+        self._api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
+        self._model = model
+        self.version = model
+        self._base_url = base_url.rstrip("/")
+        self._client = client
+        self._timeout = timeout
+
+    async def classify(self, batch: list[PostIn], spec: PromptSpec) -> list[ClassResult]:
+        if not batch:
+            return []
+        url = f"{self._base_url}/models/{self._model}:generateContent"
+        payload: dict[str, Any] = {
+            "systemInstruction": {"parts": [{"text": spec.system_prompt}]},
+            "contents": [{"role": "user", "parts": [{"text": _format_user_payload(batch)}]}],
+            "generationConfig": {
+                "temperature": 0,
+                "responseMimeType": "application/json",
+            },
+        }
+        params = {"key": self._api_key} if self._api_key else None
+        if self._client is not None:
+            resp = await self._client.post(url, params=params, json=payload)
+        else:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(url, params=params, json=payload)
+
+        if resp.status_code == 429:
+            raise RateLimitError(f"Gemini HTTP 429 rate limit: {resp.text}")
+        if resp.status_code >= 400:
+            raise InvalidResponseError(f"Gemini HTTP {resp.status_code}: {resp.text}")
+
+        data = resp.json()
+        try:
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise InvalidResponseError(f"Unexpected Gemini response envelope: {exc}") from exc
+
+        return parse_classification_json(
+            raw_text=str(text),
+            expected_ids={p.tweet_id for p in batch},
+            valid_narratives=spec.narratives,
+        )
+
+
+class MiMoAdapter:
+    """Fallback classifier adapter using OpenAI-compatible /chat/completions with thinking off."""
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str = "mimo-v2.5",
+        client: httpx.AsyncClient | None = None,
+        timeout: float = 60.0,
+    ) -> None:
+        self._api_key = api_key or os.environ.get("MIMO_API_KEY", "")
+        self._base_url = (
+            base_url or os.environ.get("MIMO_API_BASE_URL", "https://api.xiaomimimo.com/v1")
+        ).rstrip("/")
+        self._model = model
+        self.version = model
+        self._client = client
+        self._timeout = timeout
+
+    async def classify(self, batch: list[PostIn], spec: PromptSpec) -> list[ClassResult]:
+        if not batch:
+            return []
+        url = f"{self._base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        payload: dict[str, Any] = {
+            "model": self._model,
+            "temperature": 0,
+            "thinking": {"type": "disabled"},
+            "messages": [
+                {"role": "system", "content": spec.system_prompt},
+                {"role": "user", "content": _format_user_payload(batch)},
+            ],
+        }
+        if self._client is not None:
+            resp = await self._client.post(url, headers=headers, json=payload)
+        else:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+
+        if resp.status_code == 429:
+            raise RateLimitError(f"MiMo HTTP 429 rate limit: {resp.text}")
+        if resp.status_code >= 400:
+            raise InvalidResponseError(f"MiMo HTTP {resp.status_code}: {resp.text}")
+
+        data = resp.json()
+        try:
+            text = data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise InvalidResponseError(f"Unexpected MiMo response envelope: {exc}") from exc
+
+        return parse_classification_json(
+            raw_text=str(text),
+            expected_ids={p.tweet_id for p in batch},
+            valid_narratives=spec.narratives,
+        )
