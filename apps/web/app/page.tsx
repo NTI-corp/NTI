@@ -66,7 +66,7 @@ export default async function DashboardPage() {
             <span className="block text-[#5A6478]">COMPUTE ENGINE</span>
             <span className="mt-0.5 block text-[#23F7DD]">DECIMAL(40) · 10% CAP · α=0.3</span>
           </div>
-          <div className="flex items-center justify-between px-4 py-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
             <div>
               <span className="block text-[#5A6478]">ACTIVE EPOCH</span>
               <span className="mt-0.5 block text-[#F3F5F8] tabular-nums">
@@ -74,7 +74,9 @@ export default async function DashboardPage() {
               </span>
             </div>
             {activeEpoch && (
-              <EpochBadge epochId={activeEpoch.epochId} status={activeEpoch.status} compact />
+              <div className="hidden sm:block">
+                <EpochBadge epochId={activeEpoch.epochId} status={activeEpoch.status} compact />
+              </div>
             )}
           </div>
         </div>
@@ -114,7 +116,7 @@ export default async function DashboardPage() {
                 {addresses.oracleCommit && (
                   <CopyContractPill label="ORACLE CA" address={addresses.oracleCommit} />
                 )}
-                <span className="font-mono text-[11px] text-[#5A6478] tabular-nums">
+                <span className="border border-[#1B202C] bg-[#06070A]/85 px-2.5 py-1 font-mono text-[11px] text-[#8B94A7] tabular-nums">
                   Σ I_n = {totalBps.toLocaleString("en-US")} BPS · DATA:{" "}
                   {snapshot.dataSource.toUpperCase()}
                 </span>

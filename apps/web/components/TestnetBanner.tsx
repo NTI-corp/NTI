@@ -28,13 +28,13 @@ export function TestnetBanner() {
       role="status"
       className="border-b border-[#F59E0B]/30 bg-[#F59E0B]/10 px-4 py-1.5 text-[11px] font-mono text-[#F59E0B]"
     >
-      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#F59E0B]" />
+      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[#F59E0B]" />
           <span className="font-semibold tracking-wider">
-            {isMainnet ? "PRE-FREEZE REGISTRY MODE" : "TESTNET MODE · NTITestToken ACTIVE"}
+            {isMainnet ? "PRE-FREEZE REGISTRY MODE" : "TESTNET MODE · NTITestToken"}
           </span>
-          <span className="text-[#F59E0B]/80">
+          <span className="hidden text-[#F59E0B]/80 sm:inline">
             Registry not yet frozen (`registry.frozen == false`). Staking, markets &amp; disputes use test tokens until live $NTI CA is locked.
           </span>
         </div>
