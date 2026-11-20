@@ -116,19 +116,21 @@
   font-family: "TWK Everett Mono", monospace;
 }
 
-.sui-landing-root ::selection {
-  background-color: #000000;
-  color: #ffffff;
-  text-shadow: none;
-}
+@layer base {
+  .sui-landing-root ::selection {
+    background-color: #000000;
+    color: #ffffff;
+    text-shadow: none;
+  }
 
-.sui-landing-root a {
-  color: inherit;
-  text-decoration: none;
-}
+  .sui-landing-root a {
+    color: inherit;
+    text-decoration: none;
+  }
 
-.sui-landing-root p {
-  margin: 0;
+  .sui-landing-root p {
+    margin: 0;
+  }
 }
 
 /* ── Global Layout Helpers ── */
