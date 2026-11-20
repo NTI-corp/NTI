@@ -6,6 +6,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import "@/app/sui-landing.css";
 import { SiteNavbar } from "@/components/sections/SiteNavbar";
+import { NtiPreloader } from "@/components/sections/NtiPreloader";
 import { HeroSection } from "@/components/sections/HeroSection";
 import { LogoMarqueeSection } from "@/components/sections/LogoMarqueeSection";
 import { ManifestoSection } from "@/components/sections/ManifestoSection";
@@ -49,6 +50,7 @@ export function SuiLandingPage() {
 
   return (
     <div className="sui-landing-root min-h-screen w-full bg-black text-white">
+      <NtiPreloader />
       <SiteNavbar />
       <main>
         {/* [home-trigger] grouping Hero..Sui-is while bottom canvas bar grows 0% -> 100% */}

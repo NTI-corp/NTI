@@ -198,6 +198,17 @@ interface DbNarrativeEpochRow {
   weighted_posts: number | string;
 }
 
+/** Public download URL for an epoch dataset: Supabase Storage mirror for local ids, Arweave otherwise. */
+function datasetUrlFor(arweaveTx: string | null): string | null {
+  if (!arweaveTx) return null;
+  if (arweaveTx.startsWith("local_")) {
+    const base = getSupabaseConfig().url;
+    return base ? `${base}/storage/v1/object/public/nti-datasets/${arweaveTx}.jsonl.gz` : null;
+  }
+  if (arweaveTx.startsWith("ar_preview")) return null;
+  return `https://arweave.net/${arweaveTx}`;
+}
+
 function mapEpoch(r: DbEpochRow): EpochSummary {
   return {
     epochId: r.epoch_id,
@@ -205,6 +216,7 @@ function mapEpoch(r: DbEpochRow): EpochSummary {
     status: r.status,
     datasetHash: normalizeHex(r.dataset_hash),
     arweaveTx: r.arweave_tx,
+    datasetUrl: datasetUrlFor(r.arweave_tx),
     configHash: normalizeHex(r.config_hash),
     commitTx: normalizeHex(r.commit_tx),
     committedAt: r.committed_at,

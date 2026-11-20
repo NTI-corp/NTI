@@ -16,6 +16,8 @@ export interface EpochSummary {
   status: EpochStatus;
   datasetHash: string | null;
   arweaveTx: string | null;
+  /** Public download URL of the epoch dataset (Supabase Storage mirror or Arweave). */
+  datasetUrl?: string | null;
   configHash: string | null;
   commitTx: string | null;
   committedAt: string | null;

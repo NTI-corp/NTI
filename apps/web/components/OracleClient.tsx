@@ -404,17 +404,17 @@ export function OracleClient({ initial }: OracleClientProps) {
           </div>
           <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
             <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
-              Arweave Permanent Snapshot
+              Public Dataset Snapshot
             </div>
             <div className="mt-1 truncate text-[11px] text-[#CCFF00]">
-              {detail.epoch.arweaveTx ? (
+              {detail.epoch.datasetUrl ? (
                 <a
-                  href={`https://arweave.net/${detail.epoch.arweaveTx}`}
+                  href={detail.epoch.datasetUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="hover:underline"
                 >
-                  ar://{detail.epoch.arweaveTx} ↗
+                  {detail.epoch.arweaveTx} ↗
                 </a>
               ) : (
                 <span className="text-[#71717A]">Awaiting upload</span>

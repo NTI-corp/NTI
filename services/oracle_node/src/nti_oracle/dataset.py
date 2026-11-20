@@ -363,11 +363,12 @@ class LocalFileUploader:
 
 
 class SupabaseStorageMirror:
-    """Off-box copy of every delta dataset in a private Supabase Storage bucket.
+    """Off-box, publicly readable copy of every delta dataset in a Supabase Storage bucket.
 
     The VPS disk is the primary store; this mirror keeps the dataset chain recoverable if the disk
-    is lost.
-    Objects are keyed by the same tx id the epoch record carries, so recovery needs no extra index.
+    is lost, and the public bucket lets anyone download a dataset and recompute an epoch.
+    Datasets hold only ids, engagement counts and classifier scores (never post text).
+    Objects are keyed by the same tx id the epoch record carries.
     """
 
     def __init__(
@@ -400,11 +401,20 @@ class SupabaseStorageMirror:
         resp = await self._send(
             "POST",
             f"{self._base}/bucket",
-            json={"id": self._bucket, "name": self._bucket, "public": False},
+            json={"id": self._bucket, "name": self._bucket, "public": True},
         )
-        if resp.status_code >= 400 and "already exists" not in resp.text.lower():
-            resp.raise_for_status()
+        if resp.status_code >= 400:
+            if "already exists" not in resp.text.lower():
+                resp.raise_for_status()
+            # A bucket created earlier may still be private: make it public.
+            update = await self._send(
+                "PUT", f"{self._base}/bucket/{self._bucket}", json={"public": True}
+            )
+            update.raise_for_status()
         self._bucket_ready = True
+
+    def public_url(self, tx_id: str) -> str:
+        return f"{self._base}/object/public/{self._bucket}/{tx_id}.jsonl.gz"
 
     async def put(self, tx_id: str, data: bytes) -> None:
         await self._ensure_bucket()

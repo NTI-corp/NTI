@@ -26,6 +26,9 @@ def test_put_creates_bucket_once_and_upserts_object() -> None:
     asyncio.run(mirror.put("local_8_cd", b"data2"))
     paths = [(m, p) for m, p, _ in seen]
     assert paths.count(("POST", "/storage/v1/bucket")) == 1
+    assert mirror.public_url("local_7_ab").endswith(
+        "/storage/v1/object/public/nti-datasets/local_7_ab.jsonl.gz"
+    )
     assert ("POST", "/storage/v1/object/nti-datasets/local_7_ab.jsonl.gz") in paths
     upload_headers = next(h for m, p, h in seen if p.endswith("local_7_ab.jsonl.gz"))
     assert upload_headers["x-upsert"] == "true" and upload_headers["authorization"] == "Bearer svc"

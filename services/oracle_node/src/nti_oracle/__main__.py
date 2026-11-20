@@ -746,6 +746,18 @@ async def _run_keeper_tasks(
     return results
 
 
+async def _run_backfill_mirror() -> dict[str, Any]:
+    """Upload every local delta dataset to the public mirror bucket (idempotent)."""
+    mirror = SupabaseStorageMirror(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
+    uploaded: list[str] = []
+    for path in sorted((REPO_ROOT / "data" / "deltas").glob("*.jsonl.gz")):
+        tx_id = path.name.removesuffix(".jsonl.gz")
+        await mirror.put(tx_id, path.read_bytes())
+        uploaded.append(tx_id)
+    example = mirror.public_url(uploaded[-1]) if uploaded else None
+    return {"role": "backfill-mirror", "uploaded": len(uploaded), "example_url": example}
+
+
 async def _run_monitor(args: argparse.Namespace) -> dict[str, Any]:
     """Check epoch SLOs, wallet balances and fetch health; alert via Telegram when configured."""
     oracle = OracleCommitClient(
@@ -840,7 +852,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nti_oracle", description="NTI Oracle Node CLI")
     parser.add_argument(
         "--role",
-        choices=("operator", "validator", "keeper", "monitor"),
+        choices=("operator", "validator", "keeper", "monitor", "backfill-mirror"),
         required=True,
         help="Execution role for this oracle process",
     )
@@ -881,6 +893,8 @@ def main(argv: list[str] | None = None) -> int:
         and (os.environ.get("KEEPER_PRIVATE_KEY") or os.environ.get("OPERATOR_PRIVATE_KEY"))
     ):
         res = asyncio.run(_run_keeper(args))
+    elif args.role == "backfill-mirror":
+        res = asyncio.run(_run_backfill_mirror())
     elif args.role == "monitor":
         res = asyncio.run(_run_monitor(args))
     elif args.role == "validator" and os.environ.get("RPC_URL_TESTNET"):

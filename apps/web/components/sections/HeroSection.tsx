@@ -59,18 +59,13 @@ export function HeroSection() {
   const shaderStageRef = useRef<HTMLDivElement>(null);
   const contentStageRef = useRef<HTMLDivElement>(null);
   const whiteVeilRef = useRef<HTMLDivElement>(null);
-  const introWrapRef = useRef<HTMLDivElement>(null);
-  const introLineRef = useRef<HTMLDivElement>(null);
   const headlineRef = useRef<HTMLHeadingElement>(null);
   const ctaWrapRef = useRef<HTMLDivElement>(null);
-  const [introPercent, setIntroPercent] = useState(0);
-  const [introDone, setIntroDone] = useState(false);
   const [cta1Hovered, setCta1Hovered] = useState(false);
   const [cta2Hovered, setCta2Hovered] = useState(false);
 
   const { hero } = HOME_CONTENT;
 
-  // Quick non-blocking intro counter + curtain wipe, plus BELL-inspired camera zoom transition
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
     const el = sectionRef.current;
@@ -78,62 +73,30 @@ export function HeroSection() {
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    const counter = { value: 0 };
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        onComplete: () => setIntroDone(true),
-      });
-
-      if (introLineRef.current) {
-        tl.fromTo(
-          introLineRef.current,
-          { scaleX: 0, transformOrigin: "left center" },
-          { scaleX: 1, duration: 0.45, ease: "power2.inOut" },
-          0
-        )
-          .to(
-            counter,
-            {
-              value: 100,
-              duration: 0.45,
-              ease: "none",
-              onUpdate: () => setIntroPercent(Math.round(counter.value)),
-            },
-            0
-          )
-          .to(
-            introLineRef.current,
-            { scaleX: 0, transformOrigin: "right center", duration: 0.2 },
-            0.46
-          );
-      }
-
-      if (introWrapRef.current) {
-        tl.to(
-          introWrapRef.current,
-          { yPercent: -100, opacity: 0, duration: 0.55, ease: "power3.inOut" },
-          0.55
-        );
-      }
-
+    let playedIntro = false;
+    const playHeroEntrance = () => {
+      if (playedIntro) return;
+      playedIntro = true;
       if (headlineRef.current) {
-        tl.fromTo(
+        gsap.fromTo(
           headlineRef.current,
-          { y: 36, opacity: 0.15 },
-          { y: 0, opacity: 1, duration: 0.65, ease: "power3.out" },
-          0.5
+          { y: 36, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.75, ease: "power3.out", overwrite: true }
         );
       }
-
       if (ctaWrapRef.current) {
-        tl.fromTo(
+        gsap.fromTo(
           ctaWrapRef.current,
           { y: 24, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.55, ease: "power3.out" },
-          0.65
+          { y: 0, opacity: 1, duration: 0.65, delay: 0.12, ease: "power3.out", overwrite: true }
         );
       }
+    };
 
+    window.addEventListener("nti:intro", playHeroEntrance);
+    const fallbackEntrance = window.setTimeout(playHeroEntrance, 2600);
+
+    const ctx = gsap.context(() => {
       if (!reducedMotion && shaderStageRef.current && contentStageRef.current && whiteVeilRef.current) {
         const shaderEl = shaderStageRef.current;
         const contentEl = contentStageRef.current;
@@ -141,7 +104,6 @@ export function HeroSection() {
 
         const applyZoomExit = (q: number) => {
           const rush = q * q;
-          // Camera push through the headline and 3D obsidian surface
           const contentScale = 1 + rush * 0.78;
           const contentOpacity = 1 - smoothStep(0.1, 0.64, q);
           contentEl.style.transform = `scale(${contentScale.toFixed(4)})`;
@@ -153,7 +115,6 @@ export function HeroSection() {
           shaderEl.style.transform = `scale(${bgScale.toFixed(4)})`;
           shaderEl.style.opacity = bgOpacity.toFixed(4);
 
-          // Soft white portal sweep into LogoMarqueeSection
           const veilOpacity = Math.pow(smoothStep(0.28, 0.94, q), 1.2);
           veilEl.style.opacity = veilOpacity.toFixed(4);
         };
@@ -169,7 +130,11 @@ export function HeroSection() {
       }
     }, el);
 
-    return () => ctx.revert();
+    return () => {
+      clearTimeout(fallbackEntrance);
+      window.removeEventListener("nti:intro", playHeroEntrance);
+      ctx.revert();
+    };
   }, []);
 
   return (
@@ -178,25 +143,6 @@ export function HeroSection() {
       className="hero-first-section relative w-full h-[155svh] bg-[#090B0E] text-white"
     >
       <div className="sticky top-0 h-[100svh] w-full overflow-hidden flex flex-col justify-center">
-        {/* Non-blocking Intro Loader Curtain */}
-        {!introDone && (
-          <div
-            ref={introWrapRef}
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-30 bg-[#050505] flex flex-col items-center justify-center gap-[1em] px-[2em]"
-          >
-            <div className="font-mono text-[0.875em] tracking-wider text-white tabular-nums">
-              {introPercent}%
-            </div>
-            <div className="w-[15em] md:w-[25em] h-[2px] bg-white/15 overflow-hidden">
-              <div
-                ref={introLineRef}
-                className="w-full h-full bg-gradient-to-r from-[#CCFF00] via-white to-[#CCFF00]"
-              />
-            </div>
-          </div>
-        )}
-
         {/* Zoom-responsive WebGL Shader Backdrop */}
         <div
           ref={shaderStageRef}
