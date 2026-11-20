@@ -273,7 +273,7 @@ export function HeroSection() {
             {hero.headline}
           </h1>
 
-          <p className="mt-[1.35em] text-[1.0625em] md:text-[1.25em] leading-[1.35] tracking-[-0.015em] text-[#e0e2e6] max-w-[30em]">
+          <p className="mt-[1.35em] text-[1.0625em] md:text-[1.25em] leading-[1.4] tracking-[-0.015em] text-[#e0e2e6] max-w-[38em]">
             {hero.subheadline}
           </p>
 

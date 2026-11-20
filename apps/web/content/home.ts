@@ -58,17 +58,18 @@ export interface VideoRecapItem {
 
 export const HOME_CONTENT = {
   hero: {
-    headline: "Where AI transacts",
-    subheadline: "Sui is the infrastructure for trusted autonomous execution",
+    headline: "Track & trade crypto mindshare",
+    subheadline:
+      "NTI indexes real-time sector attention across X every 4 hours — powering relative pair markets, TWAP narrative vaults, and native ETH yield on Robinhood Chain.",
     primaryCta: {
-      label: "Go to docs",
-      href: "https://docs.sui.io/",
-      external: true,
+      label: "Open terminal",
+      href: "/terminal",
+      external: false,
     },
     secondaryCta: {
-      label: "Get a wallet",
-      href: "https://sui.io/get-started",
-      external: true,
+      label: "Trade markets",
+      href: "/markets",
+      external: false,
     },
     desktopVideoMp4: "/assets/videos/sui-homepage-visual.mp4",
     desktopVideoWebm: "/assets/videos/sui-homepage-visual.webm",
