@@ -337,7 +337,8 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
     target_epoch = (
         args.epoch
         if args.epoch is not None
-        else (state.block_timestamp - state.genesis_timestamp - 3600) // cfg.epoch_seconds
+        else (state.block_timestamp - state.genesis_timestamp - await client.get_commit_delay())
+        // cfg.epoch_seconds
     )
     if target_epoch <= state.last_processed_epoch:
         return {
@@ -571,15 +572,42 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
         on_conflict="epoch_id,validator",
     )
 
+    finalize_tx = await _finalize_when_window_is_short(client, storage, payload.epoch_id, op_key)
+
     return {
         "role": "operator",
         "status": "committed",
         "epoch_id": payload.epoch_id,
         "tx_hash": tx_hash,
+        "finalize_tx": finalize_tx,
         "post_count": len(delta_posts),
         "dataset_hash": payload.dataset_hash,
         "i_vector": list(payload.median_i_vector),
     }
+
+
+async def _finalize_when_window_is_short(
+    client: OracleCommitClient, storage: SupabaseStorage, epoch_id: int, key: str
+) -> str | None:
+    """Finalize right after commit when the on-chain dispute window is only seconds long (testnet).
+
+    With the production 2 hour window this is skipped and the keeper finalizes later. Errors are
+    swallowed on purpose: the keeper retries on its next run.
+    """
+    try:
+        window = await client.get_dispute_window()
+        if window > 120:
+            return None
+        await asyncio.sleep(window + 3)
+        tx = await client.finalize_epoch(private_key=key, epoch_id=epoch_id)
+        await storage.patch(
+            "epochs",
+            filters={"epoch_id": f"eq.{epoch_id}"},
+            values={"status": "final", "finalized_at": datetime.now(UTC).isoformat()},
+        )
+        return tx
+    except Exception:  # noqa: BLE001 - keeper will finalize on its next tick
+        return None
 
 
 async def _run_keeper(args: argparse.Namespace) -> dict[str, Any]:

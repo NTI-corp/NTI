@@ -107,6 +107,10 @@ class OracleCommitClient:
         raw = await self._call("DISPUTE_WINDOW()", [], [])
         return int(abi_decode(["uint64"], raw)[0])
 
+    async def get_commit_delay(self) -> int:
+        raw = await self._call("COMMIT_DELAY()", [], [])
+        return int(abi_decode(["uint64"], raw)[0])
+
     async def _send_tx(self, private_key: str, calldata: bytes) -> str:
         acct = Account.from_key(private_key)
         sender = acct.address
