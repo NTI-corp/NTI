@@ -63,7 +63,12 @@ Estimated cost from the last simulation: about 0.0015 ETH at 0.04 gwei.
    repo's history (`hasRole` reads) is enough.
 3. Conservative caps stay at their defaults: market pool 5 ETH, 20 open markets, global TVL 50 ETH, basket TVL 10 ETH.
    Raise only through governance after weeks without incidents.
-4. Governor voting period is **21,600 blocks** (about 3 days on the 12s parent-chain clock that
+4. **Safety windows are frozen at deploy.** `DeployMainnet` locks the timings at the production defaults
+   (2h dispute window, 6h resolution window, 7d unstake cooldown, 48h settle timeout, 6/42-epoch market horizons)
+   with `lockTimings()` on OracleCommit, Dispute, Staking and NarrativeMarket. Testnet keeps them unlocked and short
+   (2 minute dispute window, 5 minute cooldown) so every flow can be exercised in minutes. Verify on mainnet that
+   `timingsLocked()` is `true` on all four before announcing anything.
+5. Governor voting period is **21,600 blocks** (about 3 days on the 12s parent-chain clock that
    `block.number` returns on this chain). Do not reuse the old 259,200 value.
 
 ## 5. Token attach (when the CA exists)

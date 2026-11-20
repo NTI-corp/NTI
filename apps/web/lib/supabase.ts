@@ -894,7 +894,8 @@ export async function fetchMarketsData(): Promise<{
 
   // On-chain state is the source of truth; the Supabase mirror only fills in if the RPC read fails.
   const liveMarkets = await readLiveMarketsFromChain(iById);
-  if (liveMarkets && liveMarkets.length > 0) {
+  if (liveMarkets !== null) {
+    // A successful chain read is authoritative even when it is empty; the mirror may hold stale rows.
     return { awaitingDeployment: false, markets: liveMarkets };
   }
 
@@ -1000,7 +1001,9 @@ export async function fetchMarketsData(): Promise<{
         ? "All-Narrative Average"
         : NARRATIVE_BY_ID.get(r.narrative_b)?.label ?? `Narrative #${r.narrative_b}`;
     const horizon = r.settle_epoch - r.base_epoch > 10 ? "7D (42 epochs)" : "24H (6 epochs)";
-    const cutoffMs = new Date(r.cutoff_at).getTime();
+    const rawCutoffMs = r.cutoff_at ? new Date(r.cutoff_at).getTime() : NaN;
+    const cutoffMs = Number.isFinite(rawCutoffMs) ? rawCutoffMs : Date.now();
+    const cutoffAt = r.cutoff_at || new Date(cutoffMs).toISOString();
     return {
       marketId: r.market_id,
       narrativeA: r.narrative_a,
@@ -1010,7 +1013,7 @@ export async function fetchMarketsData(): Promise<{
       baseEpoch: r.base_epoch,
       settleEpoch: r.settle_epoch,
       horizonLabel: horizon,
-      cutoffAt: r.cutoff_at,
+      cutoffAt,
       settleAt: new Date(cutoffMs + 8 * 3600_000).toISOString(),
       status: r.status,
       outcome: r.outcome,
@@ -1043,7 +1046,7 @@ export async function fetchBasketsData(): Promise<{
   }>("baskets?select=*&order=narrative_id.asc", "anon");
 
   const liveBaskets = await readLiveBasketsFromChain();
-  if (liveBaskets && liveBaskets.length > 0) {
+  if (liveBaskets !== null) {
     return { awaitingDeployment: false, baskets: liveBaskets };
   }
 
@@ -1155,7 +1158,7 @@ export async function fetchGrantsData(): Promise<{
   }>("grant_rounds?select=*&order=round_id.desc&limit=5", "anon");
 
   const liveRounds = await readLiveGrantRoundsFromChain();
-  if (liveRounds && liveRounds.length > 0) {
+  if (liveRounds !== null) {
     return { awaitingDeployment: false, rounds: liveRounds };
   }
 
@@ -1231,7 +1234,8 @@ export async function fetchGrantsData(): Promise<{
     return { awaitingDeployment: true, rounds: [previewRound] };
   }
 
-  const liveMap = new Map((liveRounds ?? []).map((r) => [r.roundId, r]));
+  // Only reached when the chain read failed, so the mirror rows carry no live vote data.
+  const liveMap = new Map<number, GrantRoundItem>();
 
   return {
     awaitingDeployment: false,
