@@ -60,7 +60,7 @@ module.exports = {
       cwd: "/home/ubuntu/apps/nti/services",
       script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
       args: "uv run python -m nti_oracle --role keeper",
-      cron_restart: "5,25,45 * * * *",
+      cron_restart: "*/5 * * * *",
       autorestart: false,
       max_memory_restart: "128M",
       env: {

@@ -69,6 +69,7 @@ def test_settle_markets_only_settles_final_or_timed_out() -> None:
     market = FakeContract(
         {
             "nextMarketId()": (["uint256"], [5]),
+            "SETTLE_TIMEOUT()": (["uint256"], [48 * 3600]),
             "markets(uint256):1": market_row(100, True),
             "markets(uint256):2": market_row(101, False),
             "markets(uint256):3": market_row(102, False),

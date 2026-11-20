@@ -158,6 +158,13 @@ contract DeployMainnet is Script {
 
         configRegistry.setConfig(initConfigHash, INITIAL_NARRATIVE_COUNT, 1);
 
+        // Production timings are the contract defaults (2h dispute window, 6h resolution, 7d cooldown, 48h
+        // settle timeout). Freeze them so no key or vote can shorten the safety windows later.
+        oracleCommit.lockTimings();
+        dispute.lockTimings();
+        staking.lockTimings();
+        narrativeMarket.lockTimings();
+
         vm.stopBroadcast();
 
         d.registry = address(registry);

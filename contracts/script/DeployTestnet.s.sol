@@ -169,6 +169,13 @@ contract DeployTestnet is Script {
 
         configRegistry.setConfig(initConfigHash, INITIAL_NARRATIVE_COUNT, 1);
 
+        // Testnet only: short waits so every flow can be exercised in minutes. Left unlocked.
+        // Commit delay stays 60 minutes: it is the data-collection window, not a security wait.
+        oracleCommit.setTimings(60 minutes, 2 minutes, 4 hours); // commit delay, dispute window, incomplete
+        dispute.setResolutionWindow(30 minutes);
+        staking.setCooldownDuration(5 minutes);
+        narrativeMarket.setTimings(2, 6, 0, 1 hours); // short/long horizon (epochs), bet cutoff (epochs), timeout
+
         vm.stopBroadcast();
 
         d.registry = address(registry);

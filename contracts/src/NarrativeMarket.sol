@@ -15,10 +15,14 @@ import {IStaking} from "./interfaces/IStaking.sol";
 contract NarrativeMarket is AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    uint32 public constant HORIZON_SHORT = 6; // 6 epochs = 24 hours
-    uint32 public constant HORIZON_LONG = 42; // 42 epochs = 7 days
-    uint32 public constant BET_CUTOFF_EPOCHS = 2; // 8 hours before settleEpoch boundary
-    uint64 public constant SETTLE_TIMEOUT = 48 hours;
+    uint64 public constant MAX_TIMEOUT = 14 days;
+
+    // Defaults are the production schedule; testnet shortens them, mainnet freezes them.
+    uint32 public HORIZON_SHORT = 6; // 6 epochs = 24 hours
+    uint32 public HORIZON_LONG = 42; // 42 epochs = 7 days
+    uint32 public BET_CUTOFF_EPOCHS = 2; // 8 hours before settleEpoch boundary
+    uint64 public SETTLE_TIMEOUT = 48 hours;
+    bool public timingsLocked;
     uint16 public constant BASE_FEE_BPS = 10; // 0.1%
 
     uint8 public constant OUTCOME_OPEN = 0;
@@ -84,6 +88,8 @@ contract NarrativeMarket is AccessControl, ReentrancyGuard, Pausable {
     error NothingToClaim();
     error EthTransferFailed();
     error InvalidParams();
+    error TimingsAreLocked();
+    error InvalidTimings();
 
     event MarketCreated(
         uint256 indexed marketId,
@@ -103,6 +109,10 @@ contract NarrativeMarket is AccessControl, ReentrancyGuard, Pausable {
     );
     event MarketSettled(uint256 indexed marketId, uint8 outcome, uint256 feesSent);
     event Claimed(uint256 indexed marketId, address indexed bettor, uint256 payout);
+    event TimingsUpdated(
+        uint32 horizonShort, uint32 horizonLong, uint32 betCutoffEpochs, uint64 settleTimeout
+    );
+    event TimingsFrozen();
     event RiskParamsUpdated(uint256 minBet, uint256 maxPoolPerMarket, uint256 maxOpenMarkets, uint256 maxGlobalTVL);
 
     constructor(
@@ -151,6 +161,30 @@ contract NarrativeMarket is AccessControl, ReentrancyGuard, Pausable {
         maxOpenMarkets = maxOpenMarkets_;
         maxGlobalTVL = maxGlobalTVL_;
         emit RiskParamsUpdated(minBet_, maxPoolPerMarket_, maxOpenMarkets_, maxGlobalTVL_);
+    }
+
+    function setTimings(
+        uint32 horizonShort_,
+        uint32 horizonLong_,
+        uint32 betCutoffEpochs_,
+        uint64 settleTimeout_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (timingsLocked) revert TimingsAreLocked();
+        if (
+            horizonShort_ == 0 || horizonLong_ <= horizonShort_ || betCutoffEpochs_ >= horizonShort_
+                || settleTimeout_ == 0 || settleTimeout_ > MAX_TIMEOUT
+        ) revert InvalidTimings();
+        HORIZON_SHORT = horizonShort_;
+        HORIZON_LONG = horizonLong_;
+        BET_CUTOFF_EPOCHS = betCutoffEpochs_;
+        SETTLE_TIMEOUT = settleTimeout_;
+        emit TimingsUpdated(horizonShort_, horizonLong_, betCutoffEpochs_, settleTimeout_);
+    }
+
+    /// @notice Permanently freezes the market schedule at its current values.
+    function lockTimings() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        timingsLocked = true;
+        emit TimingsFrozen();
     }
 
     // --- Core Market Lifecycle ---

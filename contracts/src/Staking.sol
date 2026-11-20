@@ -28,7 +28,9 @@ contract Staking is IStaking, AccessControl, ReentrancyGuard, Pausable {
     bytes32 public constant SLASHER_ROLE = keccak256("SLASHER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
-    uint64 public constant COOLDOWN_DURATION = 7 days;
+    uint64 public constant MAX_COOLDOWN = 30 days;
+    uint64 public COOLDOWN_DURATION = 7 days;
+    bool public timingsLocked;
     uint256 public constant REWARD_PRECISION = 1e18;
 
     struct Cooldown {
@@ -71,8 +73,12 @@ contract Staking is IStaking, AccessControl, ReentrancyGuard, Pausable {
     error FutureLookup(uint256 timepoint, uint48 currentClock);
     error ExternalDelegationDisabled();
     error InvalidTierConfig();
+    error TimingsAreLocked();
+    error InvalidTimings();
 
     event Staked(address indexed account, uint256 receivedAmount);
+    event CooldownUpdated(uint64 cooldown);
+    event TimingsFrozen();
     event UnstakeRequested(address indexed account, uint256 amount, uint64 unlockAt);
     event Withdrawn(address indexed account, uint256 amount);
     event RewardNotified(uint256 ethAdded, uint256 distributed, uint256 buffered);
@@ -112,6 +118,19 @@ contract Staking is IStaking, AccessControl, ReentrancyGuard, Pausable {
 
     function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
+    }
+
+    function setCooldownDuration(uint64 cooldown_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (timingsLocked) revert TimingsAreLocked();
+        if (cooldown_ == 0 || cooldown_ > MAX_COOLDOWN) revert InvalidTimings();
+        COOLDOWN_DURATION = cooldown_;
+        emit CooldownUpdated(cooldown_);
+    }
+
+    /// @notice Permanently freezes the unstake cooldown at its current value.
+    function lockTimings() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        timingsLocked = true;
+        emit TimingsFrozen();
     }
 
     // --- Governance Tier Config ---

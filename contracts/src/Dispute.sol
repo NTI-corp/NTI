@@ -28,7 +28,9 @@ contract Dispute is AccessControl, ReentrancyGuard, Pausable, EIP712 {
     uint8 public constant STATE_LOST = 3;
     uint8 public constant STATE_EXPIRED = 4;
 
-    uint64 public constant RESOLUTION_WINDOW = 6 hours;
+    uint64 public constant MAX_TIMING = 7 days;
+    uint64 public RESOLUTION_WINDOW = 6 hours;
+    bool public timingsLocked;
     uint16 public constant DEVIATION_THRESHOLD_BPS = 100;
     uint256 public constant MIN_VALIDATORS = 3;
 
@@ -74,6 +76,8 @@ contract Dispute is AccessControl, ReentrancyGuard, Pausable, EIP712 {
     error DuplicateValidator(address validator);
     error InvalidVectorLength(uint256 expected, uint256 provided);
     error InvalidSignature(address validator);
+    error TimingsAreLocked();
+    error InvalidTimings();
 
     event DisputeOpened(
         uint256 indexed disputeId,
@@ -87,6 +91,8 @@ contract Dispute is AccessControl, ReentrancyGuard, Pausable, EIP712 {
     event DisputeResolved(uint256 indexed disputeId, uint32 indexed epochId, bool challengerWon);
     event DisputeExpired(uint256 indexed disputeId, uint32 indexed epochId);
     event DisputeParamsUpdated(uint256 bond, uint256 operatorSlash, uint256 validatorSlash);
+    event ResolutionWindowUpdated(uint64 window);
+    event TimingsFrozen();
 
     constructor(
         address registry_,
@@ -129,6 +135,19 @@ contract Dispute is AccessControl, ReentrancyGuard, Pausable, EIP712 {
         operatorSlashAmount = operatorSlash_;
         validatorSlashAmount = validatorSlash_;
         emit DisputeParamsUpdated(bond_, operatorSlash_, validatorSlash_);
+    }
+
+    function setResolutionWindow(uint64 window_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (timingsLocked) revert TimingsAreLocked();
+        if (window_ == 0 || window_ > MAX_TIMING) revert InvalidTimings();
+        RESOLUTION_WINDOW = window_;
+        emit ResolutionWindowUpdated(window_);
+    }
+
+    /// @notice Permanently freezes the resolution window at its current value.
+    function lockTimings() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        timingsLocked = true;
+        emit TimingsFrozen();
     }
 
     // --- EIP-712 Helper ---

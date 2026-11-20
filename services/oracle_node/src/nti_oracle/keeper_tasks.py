@@ -21,7 +21,6 @@ from nti_oracle.chain import ChainRpcError
 
 STATUS_FINAL = 3
 STATUS_INCOMPLETE = 4
-SETTLE_TIMEOUT_SECONDS = 48 * 3600
 BUYBACK_COOLDOWN_SECONDS = 300
 MIN_DISTRIBUTE_WEI = 10**9
 MIN_BUYBACK_WEI = 10**12
@@ -70,6 +69,7 @@ async def settle_markets(
     """Settle every open market whose settle epoch is final/incomplete or timed out."""
     now = now or int(time.time())
     next_id = await _uint(market, "nextMarketId()")
+    settle_timeout = await _uint(market, "SETTLE_TIMEOUT()")  # configurable on-chain
     settled: list[dict[str, Any]] = []
     for market_id in range(1, next_id):
         raw = await market._call("markets(uint256)", ["uint256"], [market_id])
@@ -103,7 +103,7 @@ async def settle_markets(
                 ["uint64"], await oracle._call("epochBoundary(uint32)", ["uint32"], [settle_epoch])
             )[0]
         )
-        timed_out = status != STATUS_FINAL and now > boundary + SETTLE_TIMEOUT_SECONDS
+        timed_out = status != STATUS_FINAL and now > boundary + settle_timeout
         if status in (STATUS_FINAL, STATUS_INCOMPLETE) or timed_out:
             tx = await market._send_tx(
                 private_key, _enc("settle(uint256)", ["uint256"], [market_id])

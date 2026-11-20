@@ -29,9 +29,14 @@ contract OracleCommit is IOracleCommit, AccessControl, Pausable, EIP712 {
     uint8 public constant override STATUS_INCOMPLETE = 4;
 
     uint64 public constant override EPOCH_DURATION = 4 hours;
-    uint64 public constant COMMIT_DELAY = 60 minutes;
-    uint64 public constant override DISPUTE_WINDOW = 2 hours;
-    uint64 public constant INCOMPLETE_DELAY = 4 hours;
+    uint64 public constant MAX_TIMING = 7 days;
+
+    // Timing parameters. Production values are the defaults; testnet shortens them with setTimings(),
+    // and mainnet freezes them with lockTimings() right after deployment.
+    uint64 public COMMIT_DELAY = 60 minutes;
+    uint64 public override DISPUTE_WINDOW = 2 hours;
+    uint64 public INCOMPLETE_DELAY = 4 hours;
+    bool public timingsLocked;
     uint16 public constant MAX_DEVIATION_BPS = 100;
     uint256 public constant MIN_VALIDATORS = 3;
     uint32 public constant MAX_AUTO_SKIP = 100;
@@ -88,6 +93,8 @@ contract OracleCommit is IOracleCommit, AccessControl, Pausable, EIP712 {
     error InvalidNarrativeId(uint8 narrativeId);
     error PermissionlessDisabled();
     error InsufficientValidatorStake(uint256 current, uint256 required);
+    error TimingsAreLocked();
+    error InvalidTimings();
 
     event EpochCommitted(
         uint32 indexed epochId,
@@ -104,6 +111,8 @@ contract OracleCommit is IOracleCommit, AccessControl, Pausable, EIP712 {
     event PermissionlessUpdated(bool enabled);
     event MinValidatorStakeUpdated(uint256 newMinStake);
     event ValidatorJoined(address indexed validator);
+    event TimingsUpdated(uint64 commitDelay, uint64 disputeWindow, uint64 incompleteDelay);
+    event TimingsFrozen();
 
     constructor(
         address staking_,
@@ -138,6 +147,28 @@ contract OracleCommit is IOracleCommit, AccessControl, Pausable, EIP712 {
     function setPermissionless(bool enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
         permissionless = enabled;
         emit PermissionlessUpdated(enabled);
+    }
+
+    function setTimings(uint64 commitDelay_, uint64 disputeWindow_, uint64 incompleteDelay_)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (timingsLocked) revert TimingsAreLocked();
+        if (
+            commitDelay_ == 0 || disputeWindow_ == 0 || incompleteDelay_ == 0
+                || commitDelay_ > MAX_TIMING || disputeWindow_ > MAX_TIMING
+                || incompleteDelay_ > MAX_TIMING || incompleteDelay_ <= commitDelay_
+        ) revert InvalidTimings();
+        COMMIT_DELAY = commitDelay_;
+        DISPUTE_WINDOW = disputeWindow_;
+        INCOMPLETE_DELAY = incompleteDelay_;
+        emit TimingsUpdated(commitDelay_, disputeWindow_, incompleteDelay_);
+    }
+
+    /// @notice Permanently freezes the timing parameters at their current values.
+    function lockTimings() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        timingsLocked = true;
+        emit TimingsFrozen();
     }
 
     function setMinValidatorStake(uint256 newMinStake) external onlyRole(DEFAULT_ADMIN_ROLE) {
