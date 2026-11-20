@@ -128,21 +128,36 @@ async def _ensure_classified_posts(
     ).isoformat()
 
     kol_ids = {k.user_id for k in kols}
-    post_rows = await storage.select(
-        "posts",
-        columns="tweet_id,user_id,created_at,body",
-        filters={"created_at": f"gte.{lookback_start_iso}"},
-        order="created_at.desc",
-        limit=2000,
-    )
-    post_rows = [
-        r
-        for r in post_rows
-        if int(r["user_id"]) in kol_ids and _parse_dt_unix(str(r["created_at"])) <= boundary_unix
-    ]
 
-    # Bootstrap live fetch if no posts in window yet
-    if not post_rows:
+    async def load_post_rows() -> list[dict[str, Any]]:
+        rows = await storage.select(
+            "posts",
+            columns="tweet_id,user_id,created_at,body",
+            filters={"created_at": f"gte.{lookback_start_iso}"},
+            order="created_at.desc",
+            limit=2000,
+        )
+        return [
+            r
+            for r in rows
+            if int(r["user_id"]) in kol_ids
+            and _parse_dt_unix(str(r["created_at"])) <= boundary_unix
+        ]
+
+    post_rows = await load_post_rows()
+
+    # Fetch fresh posts when none exist yet OR the last fetch finished before this epoch boundary. The
+    # commit delay can be shorter than the fetcher's schedule, and a commit built on stale data fails the
+    # validators' omission check.
+    last_cycle = await storage.select(
+        "fetch_cycles", columns="finished_at", order="id.desc", limit=1
+    )
+    last_fetch_unix = (
+        _parse_dt_unix(str(last_cycle[0]["finished_at"]))
+        if last_cycle and last_cycle[0].get("finished_at")
+        else 0
+    )
+    if not post_rows or last_fetch_unix < boundary_unix:
         runner = FetchRunner(
             primary=source,
             output_dir=REPO_ROOT / "data" / "snapshots",
@@ -195,15 +210,7 @@ async def _ensure_classified_posts(
                     for p in fetch_res.posts
                 ]
             )
-            post_rows = [
-                {
-                    "tweet_id": p.tweet_id,
-                    "user_id": p.user_id,
-                    "created_at": p.created_at.astimezone(UTC).isoformat(),
-                    "body": p.text,
-                }
-                for p in fetch_res.posts
-            ]
+            post_rows = await load_post_rows()
 
     if not post_rows:
         return [], os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
