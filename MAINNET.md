@@ -26,7 +26,7 @@ project with `NEXT_PUBLIC_CHAIN_ID=4663`. The testnet stack stays up as the publ
 
 ## 2. Environment
 
-Copy `infra/.env.mainnet.example` to a file outside git (for example `.env.mainnet`) and fill it in. Then:
+Copy `infra/mainnet.env.example` to a file outside git (for example `.env.mainnet`) and fill it in. Then:
 
 ```powershell
 uv run --directory services python ../infra/scripts/mainnet_preflight.py --env-file ../.env.mainnet
