@@ -381,8 +381,8 @@ export async function fetchNarrativeHistory(
       capped: boolean;
       kols?: { handle?: string; followers?: number } | null;
     }>(
-      `kol_contribution?select=user_id,share_bps,capped&epoch_id=eq.${finalEpochs[finalEpochs.length - 1]!.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
-      "anon",
+      `kol_contribution?select=user_id,share_bps,capped,kols(handle,followers)&epoch_id=eq.${finalEpochs[finalEpochs.length - 1]!.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
+      "service",
     ),
     supabaseSelect<{
       address: string;
