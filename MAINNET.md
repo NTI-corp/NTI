@@ -103,3 +103,18 @@ This is irreversible: confirm the Timelock proposer and canceller are the Govern
 * Dataset hashes are stored locally; Arweave (Turbo) or IPFS upload is not wired, so `arweave_tx` is a local id.
 * The KOL universe is 35 accounts today versus 1,500 planned.
 * No independent audit. The brief's substitute is tests, fork tests and the conservative caps above.
+
+## Static analysis triage (Slither, medium and above, CI run on 2026-11-20)
+
+17 results, none actionable; reviewed by hand:
+
+| Detector | Where | Verdict |
+| --- | --- | --- |
+| arbitrary-send-eth | `BuybackAdapterV4._executeRouter` | ETH goes to the immutable Universal Router set at deploy; not user-controlled |
+| reentrancy-balance (x14) | `BuybackAdapterV3/V4.swapExactInput` | Intentional before/after balance deltas; the function is `nonReentrant` and callable only through FeeRouter's keeper path |
+| locked-ether | `Staking.notifyReward` | Received ETH is credited to `rewardPerShare` and paid out by `claim()`; Slither cannot see that path |
+| uninitialized-local | `BuybackAdapterV4._buildPath.nextCurrency` | Assigned in every non-reverting branch |
+| unused-return | V3 `exactInputSingle`, V4 `getSlot0` | Output is verified through balance deltas / only the price is needed |
+
+The `ERROR:Slither:Failed to resolved name` lines in the log are a known compiler-ID mapping quirk with
+OpenZeppelin 5.x and do not affect results. This is a tooling pass, not an audit.
