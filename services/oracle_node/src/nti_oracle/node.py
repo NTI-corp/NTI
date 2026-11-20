@@ -282,6 +282,7 @@ class OperatorNode:
 
         valid_atts: list[SignedAttestation] = []
         seen_validators: set[str] = set()
+        rejections: list[str] = []
         for val in validators:
             decision = await val.verify_and_sign(
                 delta_blob=artifact.gzipped,
@@ -293,6 +294,7 @@ class OperatorNode:
                 prev_commit_hash=prev_commit_hash,
             )
             if not decision.approved or decision.attestation is None:
+                rejections.append(f"{decision.validator[:10]}: {decision.reason}")
                 continue
             signer_lc = decision.attestation.validator.lower()
             if signer_lc not in self._registered or signer_lc in seen_validators:
@@ -310,7 +312,7 @@ class OperatorNode:
         if len(valid_atts) < self._min_validators:
             raise ConsensusError(
                 f"Insufficient valid attestations for epoch {epoch_id}: "
-                f"{len(valid_atts)} < {self._min_validators}"
+                f"{len(valid_atts)} < {self._min_validators}; rejections: {rejections}"
             )
 
         median_i = compute_median_vector([a.i_vector for a in valid_atts])
