@@ -76,6 +76,8 @@ export function createIndexerClient(cfg: IndexerConfig): LogFetcherClient {
 
   return {
     getBlockNumber: () => client.getBlockNumber(),
+    getBlockTimestamp: async (blockNumber) =>
+      Number((await client.getBlock({ blockNumber })).timestamp),
     getLogs: async ({ address, fromBlock, toBlock }) => {
       const logs = await client.getLogs({
         address,

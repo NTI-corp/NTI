@@ -958,6 +958,7 @@ dependencies = [
     { name = "eth-account" },
     { name = "httpx" },
     { name = "nti-core" },
+    { name = "nti-discovery" },
     { name = "nti-engine" },
     { name = "nti-fetcher" },
 ]
@@ -967,6 +968,7 @@ requires-dist = [
     { name = "eth-account", specifier = ">=0.13.0" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "nti-core", editable = "nti_core" },
+    { name = "nti-discovery", editable = "discovery" },
     { name = "nti-engine", editable = "engine" },
     { name = "nti-fetcher", editable = "fetcher" },
 ]

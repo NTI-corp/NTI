@@ -19,6 +19,8 @@ export interface RawChainLog {
 
 export interface LogFetcherClient {
   getBlockNumber(): Promise<bigint>;
+  /** Unix seconds of a block. Optional so minimal test doubles keep working. */
+  getBlockTimestamp?(blockNumber: bigint): Promise<number>;
   getLogs(params: {
     address?: Address | Address[];
     fromBlock: bigint;
@@ -52,6 +54,7 @@ export const DEFAULT_POLL_INTERVAL_MS = 5_000;
 export function decodeNtiLog(
   chainId: number,
   log: RawChainLog,
+  blockTimeIso: string = new Date().toISOString(),
 ): { eventRow: ChainEventRow; mirrors: MirrorUpsert[] } | null {
   if (
     log.blockNumber === null ||
@@ -98,6 +101,7 @@ export function decodeNtiLog(
     contractAddress: log.address,
     eventName: decoded.eventName,
     args: serializedArgs,
+    blockTimeIso,
   });
 
   return { eventRow, mirrors };
@@ -224,8 +228,25 @@ export class IndexerPoller {
       const eventRows: ChainEventRow[] = [];
       const mirrors: MirrorUpsert[] = [];
 
+      const blockTimes = new Map<bigint, string>();
+      if (this.client.getBlockTimestamp) {
+        const distinct = new Set<bigint>();
+        for (const log of rawLogs) if (log.blockNumber !== null) distinct.add(log.blockNumber);
+        for (const bn of distinct) {
+          try {
+            blockTimes.set(bn, new Date((await this.client.getBlockTimestamp(bn)) * 1000).toISOString());
+          } catch {
+            // fall back to indexing time for this block
+          }
+        }
+      }
+
       for (const log of rawLogs) {
-        const parsed = decodeNtiLog(this.chainId, log);
+        const parsed = decodeNtiLog(
+          this.chainId,
+          log,
+          log.blockNumber !== null ? blockTimes.get(log.blockNumber) : undefined,
+        );
         if (!parsed) continue;
         eventRows.push(parsed.eventRow);
         mirrors.push(...parsed.mirrors);

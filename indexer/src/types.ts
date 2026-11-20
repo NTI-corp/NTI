@@ -32,6 +32,8 @@ export interface DecodedEventContext {
   contractAddress: Address;
   eventName: string;
   args: Record<string, unknown>;
+  /** ISO timestamp of the block containing the log (falls back to indexing time when unavailable). */
+  blockTimeIso: string;
 }
 
 export type EventHandler = (ctx: DecodedEventContext) => MirrorUpsert[];

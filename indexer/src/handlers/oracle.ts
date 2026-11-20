@@ -2,7 +2,7 @@ import type { DecodedEventContext, MirrorUpsert } from "../types.js";
 
 export function handleOracleEvent(ctx: DecodedEventContext): MirrorUpsert[] {
   const { eventName, args, txHash, blockNumber } = ctx;
-  const nowIso = new Date().toISOString();
+  const nowIso = ctx.blockTimeIso;
 
   switch (eventName) {
     case "EpochCommitted":

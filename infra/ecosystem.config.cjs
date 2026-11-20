@@ -34,7 +34,9 @@ module.exports = {
       cwd: "/home/ubuntu/apps/nti/services",
       script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
       args: "uv run python -m nti_oracle --role operator",
-      cron_restart: "25 1,5,9,13,17,21 * * *",
+      // Idempotent: exits "up_to_date" when the due epoch is already committed. Running every 20 minutes
+      // (instead of fixed hours) keeps commit latency independent of the VPS timezone.
+      cron_restart: "10,30,50 * * * *",
       autorestart: false,
       max_memory_restart: "180M",
       env: {
@@ -58,7 +60,19 @@ module.exports = {
       cwd: "/home/ubuntu/apps/nti/services",
       script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
       args: "uv run python -m nti_oracle --role keeper",
-      cron_restart: "15 * * * *",
+      cron_restart: "5,25,45 * * * *",
+      autorestart: false,
+      max_memory_restart: "128M",
+      env: {
+        PYTHONUNBUFFERED: "1",
+      },
+    },
+    {
+      name: "nti-monitor",
+      cwd: "/home/ubuntu/apps/nti/services",
+      script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
+      args: "uv run python -m nti_oracle --role monitor",
+      cron_restart: "*/30 * * * *",
       autorestart: false,
       max_memory_restart: "128M",
       env: {

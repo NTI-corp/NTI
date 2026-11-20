@@ -1,4 +1,4 @@
-"""CLI entrypoint: python -m nti_oracle --role operator|validator|keeper."""
+"""CLI entrypoint: python -m nti_oracle --role operator|validator|keeper|monitor."""
 
 from __future__ import annotations
 
@@ -25,7 +25,22 @@ from nti_fetcher.storage import SupabaseStorage
 
 from nti_oracle.chain import OracleCommitClient
 from nti_oracle.dataset import ZERO_HASH, LocalFileUploader, tx_id_to_bytes32
-from nti_oracle.node import OperatorNode, ValidatorNode
+from nti_oracle.keeper_tasks import (
+    _guard,
+    distribute_fees,
+    manage_grant_round,
+    run_buyback,
+    settle_markets,
+    sync_radar_alerts,
+)
+from nti_oracle.monitor import (
+    AlertDeduper,
+    MonitorInputs,
+    default_state_path,
+    now_unix,
+    run_monitor,
+)
+from nti_oracle.node import OperatorNode, TelegramNotifier, ValidatorNode
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -52,6 +67,13 @@ def _load_oracle_address(chain_id: int) -> str:
     if not addr:
         raise RuntimeError(f"oracleCommit address missing in {dep_path}")
     return addr
+
+
+def _load_deployment(chain_id: int) -> dict[str, str]:
+    dep_path = REPO_ROOT / "contracts" / "deployments" / f"{chain_id}.json"
+    if not dep_path.exists():
+        raise RuntimeError(f"Deployment manifest missing: {dep_path}")
+    return {k: str(v) for k, v in json.loads(dep_path.read_text(encoding="utf-8")).items()}
 
 
 def _rpc_url_for_chain(chain_id: int) -> str:
@@ -583,12 +605,144 @@ async def _run_keeper(args: argparse.Namespace) -> dict[str, Any]:
             )
             finalized.append({"epoch_id": eid, "tx_hash": tx_hash})
 
+    tasks = await _run_keeper_tasks(args, storage, client, keeper_key)
+
     return {
         "role": "keeper",
         "chain_id": args.chain_id,
         "checked": len(committed),
         "finalized": finalized,
+        "tasks": tasks,
     }
+
+
+async def _run_keeper_tasks(
+    args: argparse.Namespace,
+    storage: SupabaseStorage,
+    oracle: OracleCommitClient,
+    keeper_key: str,
+) -> list[dict[str, Any]]:
+    """Market settlement, fee split, buyback, grant rounds and Radar alerts (each isolated)."""
+    dep = _load_deployment(args.chain_id)
+    rpc_url = _rpc_url_for_chain(args.chain_id)
+
+    def at(name: str) -> OracleCommitClient | None:
+        addr = dep.get(name, "")
+        if not addr or int(addr, 16) == 0:
+            return None
+        return OracleCommitClient(rpc_url=rpc_url, contract_address=addr, chain_id=args.chain_id)
+
+    market, fee_router, registry, grants = (
+        at("narrativeMarket"), at("feeRouter"), at("registry"), at("grants"),
+    )
+    results: list[dict[str, Any]] = []
+
+    if market is not None:
+        results.append(
+            await _guard(
+                "settle_markets",
+                lambda: settle_markets(market, oracle, private_key=keeper_key),
+            )
+        )
+    if fee_router is not None:
+        results.append(
+            await _guard(
+                "distribute_fees",
+                lambda: distribute_fees(fee_router, private_key=keeper_key),
+            )
+        )
+        if registry is not None:
+            results.append(
+                await _guard(
+                    "buyback",
+                    lambda: run_buyback(fee_router, registry, private_key=keeper_key),
+                )
+            )
+    if grants is not None:
+        grants_addr = dep["grants"]
+
+        async def _grants() -> dict[str, Any]:
+            bal = int(await oracle._rpc("eth_getBalance", [grants_addr, "latest"]), 16)
+            return await manage_grant_round(
+                grants,
+                private_key=keeper_key,
+                grants_balance_wei=bal,
+                round_seconds=int(os.environ.get("GRANT_ROUND_SECONDS", 14 * 24 * 3600)),
+            )
+
+        results.append(await _guard("grant_round", _grants))
+    results.append(await _guard("radar_alerts", lambda: sync_radar_alerts(storage)))
+    return results
+
+
+async def _run_monitor(args: argparse.Namespace) -> dict[str, Any]:
+    """Check epoch SLOs, wallet balances and fetch health; alert via Telegram when configured."""
+    oracle = OracleCommitClient(
+        rpc_url=_rpc_url_for_chain(args.chain_id),
+        contract_address=_load_oracle_address(args.chain_id),
+        chain_id=args.chain_id,
+    )
+    state = await oracle.read_state()
+
+    balances: dict[str, tuple[str, Decimal]] = {}
+    key_envs = {
+        "operator": "OPERATOR_PRIVATE_KEY",
+        "validator-1": "VALIDATOR_PRIVATE_KEY_1",
+        "validator-2": "VALIDATOR_PRIVATE_KEY_2",
+        "validator-3": "VALIDATOR_PRIVATE_KEY_3",
+        "keeper": "KEEPER_PRIVATE_KEY",
+    }
+    for role, env_name in key_envs.items():
+        raw_key = os.environ.get(env_name)
+        if not raw_key:
+            continue
+        address = Account.from_key(raw_key).address
+        wei = int(await oracle._rpc("eth_getBalance", [address, "latest"]), 16)
+        balances[role] = (address, Decimal(wei) / Decimal(10**18))
+
+    fetch_pct: float | None = None
+    fetch_epoch: int | None = None
+    if os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_KEY"):
+        storage = SupabaseStorage(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
+        latest = await storage.select(
+            "fetch_cycles",
+            columns="epoch_id,accounts_ok,accounts_failed",
+            order="id.desc",
+            limit=1,
+        )
+        if latest:
+            fetch_epoch = int(latest[0]["epoch_id"])
+            rows = await storage.select(
+                "fetch_cycles",
+                columns="accounts_ok,accounts_failed",
+                filters={"epoch_id": f"eq.{fetch_epoch}"},
+            )
+            ok = sum(int(r.get("accounts_ok") or 0) for r in rows)
+            failed = sum(int(r.get("accounts_failed") or 0) for r in rows)
+            fetch_pct = (100.0 * failed / (ok + failed)) if (ok + failed) else 0.0
+
+    notifier = TelegramNotifier(
+        os.environ.get("TELEGRAM_BOT_TOKEN", ""), os.environ.get("TELEGRAM_CHAT_ID", "")
+    )
+    inputs = MonitorInputs(
+        now=now_unix(),
+        genesis_timestamp=state.genesis_timestamp,
+        last_processed_epoch=state.last_processed_epoch,
+        latest_final_epoch=state.latest_final_epoch,
+        balances_eth=balances,
+        fetch_failure_pct=fetch_pct,
+        fetch_epoch_id=fetch_epoch,
+    )
+    result = await run_monitor(
+        inputs,
+        notifier,
+        chain_id=args.chain_id,
+        deduper=AlertDeduper(default_state_path(REPO_ROOT)),
+    )
+    result["telegram_configured"] = bool(
+        os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")
+    )
+    return result
 
 
 async def _run_validator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, Any]:
@@ -615,7 +769,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nti_oracle", description="NTI Oracle Node CLI")
     parser.add_argument(
         "--role",
-        choices=("operator", "validator", "keeper"),
+        choices=("operator", "validator", "keeper", "monitor"),
         required=True,
         help="Execution role for this oracle process",
     )
@@ -654,6 +808,8 @@ def main(argv: list[str] | None = None) -> int:
         os.environ.get("KEEPER_PRIVATE_KEY") or os.environ.get("OPERATOR_PRIVATE_KEY")
     ):
         res = asyncio.run(_run_keeper(args))
+    elif args.role == "monitor":
+        res = asyncio.run(_run_monitor(args))
     elif args.role == "validator" and os.environ.get("RPC_URL_TESTNET"):
         res = asyncio.run(_run_validator(args, cfg))
     else:
