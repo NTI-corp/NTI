@@ -15,6 +15,8 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_SSH_KEY" ]; then
             echo "VPS secrets not configured; skipping VPS deploy."
@@ -24,5 +26,11 @@ jobs:
           printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # Keep alert credentials in the VPS .env (sent over stdin, never on a command line).
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            printf 'TELEGRAM_BOT_TOKEN=%s\nTELEGRAM_CHAT_ID=%s\n' "$TELEGRAM_BOT_TOKEN" "$TELEGRAM_CHAT_ID" |
+              ssh -i ~/.ssh/deploy_key -o BatchMode=yes "${VPS_USER}@${VPS_HOST}" \
+                'f=/home/ubuntu/apps/nti/.env; touch "$f"; while IFS= read -r line; do k=${line%%=*}; { grep -v "^$k=" "$f" || true; } > "$f.tmp"; printf "%s\n" "$line" >> "$f.tmp"; mv "$f.tmp" "$f"; done; chmod 600 "$f"'
+          fi
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes "${VPS_USER}@${VPS_HOST}" \
             "export PATH=\$HOME/.local/bin:\$PATH; cd /home/ubuntu/apps/nti && git config core.fileMode false && { git diff --quiet || git stash push -q -m pre-deploy-\$(date +%s); } && bash infra/scripts/deploy-vps.sh"
