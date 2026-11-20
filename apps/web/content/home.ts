@@ -60,7 +60,7 @@ export const HOME_CONTENT = {
   hero: {
     headline: "Track & trade crypto mindshare",
     subheadline:
-      "NTI indexes real-time sector attention across X every 4 hours — powering relative pair markets, TWAP narrative vaults, and native ETH yield on Robinhood Chain.",
+      "Narrative Token Index (NTI) scores real-time sector attention across X every 4 hours — powering relative pair markets, TWAP vaults, and native ETH yield on Robinhood Chain.",
     primaryCta: {
       label: "Open terminal",
       href: "/terminal",
