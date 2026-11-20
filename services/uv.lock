@@ -908,15 +908,19 @@ name = "nti-discovery"
 version = "0.1.0"
 source = { editable = "discovery" }
 dependencies = [
+    { name = "eth-utils" },
     { name = "httpx" },
     { name = "nti-core" },
+    { name = "nti-fetcher" },
     { name = "pydantic" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "eth-utils", specifier = ">=5.0.0" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "nti-core", editable = "nti_core" },
+    { name = "nti-fetcher", editable = "fetcher" },
     { name = "pydantic", specifier = ">=2.10.0" },
 ]
 

@@ -22,8 +22,18 @@ from nti_oracle.keeper_tasks import (
 KEY = "0x" + "11" * 32
 ROUND_TYPES = ["uint256", "uint64", "uint64", "uint64", "uint256", "uint256", "bool"]
 MARKET_TYPES = [
-    "uint8", "uint8", "uint32", "uint32", "uint32",
-    "uint256", "uint256", "uint256", "uint256", "uint256", "uint8", "bool",
+    "uint8",
+    "uint8",
+    "uint32",
+    "uint32",
+    "uint32",
+    "uint256",
+    "uint256",
+    "uint256",
+    "uint256",
+    "uint256",
+    "uint8",
+    "bool",
 ]
 
 

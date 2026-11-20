@@ -80,6 +80,20 @@ module.exports = {
       },
     },
     {
+      // Pons launch/graduation scanner for Radar and Heatmap. Exits "skipped" on chains without Pons
+      // (testnet), so it is safe to keep registered everywhere.
+      name: "nti-discovery",
+      cwd: "/home/ubuntu/apps/nti/services",
+      script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
+      args: "uv run python -m nti_discovery",
+      cron_restart: "*/5 * * * *",
+      autorestart: false,
+      max_memory_restart: "128M",
+      env: {
+        PYTHONUNBUFFERED: "1",
+      },
+    },
+    {
       name: "nti-purge",
       cwd: "/home/ubuntu/apps/nti/services",
       script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",

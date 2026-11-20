@@ -633,7 +633,10 @@ async def _run_keeper_tasks(
         return OracleCommitClient(rpc_url=rpc_url, contract_address=addr, chain_id=args.chain_id)
 
     market, fee_router, registry, grants = (
-        at("narrativeMarket"), at("feeRouter"), at("registry"), at("grants"),
+        at("narrativeMarket"),
+        at("feeRouter"),
+        at("registry"),
+        at("grants"),
     )
     results: list[dict[str, Any]] = []
 
@@ -804,8 +807,10 @@ def main(argv: list[str] | None = None) -> int:
         and os.environ.get("OPERATOR_PRIVATE_KEY")
     ):
         res = asyncio.run(_run_operator(args, cfg))
-    elif args.role == "keeper" and os.environ.get("SUPABASE_URL") and (
-        os.environ.get("KEEPER_PRIVATE_KEY") or os.environ.get("OPERATOR_PRIVATE_KEY")
+    elif (
+        args.role == "keeper"
+        and os.environ.get("SUPABASE_URL")
+        and (os.environ.get("KEEPER_PRIVATE_KEY") or os.environ.get("OPERATOR_PRIVATE_KEY"))
     ):
         res = asyncio.run(_run_keeper(args))
     elif args.role == "monitor":

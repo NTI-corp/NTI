@@ -52,9 +52,7 @@ async def _uint(
     return int(abi_decode(["uint256"], raw)[0])
 
 
-async def _guard(
-    name: str, fn: Callable[[], Awaitable[dict[str, Any]]]
-) -> dict[str, Any]:
+async def _guard(name: str, fn: Callable[[], Awaitable[dict[str, Any]]]) -> dict[str, Any]:
     """Run one task; convert chain errors into a result so other tasks still run."""
     try:
         return await fn()
@@ -77,8 +75,18 @@ async def settle_markets(
         raw = await market._call("markets(uint256)", ["uint256"], [market_id])
         fields = abi_decode(
             [
-                "uint8", "uint8", "uint32", "uint32", "uint32",
-                "uint256", "uint256", "uint256", "uint256", "uint256", "uint8", "bool",
+                "uint8",
+                "uint8",
+                "uint32",
+                "uint32",
+                "uint32",
+                "uint256",
+                "uint256",
+                "uint256",
+                "uint256",
+                "uint256",
+                "uint8",
+                "bool",
             ],
             raw,
         )

@@ -92,8 +92,14 @@ This is irreversible: confirm the Timelock proposer and canceller are the Govern
 
 ## Known gaps to decide, not hide
 
-* Token discovery for Radar and Heatmap needs a Pons v1/v2 launch listener that does not exist yet. Velocity alerts
-  work; "new token" alerts and active-project counts rely on the curated list until it is built.
+* **Log-capable RPC is a mainnet blocker.** Alchemy's free tier limits `eth_getLogs` to 10 blocks and
+  PublicNode refuses historical logs on 4663 (blocks are ~0.1s, so 10 blocks is one second). The indexer and
+  the Pons listener both need a paid or dedicated endpoint (set `INDEXER_RPC_URL`, `DISCOVERY_RPC_URL`, and
+  `DISCOVERY_LOG_RANGE` / `INDEXER_BATCH_BLOCKS` to what it allows).
+* Token discovery (`python -m nti_discovery`) scans Pons V2 `TokenLaunched` / `PoolGraduated` logs, resolves each
+  token through `getLaunchedToken`, and enriches liquidity and 24h activity from DexScreener (ETH depth = USD
+  liquidity / WETH price, because Pons pairs are not always against WETH). Pons v1 tokens are not covered.
+  `txs_7d` is currently a 24h lower bound. Run `python -m nti_discovery --dry-run` first to see what it would write.
 * Dataset hashes are stored locally; Arweave (Turbo) or IPFS upload is not wired, so `arweave_tx` is a local id.
 * The KOL universe is 35 accounts today versus 1,500 planned.
 * No independent audit. The brief's substitute is tests, fork tests and the conservative caps above.
