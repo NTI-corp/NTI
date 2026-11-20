@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { encodeFunctionData, parseEther } from "viem";
-import { useAccount, usePublicClient, useWriteContract } from "wagmi";
+import { encodeFunctionData, formatEther, parseEther } from "viem";
+import { useAccount, useBalance, usePublicClient, useReadContract } from "wagmi";
+import { TxStatusBanner } from "@/components/TxStatusBanner";
 import {
   estimateTxGas,
   getActiveChainId,
@@ -11,6 +12,7 @@ import {
   type GasEstimateDisplay,
 } from "@/lib/contracts";
 import { formatCountdown, formatEth } from "@/lib/format";
+import { useChainAction } from "@/lib/useChainAction";
 import { useSiweSession } from "./Providers";
 import type { MarketItem } from "@/lib/types";
 
@@ -18,30 +20,72 @@ interface BetModalProps {
   market: MarketItem;
   initialSide?: 0 | 1;
   onClose?: () => void;
+  onConfirmed?: () => Promise<void> | void;
   embedded?: boolean;
 }
 
 const BASE_FEE_BPS = 10; // 0.10% = 10 bps
+const DEFAULT_MIN_BET_WEI = 1_000_000_000_000_000n; // 0.001 ETH
+
+function safeParseEther(raw: string): bigint | null {
+  const clean = raw.trim();
+  if (!clean || !/^\d+(\.\d{1,18})?$/.test(clean)) return null;
+  try {
+    return parseEther(clean);
+  } catch {
+    return null;
+  }
+}
 
 export function BetModal({
   market,
   initialSide = 0,
   onClose,
+  onConfirmed,
   embedded = false,
 }: BetModalProps) {
   const { address, isConnected } = useAccount();
-  const publicClient = usePublicClient();
-  const { writeContractAsync, isPending } = useWriteContract();
+  const activeChainId = getActiveChainId();
+  const addresses = getProtocolAddresses(activeChainId);
+  const publicClient = usePublicClient({ chainId: activeChainId });
   const { session } = useSiweSession();
 
   const [side, setSide] = useState<0 | 1>(initialSide);
-  const [amountInput, setAmountInput] = useState("0.05");
+  const [amountInput, setAmountInput] = useState("0.01");
   const [gasEstimate, setGasEstimate] = useState<GasEstimateDisplay | null>(null);
-  const [txStatus, setTxStatus] = useState<string | null>(null);
-  const [txError, setTxError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const cutoffPassed = Date.now() >= new Date(market.cutoffAt).getTime() || market.status !== "open";
-  const grossEth = Math.max(0, Number.parseFloat(amountInput) || 0);
+  const { data: ethBalanceData, refetch: refetchBalance } = useBalance({
+    address,
+    chainId: activeChainId,
+    query: { enabled: Boolean(isConnected && address) },
+  });
+
+  const { data: minBetOnChain } = useReadContract({
+    address: addresses.narrativeMarket ?? undefined,
+    abi: narrativeMarketAbi,
+    functionName: "minBet",
+    chainId: activeChainId,
+    query: { enabled: Boolean(addresses.narrativeMarket) },
+  });
+
+  const { txState, isBusy, wrongChain, targetChainId, explorerBase, execute, resetTx } =
+    useChainAction(async () => {
+      await refetchBalance();
+      if (onConfirmed) await onConfirmed();
+    });
+
+  const minBetWei = (minBetOnChain as bigint | undefined) ?? DEFAULT_MIN_BET_WEI;
+  const minBetEth = Number(formatEther(minBetWei));
+  const ethBalanceWei = ethBalanceData?.value ?? 0n;
+
+  const cutoffPassed =
+    Date.now() >= new Date(market.cutoffAt).getTime() || market.status !== "open";
+  const stakeWei = safeParseEther(amountInput);
+  const grossEth =
+    stakeWei !== null && Number.isFinite(Number(formatEther(stakeWei)))
+      ? Number(formatEther(stakeWei))
+      : 0;
   const discountBps = session?.discountBps ?? 0;
 
   const math = useMemo(() => {
@@ -67,25 +111,18 @@ export function BetModal({
     };
   }, [grossEth, discountBps, side, market.poolAEth, market.poolBEth, market.maxPoolEth]);
 
-  const chainId = getActiveChainId();
-  const addresses = getProtocolAddresses(chainId);
-
   useEffect(() => {
     let active = true;
     const runEstimate = async () => {
       let data: `0x${string}` | undefined;
       let value = 0n;
-      try {
-        if (grossEth > 0) {
-          value = parseEther(grossEth.toFixed(6));
-          data = encodeFunctionData({
-            abi: narrativeMarketAbi,
-            functionName: "bet",
-            args: [BigInt(market.marketId), side],
-          });
-        }
-      } catch {
-        // invalid decimal input
+      if (stakeWei && stakeWei > 0n) {
+        value = stakeWei;
+        data = encodeFunctionData({
+          abi: narrativeMarketAbi,
+          functionName: "bet",
+          args: [BigInt(market.marketId), side],
+        });
       }
       const est = await estimateTxGas(publicClient, {
         account: address,
@@ -100,54 +137,63 @@ export function BetModal({
     return () => {
       active = false;
     };
-  }, [publicClient, address, addresses.narrativeMarket, market.marketId, side, grossEth]);
+  }, [publicClient, address, addresses.narrativeMarket, market.marketId, side, stakeWei]);
+
+  const insufficientBalance =
+    isConnected && stakeWei !== null && stakeWei > 0n && stakeWei > ethBalanceWei;
 
   const handleSubmit = async () => {
-    setTxError(null);
-    setTxStatus(null);
+    setValidationError(null);
     if (cutoffPassed) {
-      setTxError("Betting cutoff (2 epochs / 8h before settlement) has passed.");
+      setValidationError("Betting cutoff (2 epochs / 8h before settlement) has passed.");
       return;
     }
-    if (grossEth < 0.001) {
-      setTxError("Minimum bet is 0.001 ETH.");
+    if (!stakeWei || stakeWei <= 0n) {
+      setValidationError("Enter a valid ETH amount.");
+      return;
+    }
+    if (stakeWei < minBetWei) {
+      setValidationError(`Minimum bet is ${minBetEth} ETH.`);
       return;
     }
     if (math.exceedsCap) {
-      setTxError(`Pool cap exceeded (max ${market.maxPoolEth} ETH per market).`);
+      setValidationError(`Pool cap exceeded (max ${market.maxPoolEth} ETH per market).`);
       return;
     }
-    if (!isConnected) {
-      setTxError("Connect your wallet in the top bar first.");
+    if (!isConnected || !address) {
+      setValidationError("Connect your wallet in the top bar first.");
+      return;
+    }
+    if (insufficientBalance) {
+      setValidationError("Insufficient ETH wallet balance.");
       return;
     }
     if (!addresses.narrativeMarket) {
-      setTxError("NarrativeMarket contract address not yet deployed on this chain.");
+      setValidationError("NarrativeMarket contract address not configured on this chain.");
       return;
     }
 
-    try {
-      const hash = await writeContractAsync({
+    await execute(
+      `Bet ${grossEth.toFixed(4)} ETH on ${side === 0 ? market.narrativeALabel : market.narrativeBLabel}`,
+      {
         address: addresses.narrativeMarket,
         abi: narrativeMarketAbi,
         functionName: "bet",
         args: [BigInt(market.marketId), side],
-        value: parseEther(grossEth.toFixed(6)),
-      });
-      setTxStatus(`Bet transaction submitted: ${hash}`);
-    } catch (err) {
-      setTxError(err instanceof Error ? err.message : "Transaction rejected");
-    }
+        value: stakeWei,
+      },
+      `Bet placed on Market #${market.marketId}.`,
+    );
   };
 
   const content = (
-    <div className="panel-surface rounded-md p-4">
-      <div className="mb-3 flex items-center justify-between border-b border-[#1B2028] pb-3">
+    <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4 shadow-2xl">
+      <div className="mb-3 flex items-center justify-between border-b border-[#24242C] pb-3">
         <div>
-          <h3 className="font-display text-sm font-semibold text-[#EDF1F7]">
+          <h3 className="text-sm font-semibold text-[#F4F4F5]">
             Place Parimutuel Bet · Market #{market.marketId}
           </h3>
-          <p className="font-mono text-[11px] text-[#8A96A8]">
+          <p className="mt-0.5 font-mono text-[11px] text-[#A1A1AA]">
             {market.narrativeALabel} vs {market.narrativeBLabel} · {market.horizonLabel}
           </p>
         </div>
@@ -155,22 +201,28 @@ export function BetModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-[#1B2028] px-2 py-1 font-mono text-[11px] text-[#8A96A8] hover:text-[#EDF1F7]"
+            className="rounded border border-[#24242C] bg-[#19191F] px-2 py-1 font-mono text-[11px] text-[#A1A1AA] hover:text-[#F4F4F5]"
           >
             ESC
           </button>
         )}
       </div>
 
+      {wrongChain && (
+        <div className="mb-3 rounded-md border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 font-mono text-[11px] text-[#F59E0B]">
+          Wallet will auto-switch to Chain {targetChainId} when submitting bet.
+        </div>
+      )}
+
       {/* Cutoff status */}
       {cutoffPassed ? (
-        <div className="mb-3 rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 font-mono text-[11px] text-[#F59E0B]">
-          BETTING LOCKED · 8-hour pre-settlement cutoff has passed. New bets are rejected by contract.
+        <div className="mb-3 rounded-md border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 font-mono text-[11px] text-[#F59E0B]">
+          BETTING LOCKED · Pre-settlement cutoff has passed. New bets are rejected by contract.
         </div>
       ) : (
-        <div className="mb-3 flex items-center justify-between rounded border border-[#1B2028] bg-[#0B0E13] px-3 py-1.5 font-mono text-[11px]">
-          <span className="text-[#8A96A8]">BETTING CUTOFF IN</span>
-          <span className="text-[#10B981] tabular-nums">
+        <div className="mb-3 flex items-center justify-between rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-[11px]">
+          <span className="text-[#A1A1AA]">BETTING CUTOFF IN</span>
+          <span className="font-semibold text-[#22C55E] tabular-nums">
             {formatCountdown(market.cutoffAt)}
           </span>
         </div>
@@ -181,64 +233,72 @@ export function BetModal({
         <button
           type="button"
           onClick={() => setSide(0)}
-          className={`rounded border px-3 py-2.5 text-left transition-colors ${
+          className={`rounded-md border px-3 py-2.5 text-left transition-colors ${
             side === 0
-              ? "border-[#10B981]/60 bg-[#10B981]/12 text-[#EDF1F7]"
-              : "border-[#1B2028] bg-[#0B0E13] text-[#8A96A8] hover:border-[#2A3342]"
+              ? "border-[#22C55E]/60 bg-[#22C55E]/12 text-[#F4F4F5]"
+              : "border-[#24242C] bg-[#0B0B0E] text-[#A1A1AA] hover:border-[#32323D]"
           }`}
         >
-          <div className="font-mono text-[10px] text-[#10B981]">SIDE A OUTPERFORMS</div>
-          <div className="mt-0.5 font-display text-xs font-semibold">
+          <div className="font-mono text-[10px] font-medium text-[#22C55E]">
+            SIDE A OUTPERFORMS
+          </div>
+          <div className="mt-0.5 text-xs font-semibold text-[#F4F4F5]">
             {market.narrativeALabel}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-[#8A96A8] tabular-nums">
-            Pool: {formatEth(market.poolAEth, 3)}
+          <div className="mt-1 font-mono text-[10px] text-[#A1A1AA] tabular-nums">
+            Pool: {formatEth(market.poolAEth, 4)}
           </div>
         </button>
 
         <button
           type="button"
           onClick={() => setSide(1)}
-          className={`rounded border px-3 py-2.5 text-left transition-colors ${
+          className={`rounded-md border px-3 py-2.5 text-left transition-colors ${
             side === 1
-              ? "border-[#38BDF8]/60 bg-[#38BDF8]/12 text-[#EDF1F7]"
-              : "border-[#1B2028] bg-[#0B0E13] text-[#8A96A8] hover:border-[#2A3342]"
+              ? "border-[#6366F1]/60 bg-[#6366F1]/15 text-[#F4F4F5]"
+              : "border-[#24242C] bg-[#0B0B0E] text-[#A1A1AA] hover:border-[#32323D]"
           }`}
         >
-          <div className="font-mono text-[10px] text-[#38BDF8]">SIDE B OUTPERFORMS</div>
-          <div className="mt-0.5 font-display text-xs font-semibold">
+          <div className="font-mono text-[10px] font-medium text-[#A5B4FC]">
+            SIDE B OUTPERFORMS
+          </div>
+          <div className="mt-0.5 text-xs font-semibold text-[#F4F4F5]">
             {market.narrativeBLabel}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-[#8A96A8] tabular-nums">
-            Pool: {formatEth(market.poolBEth, 3)}
+          <div className="mt-1 font-mono text-[10px] text-[#A1A1AA] tabular-nums">
+            Pool: {formatEth(market.poolBEth, 4)}
           </div>
         </button>
       </div>
 
       {/* Amount Input */}
       <div className="mt-3">
-        <div className="flex items-center justify-between font-mono text-[11px] text-[#8A96A8]">
+        <div className="flex items-center justify-between font-mono text-[11px] text-[#A1A1AA]">
           <label htmlFor={`bet-amt-${market.marketId}`}>GROSS STAKE (ETH)</label>
-          <span>MIN 0.001 ETH · CAP {market.maxPoolEth} ETH</span>
+          <span className="tabular-nums">
+            {isConnected
+              ? `BAL: ${Number(formatEther(ethBalanceWei)).toFixed(4)} ETH`
+              : `MIN ${minBetEth} ETH · CAP ${market.maxPoolEth} ETH`}
+          </span>
         </div>
         <div className="mt-1.5 flex items-center gap-2">
           <input
             id={`bet-amt-${market.marketId}`}
             type="number"
-            min="0.001"
-            step="0.01"
+            min={minBetEth}
+            step="0.005"
             value={amountInput}
             onChange={(e) => setAmountInput(e.target.value)}
             disabled={cutoffPassed}
-            className="w-full rounded border border-[#2A3342] bg-[#090B0E] px-3 py-2 font-mono text-sm text-[#EDF1F7] tabular-nums focus:border-[#38BDF8] focus:outline-none disabled:opacity-50"
+            className="w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#6366F1] focus:outline-none disabled:opacity-50"
           />
-          {["0.05", "0.25", "0.5"].map((preset) => (
+          {["0.005", "0.02", "0.1"].map((preset) => (
             <button
               key={preset}
               type="button"
               disabled={cutoffPassed}
               onClick={() => setAmountInput(preset)}
-              className="rounded border border-[#1B2028] bg-[#131820] px-2.5 py-2 font-mono text-xs text-[#8A96A8] hover:text-[#EDF1F7] disabled:opacity-40"
+              className="rounded-md border border-[#24242C] bg-[#19191F] px-2.5 py-2 font-mono text-xs text-[#A1A1AA] hover:text-[#F4F4F5] disabled:opacity-40"
             >
               {preset}
             </button>
@@ -247,37 +307,37 @@ export function BetModal({
       </div>
 
       {/* Fee, Discount & Parimutuel Breakdown */}
-      <div className="mt-3 space-y-1.5 rounded border border-[#1B2028] bg-[#0B0E13] p-3 font-mono text-[11px] tabular-nums">
+      <div className="mt-3 space-y-1.5 rounded-md border border-[#24242C] bg-[#0B0B0E] p-3 font-mono text-[11px] tabular-nums">
         <div className="flex justify-between">
-          <span className="text-[#8A96A8]">Gross stake</span>
-          <span className="text-[#EDF1F7]">{formatEth(grossEth, 4)}</span>
+          <span className="text-[#71717A]">Gross stake</span>
+          <span className="text-[#F4F4F5]">{formatEth(grossEth, 4)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#8A96A8]">
+          <span className="text-[#71717A]">
             Protocol fee (0.10% base · {(discountBps / 100).toFixed(0)}% staker discount)
           </span>
-          <span className="text-[#EDF1F7]">
+          <span className="text-[#F4F4F5]">
             {formatEth(math.feeEth, 5)} ({(math.effectiveFeeBps / 100).toFixed(3)}%)
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#8A96A8]">Net pool stake</span>
-          <span className="text-[#EDF1F7]">{formatEth(math.netEth, 4)}</span>
+          <span className="text-[#71717A]">Net pool stake</span>
+          <span className="text-[#F4F4F5]">{formatEth(math.netEth, 4)}</span>
         </div>
-        <div className="flex justify-between border-t border-[#1B2028] pt-1.5">
-          <span className="text-[#8A96A8]">Est. parimutuel payout (if side wins)</span>
-          <span className="font-semibold text-[#10B981]">
+        <div className="flex justify-between border-t border-[#24242C] pt-1.5">
+          <span className="text-[#71717A]">Est. parimutuel payout (if side wins)</span>
+          <span className="font-semibold text-[#22C55E]">
             {formatEth(math.estPayout, 4)} ({math.impliedMultiple.toFixed(2)}x)
           </span>
         </div>
         {gasEstimate && (
-          <div className="flex justify-between border-t border-[#1B2028] pt-1.5">
-            <span className="text-[#8A96A8]">
+          <div className="flex justify-between border-t border-[#24242C] pt-1.5">
+            <span className="text-[#71717A]">
               Est. gas ({gasEstimate.gasPriceGwei} gwei · {gasEstimate.gasLimit} units)
             </span>
             <span
               className={
-                gasEstimate.elevatedFeeWarning ? "text-[#F59E0B]" : "text-[#8A96A8]"
+                gasEstimate.elevatedFeeWarning ? "text-[#F59E0B]" : "text-[#A1A1AA]"
               }
             >
               ~{gasEstimate.estimatedCostEth} ETH
@@ -292,32 +352,32 @@ export function BetModal({
         </p>
       )}
 
-      {txError && (
-        <div className="mt-2.5 rounded border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 font-mono text-[11px] text-[#EF4444]">
-          {txError}
+      {validationError && (
+        <div className="mt-2.5 rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+          {validationError}
         </div>
       )}
 
-      {txStatus && (
-        <div className="mt-2.5 rounded border border-[#10B981]/40 bg-[#10B981]/10 px-3 py-2 font-mono text-[11px] text-[#10B981]">
-          {txStatus}
-        </div>
-      )}
+      <div className="mt-2.5">
+        <TxStatusBanner state={txState} explorerBase={explorerBase} onDismiss={resetTx} />
+      </div>
 
       <button
         type="button"
-        disabled={cutoffPassed || isPending || math.exceedsCap}
+        disabled={cutoffPassed || isBusy || math.exceedsCap || insufficientBalance}
         onClick={() => void handleSubmit()}
-        className="mt-3 w-full rounded border border-[#10B981]/50 bg-[#10B981]/15 py-2.5 font-mono text-xs font-semibold text-[#10B981] transition-colors hover:bg-[#10B981]/25 disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-3 w-full rounded-md bg-[#22C55E] py-2.5 font-mono text-xs font-semibold text-[#0B0B0E] transition-colors hover:bg-[#16A34A] disabled:cursor-not-allowed disabled:opacity-45"
       >
         {cutoffPassed
           ? "BETTING CLOSED"
-          : isPending
-            ? "AWAITING WALLET CONFIRMATION..."
-            : `CONFIRM BET ON ${side === 0 ? market.narrativeALabel.toUpperCase() : market.narrativeBLabel.toUpperCase()}`}
+          : insufficientBalance
+            ? "INSUFFICIENT ETH BALANCE"
+            : isBusy
+              ? "PROCESSING TRANSACTION..."
+              : `CONFIRM BET ON ${side === 0 ? market.narrativeALabel.toUpperCase() : market.narrativeBLabel.toUpperCase()}`}
       </button>
 
-      <p className="mt-2 font-mono text-[10px] text-[#556173]">
+      <p className="mt-2 text-[11px] leading-relaxed text-[#71717A]">
         Full gross refund if opposing pool is empty, Δ = 0, seriesId re-baselines, or settlement epoch is incomplete/timed out (48h).
       </p>
     </div>

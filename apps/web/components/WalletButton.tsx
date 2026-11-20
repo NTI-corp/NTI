@@ -274,54 +274,54 @@ export function WalletButton() {
         </>
       )}
 
-      {/* Connected Account Popover (BELL + QTimeline pattern) */}
+      {/* Connected Account Popover */}
       {menuOpen && isConnected && address && (
         <div
           role="dialog"
           aria-label="Connected wallet details"
-          className="reticle-frame absolute top-[calc(100%+8px)] right-0 z-50 w-76 border border-[#2B3345] bg-[#0B0D12] p-0 shadow-2xl"
+          className="absolute top-[calc(100%+8px)] right-0 z-50 w-76 overflow-hidden rounded-xl border border-[#24242C] bg-[#131317] shadow-2xl"
         >
-          <div className="flex items-center justify-between border-b border-[#1B202C] px-4 py-3">
+          <div className="flex items-center justify-between border-b border-[#24242C] px-4 py-3">
             <div className="flex items-center gap-2.5">
               {activeIcon && (
                 <img src={activeIcon} alt="" className="h-5 w-5 shrink-0 object-contain" />
               )}
               <div>
-                <div className="font-mono text-[9px] uppercase tracking-wider text-[#5A6478]">
+                <div className="font-mono text-[9px] uppercase tracking-wider text-[#71717A]">
                   CONNECTED WALLET
                 </div>
-                <div className="font-display text-xs font-semibold text-[#F3F5F8]">
+                <div className="text-xs font-semibold text-[#F4F4F5]">
                   {activeConnector?.name ?? "EVM Wallet"}
                 </div>
               </div>
             </div>
-            <span className="border border-[#B8FF2E]/40 bg-[#B8FF2E]/10 px-1.5 py-0.5 font-mono text-[9px] uppercase text-[#B8FF2E]">
+            <span className="rounded border border-[#22C55E]/40 bg-[#22C55E]/10 px-1.5 py-0.5 font-mono text-[9px] uppercase text-[#22C55E]">
               ONLINE
             </span>
           </div>
 
-          <div className="divide-y divide-[#1B202C] font-mono text-[11px]">
+          <div className="divide-y divide-[#24242C] font-mono text-[11px]">
             <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[10px] uppercase text-[#5A6478]">NETWORK</span>
-              <span className={wrongChain ? "text-[#F59E0B]" : "text-[#23F7DD]"}>
+              <span className="text-[10px] uppercase text-[#71717A]">NETWORK</span>
+              <span className={wrongChain ? "text-[#F59E0B]" : "text-[#22C55E]"}>
                 {wrongChain ? `Chain ${chainId}` : `${targetChain.name} · ${targetChainId}`}
               </span>
             </div>
 
             <div className="flex items-center justify-between px-4 py-2.5 tabular-nums">
-              <span className="text-[10px] uppercase text-[#5A6478]">BALANCE</span>
-              <span className="font-semibold text-[#F3F5F8]">
+              <span className="text-[10px] uppercase text-[#71717A]">BALANCE</span>
+              <span className="font-semibold text-[#F4F4F5]">
                 {balanceLoading ? "Reading…" : `${formattedBalance} ETH`}
               </span>
             </div>
 
             <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[10px] uppercase text-[#5A6478]">RADAR SIWE</span>
+              <span className="text-[10px] uppercase text-[#71717A]">RADAR SIWE</span>
               {session?.authenticated ? (
                 <button
                   type="button"
                   onClick={() => void signOut()}
-                  className="cursor-pointer text-[10px] uppercase text-[#B8FF2E] hover:underline"
+                  className="cursor-pointer text-[10px] uppercase text-[#22C55E] hover:underline"
                 >
                   {session.hasRadarAccess ? "RT UNLOCKED · SIGN OUT" : "VERIFIED · SIGN OUT"}
                 </button>
@@ -330,7 +330,7 @@ export function WalletButton() {
                   type="button"
                   disabled={signingIn}
                   onClick={() => void signIn()}
-                  className="cursor-pointer border border-[#23F7DD]/45 bg-[#23F7DD]/10 px-2 py-0.5 text-[10px] uppercase text-[#23F7DD] hover:bg-[#23F7DD]/20 disabled:opacity-50"
+                  className="cursor-pointer rounded border border-[#6366F1]/50 bg-[#6366F1]/15 px-2 py-0.5 text-[10px] uppercase text-[#A5B4FC] hover:bg-[#6366F1]/25 disabled:opacity-50"
                 >
                   {signingIn ? "SIGNING..." : "SIGN IN (SIWE)"}
                 </button>
@@ -339,12 +339,12 @@ export function WalletButton() {
           </div>
 
           {wrongChain && (
-            <div className="border-t border-[#1B202C] p-3">
+            <div className="border-t border-[#24242C] p-3">
               <button
                 type="button"
                 disabled={isSwitching}
                 onClick={() => void handleSwitchChain()}
-                className="w-full cursor-pointer bg-[#F59E0B] py-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#06070A] hover:bg-[#fbbf24]"
+                className="w-full cursor-pointer rounded-md bg-[#F59E0B] py-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#0B0B0E] hover:bg-[#fbbf24]"
               >
                 Switch to {targetChain.name}
               </button>
@@ -352,16 +352,16 @@ export function WalletButton() {
           )}
 
           {error && (
-            <div className="border-t border-[#F43F5E]/30 bg-[#F43F5E]/10 px-4 py-2 font-mono text-[10px] text-[#F43F5E]">
+            <div className="border-t border-[#EF4444]/30 bg-[#EF4444]/10 px-4 py-2 font-mono text-[10px] text-[#F87171]">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-3 border-t border-[#1B202C] font-mono text-[10px] uppercase">
+          <div className="grid grid-cols-3 border-t border-[#24242C] font-mono text-[10px] uppercase">
             <button
               type="button"
               onClick={() => void handleCopyAddress()}
-              className="cursor-pointer border-r border-[#1B202C] py-2.5 text-[#8B94A7] transition-colors hover:bg-[#11141C] hover:text-[#F3F5F8]"
+              className="cursor-pointer border-r border-[#24242C] py-2.5 text-[#A1A1AA] transition-colors hover:bg-[#19191F] hover:text-[#F4F4F5]"
             >
               {copied ? "COPIED ✓" : "COPY"}
             </button>
@@ -369,7 +369,7 @@ export function WalletButton() {
               href={`${explorerBase}/address/${address}`}
               target="_blank"
               rel="noreferrer noopener"
-              className="flex items-center justify-center border-r border-[#1B202C] py-2.5 text-[#8B94A7] transition-colors hover:bg-[#11141C] hover:text-[#23F7DD]"
+              className="flex items-center justify-center border-r border-[#24242C] py-2.5 text-[#A1A1AA] transition-colors hover:bg-[#19191F] hover:text-[#A5B4FC]"
             >
               EXPLORER ↗
             </a>
@@ -379,7 +379,7 @@ export function WalletButton() {
                 disconnect();
                 setMenuOpen(false);
               }}
-              className="cursor-pointer py-2.5 text-[#F43F5E] transition-colors hover:bg-[#F43F5E]/10"
+              className="cursor-pointer py-2.5 text-[#F87171] transition-colors hover:bg-[#EF4444]/10"
             >
               DISCONNECT
             </button>
@@ -403,16 +403,16 @@ export function WalletButton() {
               aria-modal="true"
               aria-labelledby="nti-wallet-modal-title"
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md overflow-hidden rounded-2xl border border-[#26262F] bg-[#131317] shadow-2xl"
+              className="w-full max-w-md overflow-hidden rounded-xl border border-[#24242C] bg-[#131317] shadow-2xl"
             >
-              <header className="flex items-start justify-between border-b border-[#1B202C] px-5 py-4">
+              <header className="flex items-start justify-between border-b border-[#24242C] px-5 py-4">
                 <div>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#B8FF2E]">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#6366F1]">
                     CONNECT TO NTI TERMINAL
                   </span>
                   <h2
                     id="nti-wallet-modal-title"
-                    className="mt-1 font-display text-lg font-bold text-[#F3F5F8]"
+                    className="mt-1 text-lg font-semibold text-[#F4F4F5]"
                   >
                     Select an EVM Wallet
                   </h2>
@@ -422,17 +422,17 @@ export function WalletButton() {
                   aria-label="Close wallet picker"
                   disabled={Boolean(pendingConnectorId)}
                   onClick={() => setModalOpen(false)}
-                  className="cursor-pointer border border-[#1B202C] bg-[#06070A] px-2.5 py-1 font-mono text-xs text-[#8B94A7] hover:border-[#2B3345] hover:text-[#F3F5F8]"
+                  className="cursor-pointer rounded border border-[#24242C] bg-[#0B0B0E] px-2.5 py-1 font-mono text-xs text-[#A1A1AA] hover:border-[#32323D] hover:text-[#F4F4F5]"
                 >
                   ESC
                 </button>
               </header>
 
-              <p className="border-b border-[#1B202C] bg-[#06070A]/60 px-5 py-2.5 font-mono text-[11px] text-[#8B94A7]">
+              <p className="border-b border-[#24242C] bg-[#0B0B0E] px-5 py-2.5 font-mono text-[11px] text-[#A1A1AA]">
                 Connect via EIP-6963 or WalletConnect. Target network: {targetChain.name} ({targetChainId}).
               </p>
 
-              <div className="max-h-[60vh] divide-y divide-[#1B202C] overflow-y-auto">
+              <div className="max-h-[60vh] divide-y divide-[#24242C] overflow-y-auto">
                 {availableConnectors.map((connector) => {
                   const logo = iconForConnector(connector);
                   const isBusy = pendingConnectorId === connector.uid;
@@ -442,26 +442,26 @@ export function WalletButton() {
                       type="button"
                       disabled={Boolean(pendingConnectorId)}
                       onClick={() => void handleSelectConnector(connector)}
-                      className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-[#11141C] disabled:opacity-60"
+                      className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-[#19191F] disabled:opacity-60"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center border border-[#1B202C] bg-[#06070A]">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#24242C] bg-[#0B0B0E]">
                           {logo ? (
                             <img src={logo} alt="" className="h-5 w-5 object-contain" />
                           ) : (
-                            <span className="font-mono text-xs text-[#B8FF2E]">W</span>
+                            <span className="font-mono text-xs text-[#A5B4FC]">W</span>
                           )}
                         </div>
                         <div>
-                          <div className="font-display text-sm font-semibold text-[#F3F5F8]">
+                          <div className="text-sm font-semibold text-[#F4F4F5]">
                             {connector.name}
                           </div>
-                          <div className="font-mono text-[10px] uppercase text-[#5A6478]">
+                          <div className="font-mono text-[10px] uppercase text-[#71717A]">
                             {connector.type === "walletConnect" ? "QR / MOBILE RELAY" : "EIP-6963 DETECTED"}
                           </div>
                         </div>
                       </div>
-                      <span className="border border-[#B8FF2E]/35 bg-[#B8FF2E]/10 px-2 py-0.5 font-mono text-[10px] uppercase text-[#B8FF2E]">
+                      <span className="rounded border border-[#22C55E]/40 bg-[#22C55E]/10 px-2 py-0.5 font-mono text-[10px] uppercase text-[#22C55E]">
                         {isBusy ? "CHECK WALLET..." : "AVAILABLE"}
                       </span>
                     </button>
@@ -474,15 +474,15 @@ export function WalletButton() {
                     href={kw.installUrl}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="flex items-center justify-between px-5 py-3 opacity-75 transition-colors hover:bg-[#11141C] hover:opacity-100"
+                    className="flex items-center justify-between px-5 py-3 opacity-75 transition-colors hover:bg-[#19191F] hover:opacity-100"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center border border-[#1B202C] bg-[#06070A]">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#24242C] bg-[#0B0B0E]">
                         <img src={kw.logo} alt="" className="h-5 w-5 object-contain grayscale" />
                       </div>
-                      <span className="font-display text-sm text-[#8B94A7]">{kw.name}</span>
+                      <span className="text-sm text-[#A1A1AA]">{kw.name}</span>
                     </div>
-                    <span className="font-mono text-[10px] uppercase text-[#5A6478]">
+                    <span className="font-mono text-[10px] uppercase text-[#71717A]">
                       INSTALL ↗
                     </span>
                   </a>
@@ -492,13 +492,13 @@ export function WalletButton() {
               {error && (
                 <div
                   role="alert"
-                  className="border-t border-[#F43F5E]/40 bg-[#F43F5E]/10 px-5 py-2.5 font-mono text-[11px] text-[#F43F5E]"
+                  className="border-t border-[#EF4444]/40 bg-[#EF4444]/10 px-5 py-2.5 font-mono text-[11px] text-[#F87171]"
                 >
                   {error}
                 </div>
               )}
 
-              <footer className="flex items-center justify-between border-t border-[#1B202C] bg-[#06070A] px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-[#5A6478]">
+              <footer className="flex items-center justify-between border-t border-[#24242C] bg-[#0B0B0E] px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 <span>{targetChain.name}</span>
                 <span className="tabular-nums">CHAIN ID {targetChainId}</span>
               </footer>

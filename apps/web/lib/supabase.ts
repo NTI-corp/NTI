@@ -1,4 +1,9 @@
 import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
+import {
+  readLiveBasketsFromChain,
+  readLiveGrantRoundsFromChain,
+  readLiveMarketsFromChain,
+} from "./onchain";
 import type {
   BasketItem,
   ContributorRow,
@@ -888,6 +893,10 @@ export async function fetchMarketsData(): Promise<{
   const iById = new Map(snapshot.narratives.map((n) => [n.narrativeId, n.iBps]));
 
   if (!rows || rows.length === 0) {
+    const liveMarkets = await readLiveMarketsFromChain(iById);
+    if (liveMarkets && liveMarkets.length > 0) {
+      return { awaitingDeployment: false, markets: liveMarkets };
+    }
     const now = Date.now();
     const previewMarkets: MarketItem[] = [
       {
@@ -1032,6 +1041,10 @@ export async function fetchBasketsData(): Promise<{
   }>("baskets?select=*&order=narrative_id.asc", "anon");
 
   if (!rows || rows.length === 0) {
+    const liveBaskets = await readLiveBasketsFromChain();
+    if (liveBaskets && liveBaskets.length > 0) {
+      return { awaitingDeployment: false, baskets: liveBaskets };
+    }
     const now = Date.now();
     const previewBaskets: BasketItem[] = [
       {
@@ -1101,7 +1114,7 @@ export async function fetchBasketsData(): Promise<{
       const meta = NARRATIVE_BY_ID.get(r.narrative_id);
       const nav = Number(r.nav_eth ?? 0) / 1e18;
       return {
-        id: meta?.slug ?? String(r.narrative_id),
+        id: (meta?.slug ?? String(r.narrative_id)).replaceAll("_", "-"),
         basketAddress: normalizeHex(r.basket_address) ?? r.basket_address,
         narrativeId: r.narrative_id,
         narrativeLabel: meta?.label ?? `Narrative #${r.narrative_id}`,
@@ -1139,6 +1152,10 @@ export async function fetchGrantsData(): Promise<{
   }>("grant_rounds?select=*&order=round_id.desc&limit=5", "anon");
 
   if (!rows || rows.length === 0) {
+    const liveRounds = await readLiveGrantRoundsFromChain();
+    if (liveRounds && liveRounds.length > 0) {
+      return { awaitingDeployment: false, rounds: liveRounds };
+    }
     const now = Date.now();
     const previewRound: GrantRoundItem = {
       roundId: 1,
@@ -1210,18 +1227,24 @@ export async function fetchGrantsData(): Promise<{
     return { awaitingDeployment: true, rounds: [previewRound] };
   }
 
+  const liveRounds = await readLiveGrantRoundsFromChain();
+  const liveMap = new Map((liveRounds ?? []).map((r) => [r.roundId, r]));
+
   return {
     awaitingDeployment: false,
-    rounds: rows.map((r) => ({
-      roundId: r.round_id,
-      status: r.status,
-      budgetEth: Number(r.budget_eth) / 1e18,
-      snapshotBlock: Number(r.snapshot_block),
-      voteEnd: r.vote_end,
-      totalVotesNti: 0,
-      quorumNti: 10_000_000,
-      proposals: [],
-    })),
+    rounds: rows.map((r) => {
+      const live = liveMap.get(r.round_id);
+      return {
+        roundId: r.round_id,
+        status: r.status,
+        budgetEth: Number(r.budget_eth) / 1e18,
+        snapshotBlock: Number(r.snapshot_block),
+        voteEnd: r.vote_end,
+        totalVotesNti: live?.totalVotesNti ?? 0,
+        quorumNti: live?.quorumNti ?? 100_000,
+        proposals: live?.proposals ?? [],
+      };
+    }),
   };
 }
 

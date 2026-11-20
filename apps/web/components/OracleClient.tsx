@@ -1,29 +1,34 @@
 "use client";
 
-import React, { useState } from "react";
-import { keccak256, toHex } from "viem";
-import { useAccount, useWriteContract } from "wagmi";
-import { NARRATIVES } from "@nti/sdk";
+import { useCallback, useState } from "react";
+import { formatEther, keccak256, stringToBytes } from "viem";
+import { useAccount, useReadContract } from "wagmi";
+import { TxStatusBanner } from "@/components/TxStatusBanner";
+import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
 import {
   disputeAbi,
+  erc20Abi,
   getActiveChainId,
   getProtocolAddresses,
   oracleCommitAbi,
 } from "@/lib/contracts";
-import { formatBpsPercent, formatRelativeTime, truncateHex } from "@/lib/format";
-import { EpochBadge } from "./EpochBadge";
-import { AwaitingEpochBanner } from "./AwaitingEpochBanner";
-import type { EpochDetailResponse, EpochStatus } from "@/lib/types";
+import { formatBpsPercent, formatCompactNumber, formatRelativeTime, truncateHex } from "@/lib/format";
+import { useChainAction } from "@/lib/useChainAction";
+import type { EpochDetailResponse } from "@/lib/types";
 
-const LIFECYCLE_STEPS: Array<{ key: EpochStatus; title: string; offset: string }> = [
-  { key: "collecting", title: "Collecting", offset: "B + 0m" },
-  { key: "computed", title: "Computed & Arweave", offset: "B + 45m" },
-  { key: "committed", title: "Committed (≥3 Atts)", offset: "B + 90m" },
-  { key: "disputed", title: "Dispute Window (2h)", offset: "B + 90m..210m" },
-  { key: "final", title: "Finalized", offset: "B + 210m" },
-];
+interface OracleClientProps {
+  initial: EpochDetailResponse;
+}
 
-const STATUS_RANK: Record<EpochStatus, number> = {
+const LIFECYCLE_STEPS = [
+  { key: "collecting", offset: "T+00m", title: "Ingest & Filter" },
+  { key: "computed", offset: "T+02m", title: "Deterministic Score" },
+  { key: "committed", offset: "T+04m", title: "2-of-3 EIP-712 Commit" },
+  { key: "disputed", offset: "0..2h", title: "Dispute Window" },
+  { key: "final", offset: "T+2h05m", title: "Final On-Chain Root" },
+] as const;
+
+const RANK: Record<string, number> = {
   collecting: 0,
   computed: 1,
   committed: 2,
@@ -32,152 +37,316 @@ const STATUS_RANK: Record<EpochStatus, number> = {
   incomplete: 2,
 };
 
-export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
-  const { isConnected } = useAccount();
-  const { writeContractAsync, isPending } = useWriteContract();
-  const addresses = getProtocolAddresses(getActiveChainId());
+const DEFAULT_BOND_WEI = 50_000n * 10n ** 18n;
+const BYTES32_HEX_RE = /^0x[0-9a-fA-F]{64}$/;
 
+export function OracleClient({ initial }: OracleClientProps) {
   const [detail, setDetail] = useState<EpochDetailResponse>(initial);
-  const [loadingEpoch, setLoadingEpoch] = useState(false);
-  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
-  const [disputeNarrativeId, setDisputeNarrativeId] = useState(1);
-  const [claimedIBps, setClaimedIBps] = useState("1000");
-  const [evidenceNote, setEvidenceNote] = useState("");
-  const [txMsg, setTxMsg] = useState<string | null>(null);
-  const [txErr, setTxErr] = useState<string | null>(null);
+  const [loadingEpochId, setLoadingEpochId] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const loadEpoch = async (epochId: number) => {
-    setLoadingEpoch(true);
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
+  const [disputeNarrativeId, setDisputeNarrativeId] = useState<number>(1);
+  const [claimedIBps, setClaimedIBps] = useState<string>("1500");
+  const [evidenceNote, setEvidenceNote] = useState<string>("");
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const { address, isConnected } = useAccount();
+  const activeChainId = getActiveChainId();
+  const addrs = getProtocolAddresses(activeChainId);
+
+  const { data: disputeBondWei } = useReadContract({
+    address: addrs.dispute ?? undefined,
+    abi: disputeAbi,
+    functionName: "disputeBond",
+    chainId: activeChainId,
+    query: { enabled: Boolean(addrs.dispute) },
+  });
+
+  const { data: ntiBalanceWei, refetch: refetchBalance } = useReadContract({
+    address: addrs.ntiToken ?? undefined,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: activeChainId,
+    query: { enabled: Boolean(isConnected && address && addrs.ntiToken) },
+  });
+
+  const { data: ntiAllowanceWei, refetch: refetchAllowance } = useReadContract({
+    address: addrs.ntiToken ?? undefined,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: address && addrs.dispute ? [address, addrs.dispute] : undefined,
+    chainId: activeChainId,
+    query: { enabled: Boolean(isConnected && address && addrs.ntiToken && addrs.dispute) },
+  });
+
+  const loadEpoch = useCallback(async (epochId: number) => {
+    setLoadingEpochId(epochId);
+    setLoadError(null);
     try {
       const res = await fetch(`/api/epochs/${epochId}`);
-      if (res.ok) {
-        const next = (await res.json()) as EpochDetailResponse;
-        setDetail(next);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch epoch #${epochId} (HTTP ${res.status})`);
       }
+      const next = (await res.json()) as EpochDetailResponse;
+      setDetail(next);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load epoch detail.");
     } finally {
-      setLoadingEpoch(false);
+      setLoadingEpochId(null);
     }
-  };
+  }, []);
 
-  const handleFinalize = async () => {
-    setTxErr(null);
-    setTxMsg(null);
-    if (!isConnected || !addresses.oracleCommit) {
-      setTxErr("Connect wallet with OracleCommit contract configured.");
+  const { txState, isBusy, wrongChain, targetChainId, explorerBase, execute, resetTx } =
+    useChainAction(async () => {
+      await Promise.all([refetchBalance(), refetchAllowance(), loadEpoch(detail.epoch.epochId)]);
+    });
+
+  const bondWei = (disputeBondWei as bigint | undefined) ?? DEFAULT_BOND_WEI;
+  const bondNti = Number(formatEther(bondWei));
+  const balanceWei = (ntiBalanceWei as bigint | undefined) ?? 0n;
+  const allowanceWei = (ntiAllowanceWei as bigint | undefined) ?? 0n;
+
+  const hasEnoughBalance = balanceWei >= bondWei;
+  const needsApproval = allowanceWei < bondWei;
+
+  const activeRank = RANK[detail.epoch.status] ?? 0;
+  const canFinalize = detail.epoch.status === "committed";
+  const canDispute = detail.epoch.status === "committed";
+
+  async function handleFinalize() {
+    setValidationError(null);
+    if (!addrs.oracleCommit) {
+      setValidationError("OracleCommit contract address is not configured.");
       return;
     }
-    try {
-      const hash = await writeContractAsync({
-        address: addresses.oracleCommit,
+    if (!canFinalize) {
+      setValidationError(
+        `Epoch #${detail.epoch.epochId} must be in 'committed' status to finalize (current: ${detail.epoch.status}).`,
+      );
+      return;
+    }
+    await execute(
+      `Finalize Epoch #${detail.epoch.epochId}`,
+      {
+        address: addrs.oracleCommit,
         abi: oracleCommitAbi,
         functionName: "finalize",
         args: [detail.epoch.epochId],
-      });
-      setTxMsg(`finalize(${detail.epoch.epochId}) submitted: ${hash}`);
-    } catch (e) {
-      setTxErr(e instanceof Error ? e.message : "Finalize failed");
-    }
-  };
+      },
+      `Epoch #${detail.epoch.epochId} finalized on-chain.`,
+    );
+  }
 
-  const handleOpenDispute = async () => {
-    setTxErr(null);
-    setTxMsg(null);
-    if (!isConnected || !addresses.dispute) {
-      setTxErr("Connect wallet with Dispute contract configured (requires 50,000 $NTI bond approval).");
+  async function handleApproveBond() {
+    setValidationError(null);
+    if (!addrs.ntiToken || !addrs.dispute) {
+      setValidationError("Token or Dispute contract address is not configured.");
       return;
     }
-    const claimed = Number.parseInt(claimedIBps, 10);
-    if (!Number.isInteger(claimed) || claimed < 0 || claimed > 10_000) {
-      setTxErr("Claimed I_n must be between 0 and 10,000 bps.");
+    await execute(
+      `Approve ${formatCompactNumber(bondNti)} $NTI bond`,
+      {
+        address: addrs.ntiToken,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [addrs.dispute, bondWei],
+      },
+      `Approved ${formatCompactNumber(bondNti)} $NTI for Dispute contract.`,
+    );
+  }
+
+  async function handleOpenDispute() {
+    setValidationError(null);
+    if (!addrs.dispute) {
+      setValidationError("Dispute contract address is not configured.");
       return;
     }
-    try {
-      const evHash = evidenceNote.startsWith("0x") && evidenceNote.length === 66
-        ? (evidenceNote as `0x${string}`)
-        : keccak256(toHex(evidenceNote || `dispute-epoch-${detail.epoch.epochId}`));
+    if (!canDispute) {
+      setValidationError(
+        `Disputes can only be opened during the 'committed' dispute window (current: ${detail.epoch.status}).`,
+      );
+      return;
+    }
+    if (!hasEnoughBalance) {
+      setValidationError(
+        `Insufficient $NTI balance (${formatCompactNumber(Math.floor(Number(formatEther(balanceWei))))} / ${formatCompactNumber(bondNti)} $NTI required).`,
+      );
+      return;
+    }
+    if (needsApproval) {
+      setValidationError("Approve the $NTI dispute bond first.");
+      return;
+    }
 
-      const hash = await writeContractAsync({
-        address: addresses.dispute,
+    const iVal = Number(claimedIBps);
+    if (!Number.isInteger(iVal) || iVal < 0 || iVal > 10000) {
+      setValidationError("Claimed I_n must be an integer between 0 and 10000 bps.");
+      return;
+    }
+
+    const trimmedEvidence = evidenceNote.trim();
+    if (!trimmedEvidence) {
+      setValidationError("Provide a 32-byte 0x hash or Arweave/replay evidence note.");
+      return;
+    }
+    if (trimmedEvidence.startsWith("0x") && !BYTES32_HEX_RE.test(trimmedEvidence)) {
+      setValidationError("Hex evidence hash must be exactly 66 characters (0x + 64 hex chars).");
+      return;
+    }
+
+    const evidenceHash = BYTES32_HEX_RE.test(trimmedEvidence)
+      ? (trimmedEvidence as `0x${string}`)
+      : keccak256(stringToBytes(trimmedEvidence));
+
+    const hash = await execute(
+      `Open dispute on Epoch #${detail.epoch.epochId}`,
+      {
+        address: addrs.dispute,
         abi: disputeAbi,
         functionName: "openDispute",
-        args: [detail.epoch.epochId, disputeNarrativeId, claimed, evHash],
-      });
-      setTxMsg(`Dispute opened on epoch #${detail.epoch.epochId}: ${hash}`);
-      setDisputeModalOpen(false);
-    } catch (e) {
-      setTxErr(e instanceof Error ? e.message : "Dispute transaction failed");
-    }
-  };
+        args: [detail.epoch.epochId, disputeNarrativeId, iVal, evidenceHash],
+      },
+      `Dispute opened for Epoch #${detail.epoch.epochId}.`,
+    );
 
-  const activeRank = STATUS_RANK[detail.epoch.status] ?? 0;
+    if (hash) {
+      setDisputeModalOpen(false);
+      setEvidenceNote("");
+    }
+  }
+
+  async function handleExpireDispute(disputeId: number) {
+    setValidationError(null);
+    if (!addrs.dispute) {
+      setValidationError("Dispute contract address is not configured.");
+      return;
+    }
+    await execute(
+      `Expire Dispute #${disputeId}`,
+      {
+        address: addrs.dispute,
+        abi: disputeAbi,
+        functionName: "expire",
+        args: [BigInt(disputeId)],
+      },
+      `Dispute #${disputeId} expired after 6h resolution window.`,
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {detail.awaitingFirstEpoch && <AwaitingEpochBanner />}
-
-      {/* Header + Epoch Selector */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#1B2028] pb-4">
+    <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#556173]">
-              ORACLE TRANSPARENCY &amp; DISPUTE AUDIT
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+              Optimistic Attestation &amp; Provenance
             </span>
-            <EpochBadge epochId={detail.epoch.epochId} status={detail.epoch.status} />
+            {detail.dataSource === "preview" && (
+              <span className="rounded border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
+                PREVIEW DATA
+              </span>
+            )}
+            {wrongChain && (
+              <span className="rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
+                AUTO-SWITCHES TO CHAIN {targetChainId} ON TX
+              </span>
+            )}
           </div>
-          <h1 className="mt-1.5 font-display text-2xl font-bold text-[#EDF1F7]">
-            Epoch #{detail.epoch.epochId} · Verifiable Attestation Ledger
+          <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
+            Oracle Attestation Inspector · Epoch #{detail.epoch.epochId}
           </h1>
-          <p className="mt-1 max-w-2xl text-xs text-[#8A96A8]">
-            Every committed epoch requires ≥3 independent EIP-712 validator attestations within 100 bps of median and ≥95% omission sample overlap. Disputes lock a 50,000 $NTI bond during the 2-hour challenge window.
+          <p className="mt-1 text-xs text-[#A1A1AA]">
+            Deterministic dataset snapshot, 2-of-3 validator EIP-712 median commit, and 2h bonded dispute window.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
           <button
             type="button"
-            disabled={isPending}
-            onClick={() => void handleFinalize()}
-            className="rounded border border-[#10B981]/50 bg-[#10B981]/15 px-3 py-2 text-[#10B981] hover:bg-[#10B981]/25 disabled:opacity-50"
+            disabled={isBusy || !canDispute}
+            onClick={() => {
+              setValidationError(null);
+              setDisputeModalOpen(true);
+            }}
+            className="rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-1.5 font-medium text-[#F87171] transition-colors hover:bg-[#EF4444]/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            FINALIZE EPOCH
+            OPEN DISPUTE ({formatCompactNumber(bondNti)} $NTI)
           </button>
           <button
             type="button"
-            onClick={() => setDisputeModalOpen(true)}
-            className="rounded border border-[#EF4444]/50 bg-[#EF4444]/15 px-3 py-2 text-[#EF4444] hover:bg-[#EF4444]/25"
+            disabled={isBusy || !canFinalize}
+            onClick={() => void handleFinalize()}
+            className="rounded-md border border-[#6366F1]/40 bg-[#6366F1]/15 px-3 py-1.5 font-medium text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            OPEN DISPUTE (50K $NTI)
+            FINALIZE EPOCH
           </button>
         </div>
       </div>
 
-      {/* Recent Epochs Bar */}
-      {detail.recentEpochs.length > 1 && (
-        <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
-          <span className="mr-1 text-[#556173]">EPOCHS:</span>
-          {detail.recentEpochs.map((ep) => (
+      {/* Epoch Switcher */}
+      <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
+        <span className="mr-1 text-[10px] uppercase tracking-wider text-[#71717A]">
+          Recent Epochs:
+        </span>
+        {detail.recentEpochs.map((ep) => {
+          const active = ep.epochId === detail.epoch.epochId;
+          return (
             <button
               key={ep.epochId}
               type="button"
-              disabled={loadingEpoch}
+              disabled={loadingEpochId === ep.epochId}
               onClick={() => void loadEpoch(ep.epochId)}
-              className={`rounded border px-2.5 py-1 transition-colors ${
-                ep.epochId === detail.epoch.epochId
-                  ? "border-[#38BDF8]/60 bg-[#38BDF8]/12 text-[#EDF1F7]"
-                  : "border-[#1B2028] bg-[#0E1117] text-[#8A96A8] hover:text-[#EDF1F7]"
+              className={`rounded-md border px-2.5 py-1 transition-colors tabular-nums ${
+                active
+                  ? "border-[#6366F1]/60 bg-[#6366F1]/15 text-[#F4F4F5]"
+                  : "border-[#24242C] bg-[#131317] text-[#A1A1AA] hover:border-[#32323D] hover:text-[#F4F4F5]"
               }`}
             >
-              E{ep.epochId} · {ep.status}
+              #{ep.epochId} · {ep.status.toUpperCase()}
             </button>
-          ))}
+          );
+        })}
+      </div>
+
+      {loadError && (
+        <div className="flex items-center justify-between rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => void loadEpoch(detail.epoch.epochId)}
+            className="font-mono text-[11px] underline hover:text-white"
+          >
+            RETRY
+          </button>
         </div>
       )}
 
       {/* Lifecycle Timeline */}
-      <div className="panel-surface rounded-md p-4">
-        <h2 className="font-mono text-[10px] uppercase tracking-widest text-[#556173]">
-          EPOCH LIFECYCLE TIMELINE (SERIES S{detail.epoch.seriesId})
-        </h2>
+      <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs font-semibold text-[#F4F4F5]">Epoch State Machine</div>
+          <div className="font-mono text-[11px] text-[#A1A1AA]">
+            Status:{" "}
+            <span
+              className={
+                detail.epoch.status === "final"
+                  ? "text-[#22C55E]"
+                  : detail.epoch.status === "disputed"
+                    ? "text-[#F87171]"
+                    : detail.epoch.status === "incomplete"
+                      ? "text-[#F59E0B]"
+                      : "text-[#A5B4FC]"
+              }
+            >
+              {detail.epoch.status.toUpperCase()}
+            </span>{" "}
+            · Series #{detail.epoch.seriesId}
+          </div>
+        </div>
+
         <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
           {LIFECYCLE_STEPS.map((step, i) => {
             const reached = i <= activeRank;
@@ -185,27 +354,27 @@ export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
             return (
               <div
                 key={step.key}
-                className={`rounded border p-3 font-mono ${
+                className={`rounded-md border p-3 font-mono ${
                   current
-                    ? "border-[#38BDF8]/60 bg-[#38BDF8]/10"
+                    ? "border-[#6366F1]/60 bg-[#6366F1]/12"
                     : reached
-                      ? "border-[#10B981]/35 bg-[#10B981]/8"
-                      : "border-[#1B2028] bg-[#0B0E13]"
+                      ? "border-[#22C55E]/35 bg-[#22C55E]/8"
+                      : "border-[#24242C] bg-[#19191F]"
                 }`}
               >
                 <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-[#556173]">{step.offset}</span>
+                  <span className="text-[#71717A]">{step.offset}</span>
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${
                       current
-                        ? "bg-[#38BDF8] animate-pulse"
+                        ? "bg-[#6366F1] animate-pulse"
                         : reached
-                          ? "bg-[#10B981]"
-                          : "bg-[#2A3342]"
+                          ? "bg-[#22C55E]"
+                          : "bg-[#32323D]"
                     }`}
                   />
                 </div>
-                <div className="mt-1.5 text-xs font-semibold text-[#EDF1F7]">
+                <div className="mt-1.5 font-sans text-xs font-semibold text-[#F4F4F5]">
                   {step.title}
                 </div>
               </div>
@@ -214,22 +383,28 @@ export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
         </div>
 
         {/* Cryptographic Hashes & Arweave Provenance */}
-        <div className="mt-4 grid grid-cols-1 gap-3 border-t border-[#1B2028] pt-4 font-mono text-xs md:grid-cols-3">
-          <div className="rounded border border-[#1B2028] bg-[#0B0E13] p-3">
-            <div className="text-[10px] text-[#556173]">DATASET HASH (keccak256)</div>
-            <div className="mt-1 break-all text-[11px] text-[#EDF1F7]">
+        <div className="mt-4 grid grid-cols-1 gap-3 border-t border-[#24242C] pt-4 font-mono text-xs md:grid-cols-3">
+          <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+            <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
+              Dataset Hash (keccak256)
+            </div>
+            <div className="mt-1 break-all text-[11px] text-[#F4F4F5]">
               {detail.epoch.datasetHash ?? "Pending snapshot"}
             </div>
           </div>
-          <div className="rounded border border-[#1B2028] bg-[#0B0E13] p-3">
-            <div className="text-[10px] text-[#556173]">CONFIG HASH (ConfigRegistry)</div>
-            <div className="mt-1 break-all text-[11px] text-[#EDF1F7]">
+          <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+            <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
+              Config Hash (ConfigRegistry)
+            </div>
+            <div className="mt-1 break-all text-[11px] text-[#F4F4F5]">
               {detail.epoch.configHash ?? "Pending"}
             </div>
           </div>
-          <div className="rounded border border-[#1B2028] bg-[#0B0E13] p-3">
-            <div className="text-[10px] text-[#556173]">ARWEAVE PERMANENT SNAPSHOT</div>
-            <div className="mt-1 truncate text-[11px] text-[#38BDF8]">
+          <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+            <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
+              Arweave Permanent Snapshot
+            </div>
+            <div className="mt-1 truncate text-[11px] text-[#A5B4FC]">
               {detail.epoch.arweaveTx ? (
                 <a
                   href={`https://arweave.net/${detail.epoch.arweaveTx}`}
@@ -240,7 +415,7 @@ export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
                   ar://{detail.epoch.arweaveTx} ↗
                 </a>
               ) : (
-                "Awaiting upload"
+                <span className="text-[#71717A]">Awaiting upload</span>
               )}
             </div>
           </div>
@@ -248,14 +423,14 @@ export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
       </div>
 
       {/* Validator Attestation Matrix */}
-      <div className="panel-surface rounded-md">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1B2028] px-4 py-3">
+      <div className="rounded-lg border border-[#24242C] bg-[#131317]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#24242C] px-4 py-3">
           <div>
-            <h2 className="font-display text-sm font-semibold text-[#EDF1F7]">
+            <h2 className="text-sm font-semibold text-[#F4F4F5]">
               Validator EIP-712 Attestation Vectors ({detail.attestations.length} / 3 Quorum)
             </h2>
-            <p className="font-mono text-[11px] text-[#8A96A8]">
-              Median per narrative is committed on-chain; operator and validators must agree within ±100 bps
+            <p className="mt-0.5 text-xs text-[#A1A1AA]">
+              Median per narrative is committed on-chain; operator and validators must agree within ±100 bps.
             </p>
           </div>
         </div>
@@ -263,7 +438,7 @@ export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#1B2028] bg-[#0B0E13] font-mono text-[10px] uppercase text-[#556173]">
+              <tr className="border-b border-[#24242C] bg-[#19191F] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 <th className="px-4 py-2.5">Validator</th>
                 {NARRATIVES.slice(0, 6).map((n) => (
                   <th key={n.id} className="px-2.5 py-2.5 text-right">
@@ -274,72 +449,99 @@ export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
                 <th className="px-4 py-2.5 text-right">Signed</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1B2028] font-mono tabular-nums">
-              {detail.attestations.map((att) => (
-                <tr key={att.validator} className="hover:bg-[#131820]/50">
-                  <td className="px-4 py-2.5 text-[#EDF1F7]">
-                    {truncateHex(att.validator, 8, 6)}
-                  </td>
-                  {NARRATIVES.slice(0, 6).map((n, idx) => (
-                    <td key={n.id} className="px-2.5 py-2.5 text-right text-[#8A96A8]">
-                      {att.iBps[idx] !== undefined ? formatBpsPercent(att.iBps[idx]!, 1) : "—"}
-                    </td>
-                  ))}
-                  <td className="px-4 py-2.5 text-right">
-                    <span
-                      className={`rounded border px-2 py-0.5 text-[10px] ${
-                        att.matchesMedian
-                          ? "border-[#10B981]/35 bg-[#10B981]/10 text-[#10B981]"
-                          : "border-[#EF4444]/35 bg-[#EF4444]/10 text-[#EF4444]"
-                      }`}
-                    >
-                      {att.matchesMedian ? "≤100 BPS OK" : "DEVIATED"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-[#556173]">
-                    {formatRelativeTime(att.createdAt)}
+            <tbody className="divide-y divide-[#24242C] font-mono tabular-nums">
+              {detail.attestations.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="px-4 py-6 text-center font-sans text-xs text-[#71717A]"
+                  >
+                    No validator attestations indexed for Epoch #{detail.epoch.epochId} yet.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                detail.attestations.map((att) => (
+                  <tr key={att.validator} className="transition-colors hover:bg-[#19191F]/60">
+                    <td className="px-4 py-2.5 text-[#F4F4F5]">
+                      {truncateHex(att.validator, 8, 6)}
+                    </td>
+                    {NARRATIVES.slice(0, 6).map((n, idx) => (
+                      <td key={n.id} className="px-2.5 py-2.5 text-right text-[#A1A1AA]">
+                        {att.iBps[idx] !== undefined ? formatBpsPercent(att.iBps[idx]!, 1) : "—"}
+                      </td>
+                    ))}
+                    <td className="px-4 py-2.5 text-right">
+                      <span
+                        className={`rounded border px-2 py-0.5 text-[10px] ${
+                          att.matchesMedian
+                            ? "border-[#22C55E]/35 bg-[#22C55E]/10 text-[#22C55E]"
+                            : "border-[#EF4444]/35 bg-[#EF4444]/10 text-[#F87171]"
+                        }`}
+                      >
+                        {att.matchesMedian ? "≤100 BPS OK" : "DEVIATED"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-[#71717A]">
+                      {formatRelativeTime(att.createdAt)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* Disputes Section */}
-      <div className="panel-surface rounded-md p-4">
-        <h2 className="font-display text-sm font-semibold text-[#EDF1F7]">
+      <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+        <h2 className="text-sm font-semibold text-[#F4F4F5]">
           Disputes for Epoch #{detail.epoch.epochId} ({detail.disputes.length})
         </h2>
         {detail.disputes.length === 0 ? (
-          <p className="mt-2 font-mono text-xs text-[#556173]">
-            Zero disputes opened for this epoch. Max 1 dispute per epoch prevents infinite finalization griefing.
+          <p className="mt-2 text-xs text-[#71717A]">
+            Zero disputes opened for this epoch. Max 1 dispute per epoch prevents finalization griefing.
           </p>
         ) : (
-          <div className="mt-3 divide-y divide-[#1B2028] font-mono text-xs">
-            {detail.disputes.map((d) => (
-              <div key={d.disputeId} className="flex flex-wrap justify-between gap-2 py-2.5">
-                <div>
-                  <span className="text-[#EF4444]">DISPUTE #{d.disputeId}</span> · Narrative #
-                  {d.narrativeId} · Claimed I_n {d.claimedIBps} bps · Challenger{" "}
-                  {truncateHex(d.challenger, 6, 4)}
+          <div className="mt-3 divide-y divide-[#24242C] font-mono text-xs">
+            {detail.disputes.map((d) => {
+              const nar = NARRATIVE_BY_ID.get(d.narrativeId);
+              const isOpen = d.status.toLowerCase() === "open";
+              return (
+                <div key={d.disputeId} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                  <div className="text-[#A1A1AA]">
+                    <span className="text-[#F87171]">DISPUTE #{d.disputeId}</span> ·{" "}
+                    {nar?.label ?? `Narrative #${d.narrativeId}`} · Claimed I_n{" "}
+                    <span className="text-[#F4F4F5]">{d.claimedIBps} bps</span> · Challenger{" "}
+                    {truncateHex(d.challenger, 6, 4)}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="uppercase text-[#F59E0B]">{d.status}</span>
+                    {isOpen && (
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => void handleExpireDispute(d.disputeId)}
+                        className="rounded border border-[#24242C] bg-[#19191F] px-2 py-1 text-[10px] text-[#F4F4F5] hover:border-[#F59E0B]/50 disabled:opacity-40"
+                      >
+                        EXPIRE (6H)
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <span className="uppercase text-[#F59E0B]">{d.status}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {txErr && (
-        <div className="rounded border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 font-mono text-xs text-[#EF4444]">
-          {txErr}
+      {validationError && !disputeModalOpen && (
+        <div className="rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+          {validationError}
         </div>
       )}
-      {txMsg && (
-        <div className="rounded border border-[#10B981]/40 bg-[#10B981]/10 px-3 py-2 font-mono text-xs text-[#10B981]">
-          {txMsg}
-        </div>
+
+      {!disputeModalOpen && (
+        <TxStatusBanner state={txState} explorerBase={explorerBase} onDismiss={resetTx} />
       )}
 
       {/* Open Dispute Modal */}
@@ -349,30 +551,50 @@ export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
           role="dialog"
           aria-modal="true"
         >
-          <div className="panel-surface w-full max-w-md rounded-md p-4">
-            <div className="flex items-center justify-between border-b border-[#1B2028] pb-3">
-              <h3 className="font-display text-sm font-semibold text-[#EF4444]">
+          <div className="w-full max-w-md rounded-lg border border-[#24242C] bg-[#131317] p-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#24242C] pb-3">
+              <h3 className="text-sm font-semibold text-[#F87171]">
                 Open Oracle Dispute · Epoch #{detail.epoch.epochId}
               </h3>
               <button
                 type="button"
                 onClick={() => setDisputeModalOpen(false)}
-                className="rounded border border-[#1B2028] px-2 py-0.5 font-mono text-xs text-[#8A96A8]"
+                className="rounded border border-[#24242C] bg-[#19191F] px-2 py-0.5 font-mono text-[11px] text-[#A1A1AA] hover:text-[#F4F4F5]"
               >
                 ESC
               </button>
             </div>
-            <p className="mt-2 font-mono text-[11px] text-[#8A96A8]">
-              Locks 50,000 $NTI bond. If validators recompute &gt;100 bps deviation for this narrative, bond returns + slashing reward; otherwise 50% is burned and 50% goes to responding validators.
+            <p className="mt-2.5 text-xs leading-relaxed text-[#A1A1AA]">
+              Locks {formatCompactNumber(bondNti)} $NTI bond. If validators confirm &gt;100 bps deviation, bond returns plus slashing reward; otherwise 50% is burned and 50% goes to validators.
             </p>
+
+            {/* Bond Balance & Allowance Check */}
+            <div className="mt-3 rounded-md border border-[#24242C] bg-[#19191F] p-2.5 font-mono text-[11px] tabular-nums">
+              <div className="flex justify-between">
+                <span className="text-[#71717A]">$NTI Balance</span>
+                <span className={hasEnoughBalance ? "text-[#22C55E]" : "text-[#F87171]"}>
+                  {isConnected
+                    ? `${formatCompactNumber(Math.floor(Number(formatEther(balanceWei))))} / ${formatCompactNumber(bondNti)} $NTI`
+                    : "Not connected"}
+                </span>
+              </div>
+              <div className="mt-1 flex justify-between">
+                <span className="text-[#71717A]">Dispute Allowance</span>
+                <span className={!needsApproval ? "text-[#22C55E]" : "text-[#F59E0B]"}>
+                  {needsApproval ? "Approval required" : "Approved"}
+                </span>
+              </div>
+            </div>
 
             <div className="mt-3 space-y-3">
               <div>
-                <label className="font-mono text-[10px] text-[#8A96A8]">DISPUTED NARRATIVE</label>
+                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                  Disputed Narrative
+                </label>
                 <select
                   value={disputeNarrativeId}
                   onChange={(e) => setDisputeNarrativeId(Number(e.target.value))}
-                  className="mt-1 w-full rounded border border-[#2A3342] bg-[#090B0E] px-3 py-2 font-mono text-xs text-[#EDF1F7]"
+                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
                 >
                   {NARRATIVES.map((n) => (
                     <option key={n.id} value={n.id}>
@@ -382,8 +604,8 @@ export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
                 </select>
               </div>
               <div>
-                <label className="font-mono text-[10px] text-[#8A96A8]">
-                  CLAIMED TRUE I_n (0..10000 BPS)
+                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                  Claimed True I_n (0..10000 bps)
                 </label>
                 <input
                   type="number"
@@ -391,29 +613,53 @@ export function OracleClient({ initial }: { initial: EpochDetailResponse }) {
                   max="10000"
                   value={claimedIBps}
                   onChange={(e) => setClaimedIBps(e.target.value)}
-                  className="mt-1 w-full rounded border border-[#2A3342] bg-[#090B0E] px-3 py-2 font-mono text-xs text-[#EDF1F7]"
+                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
                 />
               </div>
               <div>
-                <label className="font-mono text-[10px] text-[#8A96A8]">
-                  EVIDENCE HASH OR ARWEAVE / REPLAY NOTE
+                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                  Evidence Hash (0x + 64 hex) or Replay URI
                 </label>
                 <input
                   type="text"
                   placeholder="0x... or Arweave replay URI"
                   value={evidenceNote}
                   onChange={(e) => setEvidenceNote(e.target.value)}
-                  className="mt-1 w-full rounded border border-[#2A3342] bg-[#090B0E] px-3 py-2 font-mono text-xs text-[#EDF1F7]"
+                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#6366F1] focus:outline-none"
                 />
               </div>
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => void handleOpenDispute()}
-                className="w-full rounded border border-[#EF4444]/50 bg-[#EF4444]/15 py-2.5 font-mono text-xs font-semibold text-[#EF4444] hover:bg-[#EF4444]/25 disabled:opacity-50"
-              >
-                LOCK 50,000 $NTI &amp; OPEN DISPUTE
-              </button>
+
+              {validationError && (
+                <div className="rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+                  {validationError}
+                </div>
+              )}
+
+              <TxStatusBanner state={txState} explorerBase={explorerBase} onDismiss={resetTx} />
+
+              {needsApproval ? (
+                <button
+                  type="button"
+                  disabled={isBusy || !isConnected || !hasEnoughBalance}
+                  onClick={() => void handleApproveBond()}
+                  className="w-full rounded-md bg-[#6366F1] py-2.5 font-mono text-xs font-semibold text-white transition-colors hover:bg-[#5558E6] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {!isConnected
+                    ? "CONNECT WALLET TO APPROVE"
+                    : !hasEnoughBalance
+                      ? `NEED ${formatCompactNumber(bondNti)} $NTI`
+                      : `1. APPROVE ${formatCompactNumber(bondNti)} $NTI BOND`}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isBusy || !isConnected || !hasEnoughBalance}
+                  onClick={() => void handleOpenDispute()}
+                  className="w-full rounded-md border border-[#EF4444]/50 bg-[#EF4444]/15 py-2.5 font-mono text-xs font-semibold text-[#F87171] transition-colors hover:bg-[#EF4444]/25 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  2. LOCK {formatCompactNumber(bondNti)} $NTI &amp; OPEN DISPUTE
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -31,7 +31,9 @@ export const erc20Abi = parseAbi([
   "function approve(address spender, uint256 amount) returns (bool)",
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
+  "function name() view returns (string)",
   "function faucet()",
+  "function lastFaucetClaim(address account) view returns (uint64)",
 ]);
 
 export const stakingAbi = parseAbi([
@@ -46,6 +48,7 @@ export const stakingAbi = parseAbi([
   "function hasRadarAccess(address account) view returns (bool)",
   "function discountBps(address account) view returns (uint16)",
   "function pendingReward(address account) view returns (uint256)",
+  "function getPastVotes(address account, uint256 timepoint) view returns (uint256)",
   "function radarMinStake() view returns (uint256)",
   "function tier1Stake() view returns (uint256)",
   "function tier2Stake() view returns (uint256)",
@@ -57,12 +60,17 @@ export const oracleCommitAbi = parseAbi([
   "function markIncomplete(uint32 epochId)",
   "function finalIndex(uint32 epochId, uint8 narrativeId) view returns (uint16)",
   "function isFinal(uint32 epochId) view returns (bool)",
+  "function latestFinalEpoch() view returns (uint32)",
+  "function lastProcessedEpoch() view returns (uint32)",
+  "function epochBoundary(uint32 epochId) view returns (uint64)",
 ]);
 
 export const disputeAbi = parseAbi([
   "function openDispute(uint32 epochId, uint8 narrativeId, uint16 claimedI, bytes32 evidenceHash)",
   "function expire(uint256 disputeId)",
-  "function bondAmount() view returns (uint256)",
+  "function disputeBond() view returns (uint256)",
+  "function nextDisputeId() view returns (uint256)",
+  "function disputes(uint256 disputeId) view returns (uint32 epochId, uint8 narrativeId, uint16 claimedI, bytes32 evidenceHash, address challenger, uint256 bondReceived, uint64 openedAt, uint8 state)",
 ]);
 
 export const narrativeMarketAbi = parseAbi([
@@ -71,6 +79,16 @@ export const narrativeMarketAbi = parseAbi([
   "function settle(uint256 id)",
   "function claim(uint256 id)",
   "function minBet() view returns (uint256)",
+  "function maxPoolPerMarket() view returns (uint256)",
+  "function nextMarketId() view returns (uint256)",
+  "function markets(uint256 id) view returns (uint8 narrativeA, uint8 narrativeB, uint32 baseEpoch, uint32 settleEpoch, uint32 baseSeriesId, uint256 pool0Net, uint256 pool1Net, uint256 pool0Gross, uint256 pool1Gross, uint256 escrowedFees, uint8 outcome, bool settled)",
+  "function positions(uint256 id, address bettor) view returns (uint256 gross0, uint256 net0, uint256 gross1, uint256 net1, bool claimed)",
+]);
+
+export const basketFactoryAbi = parseAbi([
+  "function allBaskets() view returns (address[])",
+  "function basketCount() view returns (uint256)",
+  "function basketOf(uint8 narrativeId) view returns (address)",
 ]);
 
 export const basketAbi = parseAbi([
@@ -78,13 +96,25 @@ export const basketAbi = parseAbi([
   "function redeem(uint256 shares, uint256 minEthOut) returns (uint256 ethOut)",
   "function totalSupply() view returns (uint256)",
   "function balanceOf(address owner) view returns (uint256)",
+  "function totalNavWeth() view returns (uint256)",
+  "function paused() view returns (bool)",
+  "function maxTVL() view returns (uint256)",
+  "function narrativeId() view returns (uint8)",
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function constituentTokens() view returns (address[] tokens, uint16[] weightsBps)",
 ]);
 
 export const grantsAbi = parseAbi([
-  "function submitProposal(bytes32 metadataHash, address recipient)",
+  "function submitProposal(bytes32 metadataHash, address recipient) returns (uint256)",
   "function vote(uint256 round, uint256[] ids, uint256[] weights)",
   "function finalizeRound(uint256 round)",
-  "function claim(uint256 round, uint256 id)",
+  "function claim(uint256 round, uint256 id) returns (uint256)",
+  "function currentRoundId() view returns (uint256)",
+  "function minProposalStake() view returns (uint256)",
+  "function hasVoted(uint256 round, address voter) view returns (bool)",
+  "function rounds(uint256 roundId) view returns (uint256 budget, uint64 snapshotBlock, uint64 startedAt, uint64 endsAt, uint256 totalVotes, uint256 proposalCount, bool finalized)",
+  "function proposals(uint256 roundId, uint256 proposalId) view returns (address proposer, address recipient, bytes32 metadataHash, uint256 votes, uint256 allocation, bool claimed)",
 ]);
 
 export const governorAbi = parseAbi([

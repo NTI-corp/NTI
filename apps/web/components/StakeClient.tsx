@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { formatEther, formatUnits, parseUnits } from "viem";
-import { useAccount, usePublicClient, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useReadContract } from "wagmi";
+import { TxStatusBanner } from "@/components/TxStatusBanner";
 import {
+  ROBINHOOD_TESTNET_ID,
   erc20Abi,
   estimateTxGas,
   getActiveChainId,
@@ -13,6 +15,7 @@ import {
   type GasEstimateDisplay,
 } from "@/lib/contracts";
 import { formatCompactNumber, getStakerTier, truncateHex } from "@/lib/format";
+import { useChainAction } from "@/lib/useChainAction";
 import { useSiweSession } from "./Providers";
 import type { GovernorProposalItem } from "@/lib/types";
 
@@ -22,49 +25,112 @@ const TIERS = [
   { name: "Tier 3", minNti: 5_000_000, discount: "50%", radar: "Real-time Radar + Validator Bond" },
 ] as const;
 
+const FAUCET_COOLDOWN_SEC = 86_400;
+
+function safeParseNti(raw: string): bigint | null {
+  const clean = raw.trim();
+  if (!clean || !/^\d+(\.\d{1,18})?$/.test(clean)) return null;
+  try {
+    return parseUnits(clean, 18);
+  } catch {
+    return null;
+  }
+}
+
 export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }) {
   const { address, isConnected } = useAccount();
-  const publicClient = usePublicClient();
-  const { writeContractAsync, isPending } = useWriteContract();
+  const activeChainId = getActiveChainId();
+  const isTestnet = activeChainId === ROBINHOOD_TESTNET_ID;
+  const publicClient = usePublicClient({ chainId: activeChainId });
   const { refresh: refreshSiwe } = useSiweSession();
+  const addresses = getProtocolAddresses(activeChainId);
 
-  const addresses = getProtocolAddresses(getActiveChainId());
   const [tab, setTab] = useState<"stake" | "unstake">("stake");
   const [amountInput, setAmountInput] = useState("100000");
   const [gasEst, setGasEst] = useState<GasEstimateDisplay | null>(null);
-  const [txMsg, setTxMsg] = useState<string | null>(null);
-  const [txErr, setTxErr] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
 
-  const { data: activeStakeWei } = useReadContract({
+  useEffect(() => {
+    const id = window.setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const { data: ntiBalanceWei, refetch: refetchBalance } = useReadContract({
+    address: addresses.ntiToken ?? undefined,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: activeChainId,
+    query: { enabled: Boolean(addresses.ntiToken && address) },
+  });
+
+  const { data: allowanceWei, refetch: refetchAllowance } = useReadContract({
+    address: addresses.ntiToken ?? undefined,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: address && addresses.staking ? [address, addresses.staking] : undefined,
+    chainId: activeChainId,
+    query: { enabled: Boolean(addresses.ntiToken && addresses.staking && address) },
+  });
+
+  const { data: lastFaucetClaimRaw, refetch: refetchFaucet } = useReadContract({
+    address: addresses.ntiToken ?? undefined,
+    abi: erc20Abi,
+    functionName: "lastFaucetClaim",
+    args: address ? [address] : undefined,
+    chainId: activeChainId,
+    query: { enabled: Boolean(isTestnet && addresses.ntiToken && address) },
+  });
+
+  const { data: activeStakeWei, refetch: refetchStake } = useReadContract({
     address: addresses.staking ?? undefined,
     abi: stakingAbi,
     functionName: "stakeOf",
     args: address ? [address] : undefined,
+    chainId: activeChainId,
     query: { enabled: Boolean(addresses.staking && address) },
   });
 
-  const { data: cooldownTuple } = useReadContract({
+  const { data: cooldownTuple, refetch: refetchCooldown } = useReadContract({
     address: addresses.staking ?? undefined,
     abi: stakingAbi,
     functionName: "cooldownOf",
     args: address ? [address] : undefined,
+    chainId: activeChainId,
     query: { enabled: Boolean(addresses.staking && address) },
   });
 
-  const { data: pendingEthWei } = useReadContract({
+  const { data: pendingEthWei, refetch: refetchReward } = useReadContract({
     address: addresses.staking ?? undefined,
     abi: stakingAbi,
     functionName: "pendingReward",
     args: address ? [address] : undefined,
+    chainId: activeChainId,
     query: { enabled: Boolean(addresses.staking && address) },
   });
 
-  const { data: totalActiveWei } = useReadContract({
+  const { data: totalActiveWei, refetch: refetchTotal } = useReadContract({
     address: addresses.staking ?? undefined,
     abi: stakingAbi,
     functionName: "totalActiveStaked",
+    chainId: activeChainId,
     query: { enabled: Boolean(addresses.staking) },
   });
+
+  const { txState, isBusy, wrongChain, targetChainId, explorerBase, execute, resetTx } =
+    useChainAction(async () => {
+      await Promise.all([
+        refetchBalance(),
+        refetchAllowance(),
+        refetchFaucet(),
+        refetchStake(),
+        refetchCooldown(),
+        refetchReward(),
+        refetchTotal(),
+      ]);
+      await refreshSiwe();
+    });
 
   useEffect(() => {
     let active = true;
@@ -80,201 +146,323 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
     };
   }, [publicClient, address, addresses.staking, tab]);
 
-  const activeStakeNum = activeStakeWei ? Number(formatUnits(activeStakeWei, 18)) : 0;
-  const cooldownAmtNum = cooldownTuple ? Number(formatUnits(cooldownTuple[0], 18)) : 0;
+  const walletBalanceWei = (ntiBalanceWei as bigint | undefined) ?? 0n;
+  const currentAllowanceWei = (allowanceWei as bigint | undefined) ?? 0n;
+  const stakeWei = (activeStakeWei as bigint | undefined) ?? 0n;
+  const cooldownAmountWei = cooldownTuple ? cooldownTuple[0] : 0n;
   const cooldownUnlockAt = cooldownTuple ? Number(cooldownTuple[1]) : 0;
-  const pendingEth = pendingEthWei ? Number(formatEther(pendingEthWei)) : 0;
-  const totalStakedNum = totalActiveWei ? Number(formatUnits(totalActiveWei, 18)) : 0;
+  const rewardWei = (pendingEthWei as bigint | undefined) ?? 0n;
+  const totalWei = (totalActiveWei as bigint | undefined) ?? 0n;
+  const lastClaimSec = lastFaucetClaimRaw ? Number(lastFaucetClaimRaw) : 0;
+
+  const faucetUnlockSec = lastClaimSec > 0 ? lastClaimSec + FAUCET_COOLDOWN_SEC : 0;
+  const faucetCooldownRemaining = Math.max(0, faucetUnlockSec - nowSec);
+  const faucetOnCooldown = isConnected && lastClaimSec > 0 && faucetCooldownRemaining > 0;
+
+  const walletBalanceNum = Number(formatUnits(walletBalanceWei, 18));
+  const activeStakeNum = Number(formatUnits(stakeWei, 18));
+  const cooldownAmtNum = Number(formatUnits(cooldownAmountWei, 18));
+  const pendingEth = Number(formatEther(rewardWei));
+  const totalStakedNum = Number(formatUnits(totalWei, 18));
   const tier = getStakerTier(activeStakeNum);
+
+  const parsedAmountWei = safeParseNti(amountInput);
+  const hasValidAmount = parsedAmountWei !== null && parsedAmountWei > 0n;
+  const needsApproval = hasValidAmount && currentAllowanceWei < parsedAmountWei;
+  const insufficientWalletBalance =
+    tab === "stake" && isConnected && hasValidAmount && parsedAmountWei > walletBalanceWei;
+  const insufficientStakedBalance =
+    tab === "unstake" && isConnected && hasValidAmount && parsedAmountWei > stakeWei;
+  const withdrawUnlocked = cooldownAmountWei > 0n && nowSec >= cooldownUnlockAt;
 
   const runAction = async (
     action: "faucet" | "approve" | "stake" | "requestUnstake" | "withdraw" | "claim",
   ) => {
-    setTxErr(null);
-    setTxMsg(null);
-    if (!isConnected) {
-      setTxErr("Connect your wallet in the top bar first.");
+    setValidationError(null);
+    if (!isConnected || !address) {
+      setValidationError("Connect your wallet in the top bar first.");
       return;
     }
 
-    try {
-      if (action === "faucet") {
-        if (!addresses.ntiToken) throw new Error("NTITestToken address not configured.");
-        const hash = await writeContractAsync({
+    if (action === "faucet") {
+      if (!addresses.ntiToken) {
+        setValidationError("NTITestToken contract address not configured.");
+        return;
+      }
+      if (faucetOnCooldown) {
+        const hrs = Math.ceil(faucetCooldownRemaining / 3600);
+        setValidationError(`Faucet cooldown active (~${hrs}h remaining).`);
+        return;
+      }
+      await execute(
+        "Mint 10,000 tNTI from faucet",
+        {
           address: addresses.ntiToken,
           abi: erc20Abi,
           functionName: "faucet",
-        });
-        setTxMsg(`Faucet minted 10,000 test $NTI: ${hash}`);
+        },
+        "Minted 10,000 test $NTI.",
+      );
+      return;
+    }
+
+    if (action === "approve") {
+      if (!addresses.ntiToken || !addresses.staking) {
+        setValidationError("Token or Staking contract address not configured.");
         return;
       }
-
-      if (action === "approve") {
-        if (!addresses.ntiToken || !addresses.staking) {
-          throw new Error("Token or Staking contract address not configured.");
-        }
-        const hash = await writeContractAsync({
+      if (!parsedAmountWei || parsedAmountWei <= 0n) {
+        setValidationError("Enter a valid positive $NTI amount to approve.");
+        return;
+      }
+      await execute(
+        `Approve ${Number(formatUnits(parsedAmountWei, 18)).toLocaleString("en-US")} $NTI`,
+        {
           address: addresses.ntiToken,
           abi: erc20Abi,
           functionName: "approve",
-          args: [addresses.staking, parseUnits(amountInput || "0", 18)],
-        });
-        setTxMsg(`Allowance approved: ${hash}`);
+          args: [addresses.staking, parsedAmountWei],
+        },
+        "Staking allowance approved.",
+      );
+      return;
+    }
+
+    if (!addresses.staking) {
+      setValidationError("Staking contract address not configured.");
+      return;
+    }
+
+    if (action === "stake") {
+      if (!parsedAmountWei || parsedAmountWei <= 0n) {
+        setValidationError("Enter a valid positive $NTI amount to stake.");
         return;
       }
-
-      if (!addresses.staking) throw new Error("Staking contract address not configured.");
-
-      if (action === "stake") {
-        const hash = await writeContractAsync({
+      if (parsedAmountWei > walletBalanceWei) {
+        setValidationError("Insufficient $NTI wallet balance.");
+        return;
+      }
+      if (needsApproval) {
+        setValidationError("Approve $NTI allowance for Staking contract first.");
+        return;
+      }
+      await execute(
+        `Stake ${Number(formatUnits(parsedAmountWei, 18)).toLocaleString("en-US")} $NTI`,
+        {
           address: addresses.staking,
           abi: stakingAbi,
           functionName: "stake",
-          args: [parseUnits(amountInput || "0", 18)],
-        });
-        setTxMsg(`Stake transaction submitted: ${hash}`);
-        void refreshSiwe();
-      } else if (action === "requestUnstake") {
-        const hash = await writeContractAsync({
+          args: [parsedAmountWei],
+        },
+        "$NTI staked & SIWE tier refreshed.",
+      );
+      return;
+    }
+
+    if (action === "requestUnstake") {
+      if (!parsedAmountWei || parsedAmountWei <= 0n) {
+        setValidationError("Enter a valid positive $NTI amount to unstake.");
+        return;
+      }
+      if (parsedAmountWei > stakeWei) {
+        setValidationError("Amount exceeds your active staked balance.");
+        return;
+      }
+      await execute(
+        `Request unstake of ${Number(formatUnits(parsedAmountWei, 18)).toLocaleString("en-US")} $NTI`,
+        {
           address: addresses.staking,
           abi: stakingAbi,
           functionName: "requestUnstake",
-          args: [parseUnits(amountInput || "0", 18)],
-        });
-        setTxMsg(`7-day unstake cooldown started: ${hash}`);
-      } else if (action === "withdraw") {
-        const hash = await writeContractAsync({
+          args: [parsedAmountWei],
+        },
+        "7-day unstake cooldown started.",
+      );
+      return;
+    }
+
+    if (action === "withdraw") {
+      if (!withdrawUnlocked) {
+        setValidationError("No unlocked cooldown balance ready to withdraw yet.");
+        return;
+      }
+      await execute(
+        "Withdraw unlocked $NTI",
+        {
           address: addresses.staking,
           abi: stakingAbi,
           functionName: "withdraw",
-        });
-        setTxMsg(`Cooldown withdrawal submitted: ${hash}`);
-      } else if (action === "claim") {
-        const hash = await writeContractAsync({
-          address: addresses.staking,
-          abi: stakingAbi,
-          functionName: "claim",
-        });
-        setTxMsg(`ETH rewards claimed: ${hash}`);
-      }
-    } catch (e) {
-      setTxErr(e instanceof Error ? e.message : "Transaction rejected");
+        },
+        "Unlocked $NTI withdrawn to wallet.",
+      );
+      return;
     }
+
+    if (rewardWei <= 0n) {
+      setValidationError("No claimable ETH rewards available yet.");
+      return;
+    }
+    await execute(
+      "Claim ETH staking rewards",
+      {
+        address: addresses.staking,
+        abi: stakingAbi,
+        functionName: "claim",
+      },
+      "ETH staking rewards claimed.",
+    );
   };
 
   const castGovVote = async (proposalId: string, support: 0 | 1 | 2) => {
-    setTxErr(null);
-    setTxMsg(null);
+    setValidationError(null);
     if (!isConnected || !addresses.governor) {
-      setTxErr("Connect wallet with NTIGovernor contract configured.");
+      setValidationError("Connect wallet with NTIGovernor contract configured.");
       return;
     }
-    try {
-      const hash = await writeContractAsync({
+    await execute(
+      `Cast governance vote on #${proposalId}`,
+      {
         address: addresses.governor,
         abi: governorAbi,
         functionName: "castVote",
         args: [BigInt(proposalId), support],
-      });
-      setTxMsg(`Governance vote submitted for #${proposalId}: ${hash}`);
-    } catch (e) {
-      setTxErr(e instanceof Error ? e.message : "Vote failed");
-    }
+      },
+      `Governance vote recorded on proposal #${proposalId}.`,
+    );
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#1B2028] pb-4">
+    <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-6 lg:px-6">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#556173]">
-            STAKING &amp; GOVERNANCE · IVOTES CHECKPOINTED
-          </span>
-          <h1 className="mt-1.5 font-display text-2xl font-bold text-[#EDF1F7]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+              Staking &amp; Governance · IVotes Checkpointed
+            </span>
+            {wrongChain && (
+              <span className="rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
+                AUTO-SWITCHES TO CHAIN {targetChainId} ON TX
+              </span>
+            )}
+          </div>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
             Stake $NTI · ETH Yield, Radar Access &amp; Governance
           </h1>
-          <p className="mt-1 max-w-2xl text-xs text-[#8A96A8]">
-            Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and govern NTIGovernor (4% quorum, 3d vote, 48h Timelock). Unstaking enters a 7-day cooldown (no votes or ETH yield while cooling down).
+          <p className="mt-1 max-w-2xl text-xs text-[#A1A1AA]">
+            Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and govern NTIGovernor (4% quorum, 3d vote, 48h Timelock).
           </p>
         </div>
 
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={() => void runAction("faucet")}
-          className="rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 font-mono text-xs text-[#F59E0B] hover:bg-[#F59E0B]/20 disabled:opacity-50"
-        >
-          TESTNET FAUCET (+10,000 NTITest)
-        </button>
+        {isTestnet && (
+          <button
+            type="button"
+            disabled={isBusy || faucetOnCooldown}
+            onClick={() => void runAction("faucet")}
+            className="rounded-md border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 font-mono text-xs font-medium text-[#F59E0B] transition-colors hover:bg-[#F59E0B]/20 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {faucetOnCooldown
+              ? `FAUCET COOLDOWN (${Math.ceil(faucetCooldownRemaining / 3600)}H)`
+              : "TESTNET FAUCET (+10,000 tNTI)"}
+          </button>
+        )}
       </div>
 
       {/* Position Summary Strip */}
-      <div className="grid grid-cols-2 gap-3 font-mono tabular-nums lg:grid-cols-4">
-        <div className="panel-surface rounded-md p-3.5">
-          <div className="text-[10px] text-[#556173]">YOUR ACTIVE STAKE</div>
-          <div className="mt-1 text-lg font-semibold text-[#EDF1F7]">
-            {Math.floor(activeStakeNum).toLocaleString("en-US")} $NTI
+      <div className="grid grid-cols-2 gap-3 font-mono tabular-nums lg:grid-cols-5">
+        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+          <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
+            Wallet $NTI
           </div>
-          <div className="text-[10px] text-[#10B981]">{tier.tierName}</div>
+          <div className="mt-1 text-lg font-semibold text-[#F4F4F5]">
+            {isConnected ? `${Math.floor(walletBalanceNum).toLocaleString("en-US")}` : "—"}
+          </div>
+          <div className="mt-0.5 font-sans text-[11px] text-[#A1A1AA]">Liquid balance</div>
         </div>
 
-        <div className="panel-surface rounded-md p-3.5">
-          <div className="text-[10px] text-[#556173]">COOLDOWN (7-DAY LOCK)</div>
+        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+          <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
+            Your Active Stake
+          </div>
+          <div className="mt-1 text-lg font-semibold text-[#F4F4F5]">
+            {Math.floor(activeStakeNum).toLocaleString("en-US")} $NTI
+          </div>
+          <div className="mt-0.5 font-sans text-[11px] text-[#22C55E]">{tier.tierName}</div>
+        </div>
+
+        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+          <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
+            Cooldown (7-Day Lock)
+          </div>
           <div className="mt-1 text-lg font-semibold text-[#F59E0B]">
             {Math.floor(cooldownAmtNum).toLocaleString("en-US")} $NTI
           </div>
-          <div className="text-[10px] text-[#8A96A8]">
+          <div className="mt-0.5 font-sans text-[11px] text-[#A1A1AA]">
             {cooldownUnlockAt > 0
-              ? `Unlocks ${new Date(cooldownUnlockAt * 1000).toLocaleDateString()}`
+              ? withdrawUnlocked
+                ? "Unlocked — ready to withdraw"
+                : `Unlocks ${new Date(cooldownUnlockAt * 1000).toLocaleDateString()}`
               : "No active cooldown"}
           </div>
         </div>
 
-        <div className="panel-surface rounded-md p-3.5">
-          <div className="text-[10px] text-[#556173]">CLAIMABLE ETH REWARDS</div>
-          <div className="mt-1 text-lg font-semibold text-[#10B981]">
+        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+          <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
+            Claimable ETH Rewards
+          </div>
+          <div className="mt-1 text-lg font-semibold text-[#22C55E]">
             {pendingEth.toFixed(5)} ETH
           </div>
           <button
             type="button"
-            disabled={isPending}
+            disabled={isBusy || rewardWei <= 0n}
             onClick={() => void runAction("claim")}
-            className="mt-1 text-[10px] text-[#38BDF8] hover:underline"
+            className="mt-0.5 text-[11px] text-[#A5B4FC] hover:underline disabled:cursor-not-allowed disabled:opacity-40"
           >
             CLAIM REWARD →
           </button>
         </div>
 
-        <div className="panel-surface rounded-md p-3.5">
-          <div className="text-[10px] text-[#556173]">PROTOCOL TOTAL ACTIVE STAKED</div>
-          <div className="mt-1 text-lg font-semibold text-[#EDF1F7]">
+        <div className="col-span-2 rounded-lg border border-[#24242C] bg-[#131317] p-3.5 lg:col-span-1">
+          <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
+            Protocol Total Staked
+          </div>
+          <div className="mt-1 text-lg font-semibold text-[#F4F4F5]">
             {formatCompactNumber(totalStakedNum)} $NTI
           </div>
-          <div className="text-[10px] text-[#8A96A8]">30% FeeRouter ETH stream</div>
+          <div className="mt-0.5 font-sans text-[11px] text-[#A1A1AA]">
+            30% FeeRouter ETH stream
+          </div>
         </div>
       </div>
 
       {/* Main Split: Stake / Unstake Form + Tier Ladder */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="panel-surface rounded-md p-4 lg:col-span-5">
-          <div className="grid grid-cols-2 gap-1.5 rounded border border-[#1B2028] bg-[#0B0E13] p-1 font-mono text-xs">
+        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4 lg:col-span-5">
+          <div className="grid grid-cols-2 gap-1 rounded-md border border-[#24242C] bg-[#0B0B0E] p-1 font-mono text-xs">
             <button
               type="button"
-              onClick={() => setTab("stake")}
-              className={`rounded py-2 font-semibold ${
+              onClick={() => {
+                setTab("stake");
+                setValidationError(null);
+              }}
+              className={`rounded py-2 font-semibold transition-colors ${
                 tab === "stake"
-                  ? "bg-[#10B981]/15 text-[#10B981]"
-                  : "text-[#8A96A8] hover:text-[#EDF1F7]"
+                  ? "bg-[#22C55E]/15 text-[#22C55E]"
+                  : "text-[#A1A1AA] hover:text-[#F4F4F5]"
               }`}
             >
               STAKE $NTI
             </button>
             <button
               type="button"
-              onClick={() => setTab("unstake")}
-              className={`rounded py-2 font-semibold ${
+              onClick={() => {
+                setTab("unstake");
+                setValidationError(null);
+              }}
+              className={`rounded py-2 font-semibold transition-colors ${
                 tab === "unstake"
                   ? "bg-[#F59E0B]/15 text-[#F59E0B]"
-                  : "text-[#8A96A8] hover:text-[#EDF1F7]"
+                  : "text-[#A1A1AA] hover:text-[#F4F4F5]"
               }`}
             >
               UNSTAKE / WITHDRAW
@@ -283,24 +471,40 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
 
           <div className="mt-4 space-y-3">
             <div>
-              <label className="font-mono text-[10px] text-[#8A96A8]">
-                AMOUNT ($NTI)
-              </label>
+              <div className="flex items-center justify-between font-mono text-[10px] text-[#A1A1AA]">
+                <label>AMOUNT ($NTI)</label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAmountInput(
+                      tab === "stake"
+                        ? formatUnits(walletBalanceWei, 18)
+                        : formatUnits(stakeWei, 18),
+                    )
+                  }
+                  className="text-[#A5B4FC] hover:underline tabular-nums"
+                >
+                  MAX:{" "}
+                  {tab === "stake"
+                    ? `${Math.floor(walletBalanceNum).toLocaleString("en-US")}`
+                    : `${Math.floor(activeStakeNum).toLocaleString("en-US")}`}
+                </button>
+              </div>
               <input
                 type="number"
                 min="0"
                 step="10000"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
-                className="mt-1.5 w-full rounded border border-[#2A3342] bg-[#090B0E] px-3 py-2 font-mono text-sm text-[#EDF1F7] tabular-nums focus:border-[#38BDF8] focus:outline-none"
+                className="mt-1.5 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#6366F1] focus:outline-none"
               />
-              <div className="mt-2 flex gap-1.5 font-mono text-[10px]">
-                {["100000", "1000000", "5000000"].map((v) => (
+              <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[10px]">
+                {["10000", "100000", "1000000", "5000000"].map((v) => (
                   <button
                     key={v}
                     type="button"
                     onClick={() => setAmountInput(v)}
-                    className="rounded border border-[#1B2028] bg-[#131820] px-2 py-1 text-[#8A96A8] hover:text-[#EDF1F7]"
+                    className="rounded border border-[#24242C] bg-[#19191F] px-2 py-1 text-[#A1A1AA] hover:text-[#F4F4F5]"
                   >
                     {Number(v).toLocaleString("en-US")}
                   </button>
@@ -309,7 +513,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
             </div>
 
             {gasEst && (
-              <div className="flex justify-between rounded border border-[#1B2028] bg-[#0B0E13] px-3 py-2 font-mono text-[11px] text-[#8A96A8] tabular-nums">
+              <div className="flex justify-between rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-[11px] text-[#A1A1AA] tabular-nums">
                 <span>Est. gas ({gasEst.gasPriceGwei} gwei)</span>
                 <span>~{gasEst.estimatedCostEth} ETH</span>
               </div>
@@ -319,61 +523,72 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  disabled={isPending}
+                  disabled={
+                    isBusy ||
+                    !isConnected ||
+                    !hasValidAmount ||
+                    insufficientWalletBalance ||
+                    !needsApproval
+                  }
                   onClick={() => void runAction("approve")}
-                  className="rounded border border-[#2A3342] bg-[#131820] py-2.5 font-mono text-xs font-semibold text-[#EDF1F7] hover:border-[#38BDF8]/50 disabled:opacity-50"
+                  className="rounded-md border border-[#24242C] bg-[#19191F] py-2.5 font-mono text-xs font-semibold text-[#F4F4F5] transition-colors hover:border-[#6366F1]/50 disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  1. APPROVE
+                  {!needsApproval && hasValidAmount ? "1. APPROVED ✓" : "1. APPROVE"}
                 </button>
                 <button
                   type="button"
-                  disabled={isPending}
+                  disabled={
+                    isBusy ||
+                    !isConnected ||
+                    !hasValidAmount ||
+                    insufficientWalletBalance ||
+                    needsApproval
+                  }
                   onClick={() => void runAction("stake")}
-                  className="rounded border border-[#10B981]/50 bg-[#10B981]/15 py-2.5 font-mono text-xs font-semibold text-[#10B981] hover:bg-[#10B981]/25 disabled:opacity-50"
+                  className="rounded-md bg-[#22C55E] py-2.5 font-mono text-xs font-semibold text-[#0B0B0E] transition-colors hover:bg-[#16A34A] disabled:cursor-not-allowed disabled:opacity-45"
                 >
-                  2. STAKE $NTI
+                  {insufficientWalletBalance ? "INSUFFICIENT $NTI" : "2. STAKE $NTI"}
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  disabled={isPending}
+                  disabled={
+                    isBusy || !isConnected || !hasValidAmount || insufficientStakedBalance
+                  }
                   onClick={() => void runAction("requestUnstake")}
-                  className="rounded border border-[#F59E0B]/50 bg-[#F59E0B]/15 py-2.5 font-mono text-xs font-semibold text-[#F59E0B] hover:bg-[#F59E0B]/25 disabled:opacity-50"
+                  className="rounded-md border border-[#F59E0B]/50 bg-[#F59E0B]/15 py-2.5 font-mono text-xs font-semibold text-[#F59E0B] transition-colors hover:bg-[#F59E0B]/25 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   REQUEST UNSTAKE (7D)
                 </button>
                 <button
                   type="button"
-                  disabled={isPending}
+                  disabled={isBusy || !isConnected || !withdrawUnlocked}
                   onClick={() => void runAction("withdraw")}
-                  className="rounded border border-[#38BDF8]/50 bg-[#38BDF8]/15 py-2.5 font-mono text-xs font-semibold text-[#38BDF8] hover:bg-[#38BDF8]/25 disabled:opacity-50"
+                  className="rounded-md border border-[#6366F1]/50 bg-[#6366F1]/15 py-2.5 font-mono text-xs font-semibold text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   WITHDRAW UNLOCKED
                 </button>
               </div>
             )}
 
-            {txErr && (
-              <div className="rounded border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 font-mono text-[11px] text-[#EF4444]">
-                {txErr}
+            {validationError && (
+              <div className="rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+                {validationError}
               </div>
             )}
-            {txMsg && (
-              <div className="rounded border border-[#10B981]/40 bg-[#10B981]/10 px-3 py-2 font-mono text-[11px] text-[#10B981]">
-                {txMsg}
-              </div>
-            )}
+
+            <TxStatusBanner state={txState} explorerBase={explorerBase} onDismiss={resetTx} />
           </div>
         </div>
 
         {/* Tier Access & Fee Discount Ladder */}
-        <div className="panel-surface rounded-md p-4 lg:col-span-7">
-          <h2 className="font-display text-sm font-semibold text-[#EDF1F7]">
+        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4 lg:col-span-7">
+          <h2 className="text-sm font-semibold text-[#F4F4F5]">
             Staker Access &amp; Fee Discount Tiers
           </h2>
-          <p className="mt-0.5 font-mono text-[11px] text-[#8A96A8]">
+          <p className="mt-0.5 text-xs text-[#A1A1AA]">
             Fee-on-transfer safe staking (tracks exact received delta). Slashing applies across active + cooldown balances.
           </p>
 
@@ -385,21 +600,23 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                   key={t.name}
                   className={`rounded-md border p-3.5 font-mono ${
                     unlocked
-                      ? "border-[#10B981]/50 bg-[#10B981]/10"
-                      : "border-[#1B2028] bg-[#0B0E13]"
+                      ? "border-[#22C55E]/50 bg-[#22C55E]/10"
+                      : "border-[#24242C] bg-[#0B0B0E]"
                   }`}
                 >
                   <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-[#8A96A8]">{t.name.toUpperCase()}</span>
-                    <span className={unlocked ? "text-[#10B981]" : "text-[#556173]"}>
+                    <span className="text-[#A1A1AA]">{t.name.toUpperCase()}</span>
+                    <span className={unlocked ? "text-[#22C55E]" : "text-[#71717A]"}>
                       {unlocked ? "UNLOCKED" : "LOCKED"}
                     </span>
                   </div>
-                  <div className="mt-1.5 text-base font-semibold text-[#EDF1F7] tabular-nums">
+                  <div className="mt-1.5 text-base font-semibold text-[#F4F4F5] tabular-nums">
                     {formatCompactNumber(t.minNti)} $NTI
                   </div>
-                  <div className="mt-2 text-xs text-[#10B981]">{t.discount} Market Fee Discount</div>
-                  <div className="mt-0.5 text-[10px] text-[#8A96A8]">{t.radar}</div>
+                  <div className="mt-2 font-sans text-xs font-medium text-[#22C55E]">
+                    {t.discount} Market Fee Discount
+                  </div>
+                  <div className="mt-0.5 font-sans text-[11px] text-[#A1A1AA]">{t.radar}</div>
                 </div>
               );
             })}
@@ -408,95 +625,100 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
       </div>
 
       {/* NTIGovernor Proposals */}
-      <section className="panel-surface rounded-md">
-        <div className="border-b border-[#1B2028] px-4 py-3">
-          <h2 className="font-display text-sm font-semibold text-[#EDF1F7]">
+      <section className="rounded-lg border border-[#24242C] bg-[#131317]">
+        <div className="border-b border-[#24242C] px-4 py-3">
+          <h2 className="text-sm font-semibold text-[#F4F4F5]">
             NTIGovernor Proposals (4% Quorum · 3d Voting · 48h Timelock)
           </h2>
-          <p className="font-mono text-[11px] text-[#8A96A8]">
-            Controls ConfigRegistry parameters, validator permissionless mode, basket token whitelists, risk caps, and InsuranceFund
+          <p className="mt-0.5 text-xs text-[#A1A1AA]">
+            Controls ConfigRegistry parameters, validator permissionless mode, basket token whitelists, risk caps, and InsuranceFund.
           </p>
         </div>
 
-        <div className="divide-y divide-[#1B2028]">
-          {proposals.map((p) => {
-            const totalVotes = p.forVotesNti + p.againstVotesNti + p.abstainVotesNti;
-            const forPct = totalVotes > 0 ? Math.round((p.forVotesNti / totalVotes) * 100) : 0;
-            return (
-              <div key={p.proposalId} className="p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="max-w-2xl">
-                    <div className="flex items-center gap-2 font-mono text-[10px]">
-                      <span className="rounded border border-[#2A3342] bg-[#131820] px-1.5 py-0.5 text-[#38BDF8]">
-                        {p.category.toUpperCase()}
-                      </span>
-                      <span
-                        className={`rounded border px-1.5 py-0.5 ${
-                          p.status === "Active"
-                            ? "border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981]"
-                            : p.status === "Queued"
-                              ? "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]"
-                              : "border-[#2A3342] text-[#8A96A8]"
-                        }`}
-                      >
-                        {p.status.toUpperCase()}
-                      </span>
-                      <span className="text-[#556173]">
-                        ID #{p.proposalId} · By {truncateHex(p.proposer, 6, 4)}
-                      </span>
+        {proposals.length === 0 ? (
+          <div className="px-4 py-8 text-center text-xs text-[#A1A1AA]">
+            No NTIGovernor proposals indexed yet. Submit on-chain proposals once governance voting weights reach quorum.
+          </div>
+        ) : (
+          <div className="divide-y divide-[#24242C]">
+            {proposals.map((p) => {
+              const totalVotes = p.forVotesNti + p.againstVotesNti + p.abstainVotesNti;
+              const forPct =
+                totalVotes > 0 ? Math.round((p.forVotesNti / totalVotes) * 100) : 0;
+              return (
+                <div key={p.proposalId} className="p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="max-w-2xl">
+                      <div className="flex flex-wrap items-center gap-2 font-mono text-[10px]">
+                        <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[#A5B4FC]">
+                          {p.category.toUpperCase()}
+                        </span>
+                        <span
+                          className={`rounded border px-1.5 py-0.5 ${
+                            p.status === "Active"
+                              ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
+                              : p.status === "Queued"
+                                ? "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]"
+                                : "border-[#24242C] text-[#A1A1AA]"
+                          }`}
+                        >
+                          {p.status.toUpperCase()}
+                        </span>
+                        <span className="text-[#71717A]">
+                          ID #{p.proposalId} · By {truncateHex(p.proposer, 6, 4)}
+                        </span>
+                      </div>
+                      <h3 className="mt-1.5 text-sm font-semibold text-[#F4F4F5]">{p.title}</h3>
+                      <p className="mt-1 text-xs text-[#A1A1AA]">{p.summary}</p>
                     </div>
-                    <h3 className="mt-1.5 font-display text-sm font-semibold text-[#EDF1F7]">
-                      {p.title}
-                    </h3>
-                    <p className="mt-1 text-xs text-[#8A96A8]">{p.summary}</p>
+
+                    {p.status === "Active" && (
+                      <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => void castGovVote(p.proposalId, 1)}
+                          className="rounded-md border border-[#22C55E]/50 bg-[#22C55E]/15 px-3 py-1.5 text-[#22C55E] hover:bg-[#22C55E]/25 disabled:opacity-45"
+                        >
+                          FOR
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => void castGovVote(p.proposalId, 0)}
+                          className="rounded-md border border-[#EF4444]/50 bg-[#EF4444]/15 px-3 py-1.5 text-[#F87171] hover:bg-[#EF4444]/25 disabled:opacity-45"
+                        >
+                          AGAINST
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() => void castGovVote(p.proposalId, 2)}
+                          className="rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 text-[#A1A1AA] hover:text-[#F4F4F5] disabled:opacity-45"
+                        >
+                          ABSTAIN
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {p.status === "Active" && (
-                    <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => void castGovVote(p.proposalId, 1)}
-                        className="rounded border border-[#10B981]/50 bg-[#10B981]/15 px-3 py-1.5 text-[#10B981] hover:bg-[#10B981]/25"
-                      >
-                        FOR
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => void castGovVote(p.proposalId, 0)}
-                        className="rounded border border-[#EF4444]/50 bg-[#EF4444]/15 px-3 py-1.5 text-[#EF4444] hover:bg-[#EF4444]/25"
-                      >
-                        AGAINST
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => void castGovVote(p.proposalId, 2)}
-                        className="rounded border border-[#2A3342] bg-[#131820] px-3 py-1.5 text-[#8A96A8] hover:text-[#EDF1F7]"
-                      >
-                        ABSTAIN
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-3 flex flex-wrap items-center gap-4 font-mono text-[11px] text-[#A1A1AA] tabular-nums">
+                    <span className="text-[#22C55E]">
+                      FOR {formatCompactNumber(p.forVotesNti)} ({forPct}%)
+                    </span>
+                    <span className="text-[#F87171]">
+                      AGAINST {formatCompactNumber(p.againstVotesNti)}
+                    </span>
+                    <span>ABSTAIN {formatCompactNumber(p.abstainVotesNti)}</span>
+                    <span className="text-[#71717A]">
+                      Quorum {formatCompactNumber(p.quorumNti)} $NTI
+                    </span>
+                  </div>
                 </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-4 font-mono text-[11px] tabular-nums text-[#8A96A8]">
-                  <span className="text-[#10B981]">
-                    FOR {formatCompactNumber(p.forVotesNti)} ({forPct}%)
-                  </span>
-                  <span className="text-[#EF4444]">
-                    AGAINST {formatCompactNumber(p.againstVotesNti)}
-                  </span>
-                  <span>ABSTAIN {formatCompactNumber(p.abstainVotesNti)}</span>
-                  <span className="text-[#556173]">
-                    Quorum {formatCompactNumber(p.quorumNti)} $NTI
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

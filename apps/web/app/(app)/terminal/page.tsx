@@ -39,6 +39,7 @@ export default async function TerminalPage() {
       {snapshot.awaitingFirstEpoch && <AwaitingEpochBanner />}
       <MindshareTerminalWorkspace
         narratives={snapshot.narratives}
+        recentSeries={snapshot.recentSeries}
         combinedSeries={combinedSeries}
         radar={radar}
         activeEpoch={activeEpoch}

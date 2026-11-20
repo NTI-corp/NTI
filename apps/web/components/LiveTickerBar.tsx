@@ -20,11 +20,11 @@ export function LiveTickerBar({
   const items = [...sorted, ...sorted];
 
   return (
-    <div className="border-t border-[#1B202C] bg-[#06070A] font-mono text-[11px] tabular-nums">
+    <div className="border-t border-[#24242C] bg-[#0B0B0E] font-mono text-[11px] tabular-nums">
       <div className="mx-auto flex max-w-[1440px] items-center">
-        <div className="flex shrink-0 items-center gap-2 border-r border-[#1B202C] bg-[#0B0D12] px-3 py-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#B8FF2E]" />
-          <span className="text-[10px] uppercase tracking-[0.18em] text-[#8B94A7]">
+        <div className="flex shrink-0 items-center gap-2 border-r border-[#24242C] bg-[#131317] px-3 py-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-[#A1A1AA]">
             {epochId ? `EPOCH #${epochId}` : "INDEX STREAM"}
           </span>
         </div>
@@ -40,22 +40,22 @@ export function LiveTickerBar({
                 <Link
                   key={`${n.narrativeId}-${idx}`}
                   href={`/narratives/${n.narrativeId}`}
-                  className="inline-flex items-center gap-2 whitespace-nowrap text-[#8B94A7] transition-colors hover:text-[#F3F5F8]"
+                  className="inline-flex items-center gap-2 whitespace-nowrap text-[#A1A1AA] transition-colors hover:text-[#F4F4F5]"
                 >
-                  <span className="uppercase tracking-wider text-[#F3F5F8]">{n.label}</span>
-                  <span className="text-[#B8FF2E]">{formatBpsPercent(n.iBps)}</span>
+                  <span className="uppercase tracking-wider text-[#F4F4F5]">{n.label}</span>
+                  <span className="text-[#22C55E]">{formatBpsPercent(n.iBps)}</span>
                   <span
                     className={
                       n.vBps === null
-                        ? "text-[#5A6478]"
+                        ? "text-[#71717A]"
                         : vPos
-                          ? "text-[#23F7DD]"
-                          : "text-[#F43F5E]"
+                          ? "text-[#34D399]"
+                          : "text-[#EF4444]"
                     }
                   >
                     {formatSignedBps(n.vBps, n.vFlag)}
                   </span>
-                  <span className="text-[#1B202C]">/</span>
+                  <span className="text-[#24242C]">/</span>
                 </Link>
               );
             })}
@@ -66,7 +66,7 @@ export function LiveTickerBar({
           type="button"
           onClick={() => setPaused((p) => !p)}
           aria-label={paused ? "Resume ticker motion" : "Pause ticker motion"}
-          className="shrink-0 cursor-pointer border-l border-[#1B202C] bg-[#0B0D12] px-3 py-2 text-[10px] uppercase tracking-wider text-[#8B94A7] transition-colors hover:text-[#F3F5F8]"
+          className="shrink-0 cursor-pointer border-l border-[#24242C] bg-[#131317] px-3 py-2 text-[10px] uppercase tracking-wider text-[#A1A1AA] transition-colors hover:text-[#F4F4F5]"
         >
           {paused ? "PLAY" : "PAUSE"}
         </button>

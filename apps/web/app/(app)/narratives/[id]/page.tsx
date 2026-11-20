@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NARRATIVES, NARRATIVE_BY_ID, NARRATIVE_BY_SLUG } from "@nti/sdk";
-import { fetchNarrativeHistory } from "@/lib/supabase";
+import { fetchBasketsData, fetchNarrativeHistory } from "@/lib/supabase";
 import { formatBpsPercent, formatSignedBps, truncateHex } from "@/lib/format";
 import { IndexChart } from "@/components/IndexChart";
 import { ContributorsTable } from "@/components/ContributorsTable";
@@ -22,24 +22,28 @@ export default async function NarrativeDetailPage({
 
   if (!meta) notFound();
 
-  const data = await fetchNarrativeHistory(meta.id);
+  const [data, basketsData] = await Promise.all([
+    fetchNarrativeHistory(meta.id),
+    fetchBasketsData(),
+  ]);
   const latest = [...data.series].reverse().find((p) => !p.incomplete) ?? null;
+  const matchingBasket = basketsData.baskets.find((b) => b.narrativeId === meta.id) ?? null;
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-6 lg:px-6">
       {data.awaitingFirstEpoch && <AwaitingEpochBanner />}
 
       {/* Breadcrumb & Narrative Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1B2028] pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#24242C] pb-4">
         <div>
-          <div className="flex items-center gap-2 font-mono text-[11px] text-[#556173]">
-            <Link href="/terminal" className="hover:text-[#EDF1F7]">
+          <div className="flex items-center gap-2 font-mono text-[11px] text-[#71717A]">
+            <Link href="/terminal" className="hover:text-[#F4F4F5]">
               TERMINAL
             </Link>
             <span>/</span>
-            <span className="text-[#8A96A8]">NARRATIVE #{meta.id}</span>
+            <span className="text-[#A1A1AA]">NARRATIVE #{meta.id}</span>
           </div>
-          <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-[#EDF1F7]">
+          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-[#F4F4F5]">
             {meta.label}
           </h1>
           <p className="mt-1 text-xs text-[#8A96A8]">{meta.description}</p>
@@ -49,15 +53,15 @@ export default async function NarrativeDetailPage({
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/markets?narrative=${meta.id}`}
-            className="rounded border border-[#10B981]/40 bg-[#10B981]/10 px-3 py-2 font-mono text-xs text-[#10B981] hover:bg-[#10B981]/20"
+            className="rounded-md border border-[#22C55E]/40 bg-[#22C55E]/10 px-3 py-2 font-mono text-xs font-medium text-[#22C55E] transition-colors hover:bg-[#22C55E]/20"
           >
             TRADE PAIR MARKETS →
           </Link>
           <Link
-            href={`/baskets/${meta.slug.replace("_", "-")}`}
-            className="rounded border border-[#38BDF8]/40 bg-[#38BDF8]/10 px-3 py-2 font-mono text-xs text-[#38BDF8] hover:bg-[#38BDF8]/20"
+            href={matchingBasket ? `/baskets/${matchingBasket.id}` : "/baskets"}
+            className="rounded-md border border-[#6366F1]/40 bg-[#6366F1]/15 px-3 py-2 font-mono text-xs font-medium text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25"
           >
-            OPEN NARRATIVE BASKET →
+            {matchingBasket ? `OPEN ${matchingBasket.symbol} VAULT →` : "EXPLORE BASKETS →"}
           </Link>
         </div>
       </div>

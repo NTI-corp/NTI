@@ -11,14 +11,14 @@ export default async function BasketDetailPage({
 }) {
   const { id } = await params;
   const { baskets } = await fetchBasketsData();
-  const normalized = id.toLowerCase();
-  const basket =
-    baskets.find(
-      (b) =>
-        b.id.toLowerCase() === normalized ||
-        b.symbol.toLowerCase() === normalized ||
-        String(b.narrativeId) === normalized,
-    ) ?? baskets[0];
+  const normalized = id.toLowerCase().replaceAll("_", "-");
+  const basket = baskets.find(
+    (b) =>
+      b.id.toLowerCase().replaceAll("_", "-") === normalized ||
+      b.symbol.toLowerCase().replaceAll("_", "-") === normalized ||
+      b.basketAddress.toLowerCase() === id.toLowerCase() ||
+      String(b.narrativeId) === normalized,
+  );
 
   if (!basket) notFound();
 

@@ -14,17 +14,17 @@ const STATUS_STYLE: Record<
   { dot: string; border: string; text: string; bg: string; label: string }
 > = {
   collecting: {
-    dot: "bg-[#23F7DD]",
-    border: "border-[#23F7DD]/35",
-    text: "text-[#23F7DD]",
-    bg: "bg-[#23F7DD]/10",
+    dot: "bg-[#6366F1]",
+    border: "border-[#6366F1]/40",
+    text: "text-[#A5B4FC]",
+    bg: "bg-[#6366F1]/15",
     label: "COLLECTING",
   },
   computed: {
-    dot: "bg-[#23F7DD]",
-    border: "border-[#23F7DD]/35",
-    text: "text-[#23F7DD]",
-    bg: "bg-[#23F7DD]/10",
+    dot: "bg-[#6366F1]",
+    border: "border-[#6366F1]/40",
+    text: "text-[#A5B4FC]",
+    bg: "bg-[#6366F1]/15",
     label: "COMPUTED",
   },
   committed: {
@@ -35,17 +35,17 @@ const STATUS_STYLE: Record<
     label: "COMMITTED · AWAITING FINAL",
   },
   disputed: {
-    dot: "bg-[#F43F5E] animate-pulse",
-    border: "border-[#F43F5E]/40",
-    text: "text-[#F43F5E]",
-    bg: "bg-[#F43F5E]/10",
+    dot: "bg-[#EF4444] animate-pulse",
+    border: "border-[#EF4444]/40",
+    text: "text-[#F87171]",
+    bg: "bg-[#EF4444]/10",
     label: "DISPUTED",
   },
   final: {
-    dot: "bg-[#B8FF2E]",
-    border: "border-[#B8FF2E]/35",
-    text: "text-[#B8FF2E]",
-    bg: "bg-[#B8FF2E]/10",
+    dot: "bg-[#22C55E]",
+    border: "border-[#22C55E]/40",
+    text: "text-[#22C55E]",
+    bg: "bg-[#22C55E]/10",
     label: "FINAL",
   },
   incomplete: {
@@ -63,11 +63,11 @@ export function EpochBadge({ epochId, status, compact = false }: EpochBadgeProps
     <Link
       href="/oracle"
       title="Inspect oracle epoch timeline, dataset hashes, and validator attestations"
-      className={`inline-flex items-center gap-2 border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors hover:border-[#F3F5F8]/40 ${s.border} ${s.bg} ${s.text}`}
+      className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors hover:border-[#32323D] ${s.border} ${s.bg} ${s.text}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
       {epochId != null && (
-        <span className="text-[#F3F5F8] tabular-nums">EP-{epochId}</span>
+        <span className="text-[#F4F4F5] tabular-nums">EP-{epochId}</span>
       )}
       <span>{compact ? status.toUpperCase() : s.label}</span>
     </Link>

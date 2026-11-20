@@ -58,6 +58,14 @@ function SiweProviderInner({ children }: { children: React.ReactNode }) {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (!session?.authenticated || !session.address) return;
+    if (!isConnected || !address) return;
+    if (address.toLowerCase() !== session.address.toLowerCase()) {
+      void fetch("/api/auth/siwe", { method: "DELETE" }).then(() => refresh());
+    }
+  }, [address, isConnected, session?.authenticated, session?.address, refresh]);
+
   const signIn = useCallback(async () => {
     if (!isConnected || !address) {
       setError("Connect a wallet first to sign in with Ethereum.");

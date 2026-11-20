@@ -1,180 +1,371 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { parseEther } from "viem";
-import { useAccount, usePublicClient, useWriteContract } from "wagmi";
-import { basketAbi, estimateTxGas, type GasEstimateDisplay } from "@/lib/contracts";
-import { formatBpsPercent, formatEth, truncateHex } from "@/lib/format";
+import { useEffect, useState } from "react";
+import { formatEther, parseEther, type Address } from "viem";
+import { useAccount, useBalance, usePublicClient, useReadContract } from "wagmi";
+import { TxStatusBanner } from "@/components/TxStatusBanner";
+import {
+  basketAbi,
+  estimateTxGas,
+  getActiveChainId,
+  type GasEstimateDisplay,
+} from "@/lib/contracts";
+import { formatBpsPercent, formatEth, formatRelativeTime, truncateHex } from "@/lib/format";
+import { useChainAction } from "@/lib/useChainAction";
 import type { BasketItem } from "@/lib/types";
 
-export function BasketVaultClient({ basket }: { basket: BasketItem }) {
-  const { address, isConnected } = useAccount();
-  const publicClient = usePublicClient();
-  const { writeContractAsync, isPending } = useWriteContract();
+interface BasketVaultClientProps {
+  basket: BasketItem;
+}
 
+const VIRTUAL_SHARES = 1_000_000n;
+const VIRTUAL_ASSETS = 1_000_000n;
+
+function safeParseEther(val: string): bigint | null {
+  const clean = val.trim();
+  if (!clean || !/^\d+(\.\d+)?$/.test(clean)) return null;
+  try {
+    return parseEther(clean);
+  } catch {
+    return null;
+  }
+}
+
+export function BasketVaultClient({ basket }: BasketVaultClientProps) {
   const [mode, setMode] = useState<"deposit" | "redeem">("deposit");
-  const [amount, setAmount] = useState("0.25");
-  const [slippageBps, setSlippageBps] = useState("150"); // 1.50%
+  const [amount, setAmount] = useState("0.1");
+  const [slippageBps, setSlippageBps] = useState("150");
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [gasEst, setGasEst] = useState<GasEstimateDisplay | null>(null);
-  const [statusMsg, setStatusMsg] = useState<string | null>(null);
-  const [errMsg, setErrMsg] = useState<string | null>(null);
 
-  const numericAmt = Math.max(0, Number.parseFloat(amount) || 0);
-  const slip = Math.min(300, Math.max(10, Number.parseInt(slippageBps, 10) || 150));
-  const estSharesOut = basket.sharePriceEth > 0 ? numericAmt / basket.sharePriceEth : 0;
-  const minSharesOut = estSharesOut * (1 - slip / 10_000);
-  const estEthOut = numericAmt * basket.sharePriceEth;
-  const minEthOut = estEthOut * (1 - slip / 10_000);
+  const { address, isConnected } = useAccount();
+  const activeChainId = getActiveChainId();
+  const publicClient = usePublicClient({ chainId: activeChainId });
+  const vaultAddress = basket.basketAddress as Address;
+  const hasVaultAddress = /^0x[0-9a-fA-F]{40}$/.test(basket.basketAddress);
+
+  const { data: ethBalanceData, refetch: refetchEth } = useBalance({
+    address,
+    chainId: activeChainId,
+    query: { enabled: Boolean(isConnected && address) },
+  });
+
+  const { data: navOnChain, refetch: refetchNav } = useReadContract({
+    address: vaultAddress,
+    abi: basketAbi,
+    functionName: "totalNavWeth",
+    chainId: activeChainId,
+    query: { enabled: hasVaultAddress },
+  });
+
+  const { data: totalSupplyOnChain, refetch: refetchSupply } = useReadContract({
+    address: vaultAddress,
+    abi: basketAbi,
+    functionName: "totalSupply",
+    chainId: activeChainId,
+    query: { enabled: hasVaultAddress },
+  });
+
+  const { data: userSharesOnChain, refetch: refetchUserShares } = useReadContract({
+    address: vaultAddress,
+    abi: basketAbi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: activeChainId,
+    query: { enabled: Boolean(hasVaultAddress && isConnected && address) },
+  });
+
+  const { data: pausedOnChain, refetch: refetchPaused } = useReadContract({
+    address: vaultAddress,
+    abi: basketAbi,
+    functionName: "paused",
+    chainId: activeChainId,
+    query: { enabled: hasVaultAddress },
+  });
+
+  const { data: maxTvlOnChain } = useReadContract({
+    address: vaultAddress,
+    abi: basketAbi,
+    functionName: "maxTVL",
+    chainId: activeChainId,
+    query: { enabled: hasVaultAddress },
+  });
+
+  const { data: constituentsOnChain, refetch: refetchConstituents } = useReadContract({
+    address: vaultAddress,
+    abi: basketAbi,
+    functionName: "constituentTokens",
+    chainId: activeChainId,
+    query: { enabled: hasVaultAddress },
+  });
+
+  const { txState, isBusy, wrongChain, targetChainId, explorerBase, execute, resetTx } =
+    useChainAction(async () => {
+      await Promise.all([
+        refetchEth(),
+        refetchNav(),
+        refetchSupply(),
+        refetchUserShares(),
+        refetchPaused(),
+        refetchConstituents(),
+      ]);
+    });
 
   useEffect(() => {
-    let active = true;
-    void estimateTxGas(publicClient, {
-      account: address,
-      to:
-        basket.basketAddress !== "0x0000000000000000000000000000000000000000"
-          ? (basket.basketAddress as `0x${string}`)
-          : undefined,
-      fallbackGasLimit: 320_000n,
-    }).then((g) => {
-      if (active) setGasEst(g);
+    let mounted = true;
+    void estimateTxGas(publicClient, { fallbackGasLimit: 240_000n }).then((est) => {
+      if (mounted) setGasEst(est);
     });
     return () => {
-      active = false;
+      mounted = false;
     };
-  }, [publicClient, address, basket.basketAddress, mode, amount]);
+  }, [publicClient]);
 
-  const handleExecute = async () => {
-    setErrMsg(null);
-    setStatusMsg(null);
-    if (!isConnected) {
-      setErrMsg("Connect your wallet in the top bar first.");
+  // Live chain values with fallback to SSR snapshot while loading
+  const navWei =
+    (navOnChain as bigint | undefined) ?? safeParseEther(String(basket.navEth)) ?? 0n;
+  const supplyWei = (totalSupplyOnChain as bigint | undefined) ?? 0n;
+  const userSharesWei = (userSharesOnChain as bigint | undefined) ?? 0n;
+  const ethBalanceWei = ethBalanceData?.value ?? 0n;
+  const isPaused = Boolean(pausedOnChain);
+  const maxTvlWei =
+    (maxTvlOnChain as bigint | undefined) ?? safeParseEther(String(basket.tvlCapEth)) ?? 0n;
+
+  const constituentCount = constituentsOnChain
+    ? ((constituentsOnChain as readonly [readonly Address[], readonly number[]])[0]?.length ?? 0)
+    : basket.holdings.length;
+  const allocationConfigured = constituentCount > 0;
+
+  const rawSlip = Number(slippageBps);
+  const clampedSlip = Number.isFinite(rawSlip)
+    ? Math.min(300, Math.max(10, Math.round(rawSlip)))
+    : 150;
+
+  const amtWei = safeParseEther(amount) ?? 0n;
+
+  // Exact Solidity virtual-offset share math (Basket.sol):
+  // deposit: shares = (addedNav * (totalSupply + VIRTUAL_SHARES)) / (navBefore + VIRTUAL_ASSETS)
+  // redeem:  ethOut = (shares * (navBefore + VIRTUAL_ASSETS)) / (totalSupply + VIRTUAL_SHARES)
+  const estSharesOutWei =
+    amtWei > 0n ? (amtWei * (supplyWei + VIRTUAL_SHARES)) / (navWei + VIRTUAL_ASSETS) : 0n;
+  const minSharesOutWei = (estSharesOutWei * BigInt(10_000 - clampedSlip)) / 10_000n;
+
+  const estEthOutWei =
+    amtWei > 0n && supplyWei + VIRTUAL_SHARES > 0n
+      ? (amtWei * (navWei + VIRTUAL_ASSETS)) / (supplyWei + VIRTUAL_SHARES)
+      : 0n;
+  const minEthOutWei = (estEthOutWei * BigInt(10_000 - clampedSlip)) / 10_000n;
+
+  const navEthLive = Number(formatEther(navWei));
+  const tvlCapEthLive = Number(formatEther(maxTvlWei));
+  const capPct = tvlCapEthLive > 0 ? Math.min(100, (navEthLive / tvlCapEthLive) * 100) : 0;
+  const exceedsTvlCap = maxTvlWei > 0n && navWei + amtWei > maxTvlWei;
+  const insufficientEth = mode === "deposit" && isConnected && amtWei > ethBalanceWei;
+  const insufficientShares = mode === "redeem" && isConnected && amtWei > userSharesWei;
+
+  async function handleExecute() {
+    setValidationError(null);
+    if (!hasVaultAddress) {
+      setValidationError("Vault contract address is invalid or not configured.");
       return;
     }
-    if (basket.basketAddress === "0x0000000000000000000000000000000000000000") {
-      setErrMsg("This basket vault has not been deployed on-chain yet.");
+    if (!isConnected || !address) {
+      setValidationError("Connect an EVM wallet first.");
       return;
     }
-    if (numericAmt <= 0) {
-      setErrMsg("Enter an amount greater than 0.");
+    if (amtWei <= 0n) {
+      setValidationError("Enter an amount greater than 0.");
+      return;
+    }
+    if (rawSlip < 10 || rawSlip > 300 || !Number.isFinite(rawSlip)) {
+      setValidationError("Max slippage tolerance must be between 10 bps (0.1%) and 300 bps (3.0%).");
       return;
     }
 
-    try {
-      if (mode === "deposit") {
-        const hash = await writeContractAsync({
-          address: basket.basketAddress as `0x${string}`,
+    if (mode === "deposit") {
+      if (isPaused) {
+        setValidationError("Deposits are currently paused on this vault. Redeem stays open.");
+        return;
+      }
+      if (!allocationConfigured) {
+        setValidationError("Allocation pending on-chain setup: vault has 0 whitelisted constituents.");
+        return;
+      }
+      if (exceedsTvlCap) {
+        setValidationError(
+          `Deposit would exceed vault max TVL (${tvlCapEthLive.toFixed(2)} ETH).`,
+        );
+        return;
+      }
+      if (insufficientEth) {
+        setValidationError("Insufficient ETH wallet balance.");
+        return;
+      }
+
+      await execute(
+        `Deposit ${Number(formatEther(amtWei)).toFixed(4)} ETH into ${basket.symbol}`,
+        {
+          address: vaultAddress,
           abi: basketAbi,
           functionName: "deposit",
-          args: [parseEther(minSharesOut.toFixed(6))],
-          value: parseEther(numericAmt.toFixed(6)),
-        });
-        setStatusMsg(`Deposit submitted: ${hash}`);
-      } else {
-        const hash = await writeContractAsync({
-          address: basket.basketAddress as `0x${string}`,
-          abi: basketAbi,
-          functionName: "redeem",
-          args: [parseEther(numericAmt.toFixed(6)), parseEther(minEthOut.toFixed(6))],
-        });
-        setStatusMsg(`Redeem submitted: ${hash}`);
-      }
-    } catch (err) {
-      setErrMsg(err instanceof Error ? err.message : "Transaction failed");
+          args: [minSharesOutWei],
+          value: amtWei,
+        },
+        `Deposited into ${basket.symbol} vault.`,
+      );
+      return;
     }
-  };
+
+    if (insufficientShares) {
+      setValidationError(
+        `Insufficient ${basket.symbol} balance (${Number(formatEther(userSharesWei)).toFixed(4)} available).`,
+      );
+      return;
+    }
+
+    await execute(
+      `Redeem ${Number(formatEther(amtWei)).toFixed(4)} ${basket.symbol}`,
+      {
+        address: vaultAddress,
+        abi: basketAbi,
+        functionName: "redeem",
+        args: [amtWei, minEthOutWei],
+      },
+      `Redeemed ${basket.symbol} for ETH.`,
+    );
+  }
+
+  const depositBlocked =
+    mode === "deposit" &&
+    (isPaused || !allocationConfigured || exceedsTvlCap || insufficientEth || amtWei <= 0n);
+  const redeemBlocked = mode === "redeem" && (insufficientShares || amtWei <= 0n);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1B2028] pb-4">
+    <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+        <Link href="/baskets" className="font-mono text-[#A1A1AA] hover:text-[#F4F4F5]">
+          ← All Narrative Baskets
+        </Link>
+        {wrongChain && (
+          <span className="rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
+            AUTO-SWITCHES TO CHAIN {targetChainId} ON TX
+          </span>
+        )}
+      </div>
+
+      {/* Vault Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
-          <div className="flex items-center gap-2 font-mono text-[11px] text-[#556173]">
-            <Link href="/baskets" className="hover:text-[#EDF1F7]">
-              BASKETS
-            </Link>
-            <span>/</span>
-            <span className="text-[#8A96A8]">{basket.symbol}</span>
+          <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+            <span className="rounded border border-[#6366F1]/40 bg-[#6366F1]/15 px-2 py-0.5 text-[#A5B4FC]">
+              {basket.symbol}
+            </span>
+            <span className="text-[#71717A]">{basket.narrativeLabel}</span>
+            <span className="text-[#52525B]">·</span>
+            <span className="text-[#A1A1AA]">{truncateHex(basket.basketAddress, 6, 4)}</span>
+            {isPaused && (
+              <span className="rounded border border-[#EF4444]/40 bg-[#EF4444]/10 px-2 py-0.5 text-[10px] text-[#F87171]">
+                DEPOSITS PAUSED
+              </span>
+            )}
+            {!allocationConfigured && (
+              <span className="rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 text-[10px] text-[#F59E0B]">
+                ALLOCATION PENDING
+              </span>
+            )}
           </div>
-          <h1 className="mt-1.5 font-display text-2xl font-bold text-[#EDF1F7]">
+          <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-[#F4F4F5]">
             {basket.name}
           </h1>
-          <p className="mt-1 font-mono text-xs text-[#8A96A8]">
-            Vault {truncateHex(basket.basketAddress, 10, 6)} · {basket.narrativeLabel} · 0.50% annual management fee
+          <p className="mt-1 text-xs text-[#A1A1AA]">
+            Rebalanced {formatRelativeTime(basket.lastRebalancedAt)} · Mgmt Fee{" "}
+            {formatBpsPercent(basket.managementFeeBps, 2)}/yr · Slippage absorbed by depositor
           </p>
         </div>
 
-        <Link
-          href={`/narratives/${basket.narrativeId}`}
-          className="rounded border border-[#2A3342] bg-[#131820] px-3 py-1.5 font-mono text-xs text-[#38BDF8] hover:border-[#38BDF8]/50"
-        >
-          VIEW {basket.narrativeLabel.toUpperCase()} INDEX →
-        </Link>
+        <div className="grid grid-cols-3 gap-5 text-right font-mono tabular-nums">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
+              Live Vault NAV
+            </div>
+            <div className="mt-0.5 text-base font-semibold text-[#F4F4F5]">
+              {formatEth(navEthLive, 4)}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
+              Your Shares
+            </div>
+            <div className="mt-0.5 text-base font-semibold text-[#A5B4FC]">
+              {isConnected ? `${Number(formatEther(userSharesWei)).toFixed(4)}` : "—"}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
+              TVL Cap Used
+            </div>
+            <div className="mt-0.5 text-base font-semibold text-[#22C55E]">
+              {capPct.toFixed(1)}%
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left: Vault Composition & TWAP NAV */}
-        <div className="space-y-5 lg:col-span-7">
-          <div className="grid grid-cols-3 gap-3 font-mono tabular-nums">
-            <div className="panel-surface rounded-md p-3.5">
-              <div className="text-[10px] text-[#556173]">30M TWAP NAV</div>
-              <div className="mt-1 text-lg font-semibold text-[#EDF1F7]">
-                {formatEth(basket.navEth, 3)}
-              </div>
-              <div className="text-[10px] text-[#8A96A8]">Cap {basket.tvlCapEth} ETH</div>
-            </div>
-            <div className="panel-surface rounded-md p-3.5">
-              <div className="text-[10px] text-[#556173]">SHARE PRICE</div>
-              <div className="mt-1 text-lg font-semibold text-[#10B981]">
-                {basket.sharePriceEth.toFixed(5)}
-              </div>
-              <div className="text-[10px] text-[#8A96A8]">ETH / {basket.symbol}</div>
-            </div>
-            <div className="panel-surface rounded-md p-3.5">
-              <div className="text-[10px] text-[#556173]">MAX SINGLE WEIGHT</div>
-              <div className="mt-1 text-lg font-semibold text-[#EDF1F7]">40.0%</div>
-              <div className="text-[10px] text-[#8A96A8]">Max 20% daily turnover</div>
-            </div>
-          </div>
-
-          <div className="panel-surface rounded-md">
-            <div className="border-b border-[#1B2028] px-4 py-3">
-              <h2 className="font-display text-sm font-semibold text-[#EDF1F7]">
+        {/* Left: Whitelisted Holdings */}
+        <div className="space-y-4 lg:col-span-7">
+          <div className="rounded-lg border border-[#24242C] bg-[#131317]">
+            <div className="border-b border-[#24242C] px-4 py-3">
+              <h2 className="text-sm font-semibold text-[#F4F4F5]">
                 Whitelisted Constituents (Uniswap V3 TWAP Priced)
               </h2>
-              <p className="font-mono text-[11px] text-[#8A96A8]">
-                Every token requires governance whitelist approval, ≥20 ETH V3 liquidity, and observe([1800, 0]) support
+              <p className="mt-0.5 text-xs text-[#A1A1AA]">
+                Every token requires governance whitelist approval, ≥20 ETH V3 liquidity, and 30-minute TWAP cardinality.
               </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-[#1B2028] bg-[#0B0E13] font-mono text-[10px] uppercase text-[#556173]">
+                  <tr className="border-b border-[#24242C] bg-[#19191F] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                     <th className="px-4 py-2.5">Token</th>
                     <th className="px-4 py-2.5 text-right">Target Weight</th>
                     <th className="px-4 py-2.5 text-right">30m TWAP</th>
                     <th className="px-4 py-2.5 text-right">V3 Pool Depth</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1B2028] font-mono tabular-nums">
-                  {basket.holdings.map((h) => (
-                    <tr key={h.address} className="hover:bg-[#131820]/50">
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-[#EDF1F7]">${h.symbol}</div>
-                        <div className="text-[10px] text-[#556173]">
-                          {h.name} · {truncateHex(h.address, 6, 4)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right text-[#38BDF8]">
-                        {formatBpsPercent(h.weightBps, 1)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-[#EDF1F7]">
-                        {h.twap30mEth.toFixed(5)} ETH
-                      </td>
-                      <td className="px-4 py-3 text-right text-[#10B981]">
-                        {h.liquidityEth.toFixed(1)} ETH
+                <tbody className="divide-y divide-[#24242C] font-mono tabular-nums">
+                  {basket.holdings.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-4 py-8 text-center font-sans text-xs text-[#A1A1AA]"
+                      >
+                        Allocation pending on-chain setup. Governance must configure whitelisted V3 tokens via{" "}
+                        <span className="font-mono text-[#F4F4F5]">setAllocation()</span> before deposits open.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    basket.holdings.map((h) => (
+                      <tr key={h.address} className="transition-colors hover:bg-[#19191F]/60">
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-[#F4F4F5]">${h.symbol}</div>
+                          <div className="text-[10px] text-[#71717A]">
+                            {h.name} · {truncateHex(h.address, 6, 4)}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right text-[#A5B4FC]">
+                          {formatBpsPercent(h.weightBps, 1)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-[#F4F4F5]">
+                          {h.twap30mEth.toFixed(5)} ETH
+                        </td>
+                        <td className="px-4 py-3 text-right text-[#22C55E]">
+                          {h.liquidityEth.toFixed(1)} ETH
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -182,26 +373,32 @@ export function BasketVaultClient({ basket }: { basket: BasketItem }) {
         </div>
 
         {/* Right: Deposit / Redeem Form */}
-        <div className="panel-surface rounded-md p-4 lg:col-span-5">
-          <div className="grid grid-cols-2 gap-1.5 rounded border border-[#1B2028] bg-[#0B0E13] p-1 font-mono text-xs">
+        <div className="h-fit rounded-lg border border-[#24242C] bg-[#131317] p-4 lg:col-span-5">
+          <div className="grid grid-cols-2 gap-1 rounded-md border border-[#24242C] bg-[#0B0B0E] p-1 font-mono text-xs">
             <button
               type="button"
-              onClick={() => setMode("deposit")}
+              onClick={() => {
+                setMode("deposit");
+                setValidationError(null);
+              }}
               className={`rounded py-2 font-semibold transition-colors ${
                 mode === "deposit"
-                  ? "bg-[#10B981]/15 text-[#10B981]"
-                  : "text-[#8A96A8] hover:text-[#EDF1F7]"
+                  ? "bg-[#22C55E]/15 text-[#22C55E]"
+                  : "text-[#A1A1AA] hover:text-[#F4F4F5]"
               }`}
             >
               DEPOSIT ETH
             </button>
             <button
               type="button"
-              onClick={() => setMode("redeem")}
+              onClick={() => {
+                setMode("redeem");
+                setValidationError(null);
+              }}
               className={`rounded py-2 font-semibold transition-colors ${
                 mode === "redeem"
-                  ? "bg-[#38BDF8]/15 text-[#38BDF8]"
-                  : "text-[#8A96A8] hover:text-[#EDF1F7]"
+                  ? "bg-[#6366F1]/20 text-[#A5B4FC]"
+                  : "text-[#A1A1AA] hover:text-[#F4F4F5]"
               }`}
             >
               REDEEM {basket.symbol}
@@ -210,23 +407,42 @@ export function BasketVaultClient({ basket }: { basket: BasketItem }) {
 
           <div className="mt-4 space-y-3">
             <div>
-              <label className="font-mono text-[11px] text-[#8A96A8]">
-                {mode === "deposit" ? "DEPOSIT AMOUNT (ETH)" : `SHARES TO REDEEM (${basket.symbol})`}
-              </label>
+              <div className="flex items-center justify-between font-mono text-[11px] text-[#A1A1AA]">
+                <label>
+                  {mode === "deposit" ? "DEPOSIT AMOUNT (ETH)" : `SHARES TO REDEEM (${basket.symbol})`}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (mode === "deposit") {
+                      const safeEth = Math.max(0, Number(formatEther(ethBalanceWei)) - 0.005);
+                      setAmount(safeEth > 0 ? safeEth.toFixed(4) : "0");
+                    } else {
+                      setAmount(formatEther(userSharesWei));
+                    }
+                  }}
+                  className="text-[10px] text-[#A5B4FC] hover:underline tabular-nums"
+                >
+                  MAX:{" "}
+                  {mode === "deposit"
+                    ? `${Number(formatEther(ethBalanceWei)).toFixed(4)} ETH`
+                    : `${Number(formatEther(userSharesWei)).toFixed(4)} ${basket.symbol}`}
+                </button>
+              </div>
               <input
                 type="number"
                 min="0"
-                step="0.05"
+                step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="mt-1.5 w-full rounded border border-[#2A3342] bg-[#090B0E] px-3 py-2 font-mono text-sm text-[#EDF1F7] tabular-nums focus:border-[#38BDF8] focus:outline-none"
+                className="mt-1.5 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#6366F1] focus:outline-none"
               />
             </div>
 
             <div>
-              <div className="flex items-center justify-between font-mono text-[11px] text-[#8A96A8]">
-                <label>MAX SLIPPAGE TOLERANCE (BPS · MAX 300)</label>
-                <span>{(slip / 100).toFixed(2)}%</span>
+              <div className="flex items-center justify-between font-mono text-[11px] text-[#A1A1AA]">
+                <label>MAX SLIPPAGE TOLERANCE (10..300 BPS)</label>
+                <span className="tabular-nums">{(clampedSlip / 100).toFixed(2)}%</span>
               </div>
               <div className="mt-1.5 flex items-center gap-2">
                 <input
@@ -235,14 +451,18 @@ export function BasketVaultClient({ basket }: { basket: BasketItem }) {
                   max="300"
                   value={slippageBps}
                   onChange={(e) => setSlippageBps(e.target.value)}
-                  className="w-full rounded border border-[#2A3342] bg-[#090B0E] px-3 py-1.5 font-mono text-xs text-[#EDF1F7] tabular-nums focus:border-[#38BDF8] focus:outline-none"
+                  className="w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] tabular-nums focus:border-[#6366F1] focus:outline-none"
                 />
                 {["50", "150", "300"].map((b) => (
                   <button
                     key={b}
                     type="button"
                     onClick={() => setSlippageBps(b)}
-                    className="rounded border border-[#1B2028] bg-[#131820] px-2.5 py-1.5 font-mono text-[11px] text-[#8A96A8] hover:text-[#EDF1F7]"
+                    className={`rounded-md border px-2.5 py-1.5 font-mono text-[11px] transition-colors ${
+                      slippageBps === b
+                        ? "border-[#6366F1]/60 bg-[#6366F1]/15 text-[#F4F4F5]"
+                        : "border-[#24242C] bg-[#19191F] text-[#A1A1AA] hover:text-[#F4F4F5]"
+                    }`}
                   >
                     {(Number(b) / 100).toFixed(1)}%
                   </button>
@@ -250,69 +470,82 @@ export function BasketVaultClient({ basket }: { basket: BasketItem }) {
               </div>
             </div>
 
-            <div className="space-y-1.5 rounded border border-[#1B2028] bg-[#0B0E13] p-3 font-mono text-[11px] tabular-nums">
+            <div className="space-y-1.5 rounded-md border border-[#24242C] bg-[#0B0B0E] p-3 font-mono text-[11px] tabular-nums">
               {mode === "deposit" ? (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-[#8A96A8]">Est. shares minted</span>
-                    <span className="text-[#EDF1F7]">
-                      {estSharesOut.toFixed(3)} {basket.symbol}
+                    <span className="text-[#71717A]">Est. shares minted</span>
+                    <span className="text-[#F4F4F5]">
+                      {Number(formatEther(estSharesOutWei)).toFixed(4)} {basket.symbol}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#8A96A8]">Min shares out (slippage floor)</span>
-                    <span className="text-[#10B981]">
-                      {minSharesOut.toFixed(3)} {basket.symbol}
+                    <span className="text-[#71717A]">Min shares out (slippage floor)</span>
+                    <span className="text-[#22C55E]">
+                      {Number(formatEther(minSharesOutWei)).toFixed(4)} {basket.symbol}
                     </span>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="flex justify-between">
-                    <span className="text-[#8A96A8]">Est. ETH returned</span>
-                    <span className="text-[#EDF1F7]">{formatEth(estEthOut, 4)}</span>
+                    <span className="text-[#71717A]">Est. ETH returned</span>
+                    <span className="text-[#F4F4F5]">
+                      {formatEth(Number(formatEther(estEthOutWei)), 5)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#8A96A8]">Min ETH out (slippage floor)</span>
-                    <span className="text-[#38BDF8]">{formatEth(minEthOut, 4)}</span>
+                    <span className="text-[#71717A]">Min ETH out (slippage floor)</span>
+                    <span className="text-[#A5B4FC]">
+                      {formatEth(Number(formatEther(minEthOutWei)), 5)}
+                    </span>
                   </div>
                 </>
               )}
               {gasEst && (
-                <div className="flex justify-between border-t border-[#1B2028] pt-1.5">
-                  <span className="text-[#8A96A8]">
-                    Est. gas ({gasEst.gasPriceGwei} gwei)
-                  </span>
-                  <span className="text-[#8A96A8]">~{gasEst.estimatedCostEth} ETH</span>
+                <div className="flex justify-between border-t border-[#24242C] pt-1.5">
+                  <span className="text-[#71717A]">Est. gas ({gasEst.gasPriceGwei} gwei)</span>
+                  <span className="text-[#A1A1AA]">~{gasEst.estimatedCostEth} ETH</span>
                 </div>
               )}
             </div>
 
-            {errMsg && (
-              <div className="rounded border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 font-mono text-[11px] text-[#EF4444]">
-                {errMsg}
+            {validationError && (
+              <div className="rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+                {validationError}
               </div>
             )}
-            {statusMsg && (
-              <div className="rounded border border-[#10B981]/40 bg-[#10B981]/10 px-3 py-2 font-mono text-[11px] text-[#10B981]">
-                {statusMsg}
-              </div>
-            )}
+
+            <TxStatusBanner state={txState} explorerBase={explorerBase} onDismiss={resetTx} />
 
             <button
               type="button"
-              disabled={isPending}
+              disabled={isBusy || !isConnected || depositBlocked || redeemBlocked}
               onClick={() => void handleExecute()}
-              className="w-full rounded border border-[#10B981]/50 bg-[#10B981]/15 py-2.5 font-mono text-xs font-semibold text-[#10B981] hover:bg-[#10B981]/25 disabled:opacity-50"
+              className={`w-full rounded-md py-2.5 font-mono text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                mode === "deposit"
+                  ? "bg-[#22C55E] text-[#0B0B0E] hover:bg-[#16A34A]"
+                  : "bg-[#6366F1] text-white hover:bg-[#5558E6]"
+              }`}
             >
-              {isPending
-                ? "CONFIRM IN WALLET..."
-                : mode === "deposit"
-                  ? `DEPOSIT ${numericAmt.toFixed(3)} ETH`
-                  : `REDEEM ${numericAmt.toFixed(3)} ${basket.symbol}`}
+              {!isConnected
+                ? "CONNECT WALLET"
+                : mode === "deposit" && !allocationConfigured
+                  ? "ALLOCATION PENDING ON-CHAIN SETUP"
+                  : mode === "deposit" && isPaused
+                    ? "DEPOSITS PAUSED"
+                    : mode === "deposit" && exceedsTvlCap
+                      ? "EXCEEDS VAULT TVL CAP"
+                      : insufficientEth
+                        ? "INSUFFICIENT ETH BALANCE"
+                        : insufficientShares
+                          ? `INSUFFICIENT ${basket.symbol} BALANCE`
+                          : mode === "deposit"
+                            ? `DEPOSIT ${Number(formatEther(amtWei)).toFixed(4)} ETH`
+                            : `REDEEM ${Number(formatEther(amtWei)).toFixed(4)} ${basket.symbol}`}
             </button>
 
-            <p className="font-mono text-[10px] text-[#556173]">
+            <p className="text-[11px] leading-relaxed text-[#71717A]">
               Depositors absorb swap slippage via (navAfter − navBefore) / navBefore share minting with dead-shares inflation protection. Redeem stays open even if vault deposits are paused.
             </p>
           </div>

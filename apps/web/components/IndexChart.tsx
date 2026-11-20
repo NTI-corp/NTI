@@ -28,14 +28,14 @@ interface IndexChartProps {
 }
 
 export const NARRATIVE_CHART_COLORS = [
-  "#B8FF2E",
-  "#23F7DD",
+  "#22C55E",
+  "#6366F1",
   "#F59E0B",
   "#A78BFA",
-  "#F43F5E",
+  "#EF4444",
   "#38BDF8",
   "#FB923C",
-  "#F3F5F8",
+  "#F4F4F5",
   "#34D399",
   "#EC4899",
 ] as const;
@@ -138,13 +138,13 @@ export function IndexChart({
     hoveredIdx !== null && hoveredIdx < epochs.length ? hoveredIdx : epochs.length - 1;
 
   return (
-    <div className="panel-surface rounded-md p-4">
+    <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-display text-sm font-semibold tracking-tight text-[#EDF1F7]">
+          <h2 className="text-sm font-semibold tracking-tight text-[#F4F4F5]">
             {title}
           </h2>
-          <p className="mt-0.5 font-mono text-[11px] text-[#8A96A8]">{subtitle}</p>
+          <p className="mt-0.5 font-mono text-[11px] text-[#A1A1AA]">{subtitle}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -156,10 +156,10 @@ export function IndexChart({
                 key={s.id}
                 type="button"
                 onClick={() => toggleSeries(s.id)}
-                className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[11px] transition-opacity ${
+                className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono text-[11px] transition-opacity ${
                   hidden
-                    ? "border-[#1B2028] text-[#556173] opacity-45"
-                    : "border-[#2A3342] bg-[#131820] text-[#EDF1F7]"
+                    ? "border-[#24242C] text-[#71717A] opacity-45"
+                    : "border-[#24242C] bg-[#19191F] text-[#F4F4F5]"
                 }`}
               >
                 <span
@@ -168,7 +168,7 @@ export function IndexChart({
                 />
                 <span>{s.label}</span>
                 {pt && !pt.incomplete && (
-                  <span className="text-[#8A96A8] tabular-nums">
+                  <span className="text-[#A1A1AA] tabular-nums">
                     {formatBpsPercent(pt.iBps, 1)}
                   </span>
                 )}
@@ -179,32 +179,32 @@ export function IndexChart({
       </div>
 
       {primary && primary.points[activeIdx] && (
-        <div className="mb-2 flex flex-wrap items-center gap-4 rounded border border-[#1B2028] bg-[#0B0E13] px-3 py-1.5 font-mono text-[11px] tabular-nums">
-          <span className="text-[#8A96A8]">
-            EPOCH <strong className="text-[#EDF1F7]">#{primary.points[activeIdx]!.epochId}</strong>
+        <div className="mb-2 flex flex-wrap items-center gap-4 rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-1.5 font-mono text-[11px] tabular-nums">
+          <span className="text-[#A1A1AA]">
+            EPOCH <strong className="text-[#F4F4F5]">#{primary.points[activeIdx]!.epochId}</strong>
           </span>
-          <span className="text-[#8A96A8]">
-            SERIES <strong className="text-[#EDF1F7]">S{primary.points[activeIdx]!.seriesId}</strong>
+          <span className="text-[#A1A1AA]">
+            SERIES <strong className="text-[#F4F4F5]">S{primary.points[activeIdx]!.seriesId}</strong>
           </span>
           {primary.points[activeIdx]!.incomplete ? (
             <span className="text-[#F59E0B]">INCOMPLETE EPOCH · EXCLUDED FROM EMA</span>
           ) : (
             <>
-              <span className="text-[#8A96A8]">
+              <span className="text-[#A1A1AA]">
                 I_n{" "}
-                <strong className="text-[#EDF1F7]">
+                <strong className="text-[#F4F4F5]">
                   {primary.points[activeIdx]!.iBps.toLocaleString("en-US")} bps (
                   {formatBpsPercent(primary.points[activeIdx]!.iBps)})
                 </strong>
               </span>
-              <span className="text-[#8A96A8]">
+              <span className="text-[#A1A1AA]">
                 V_n{" "}
                 <strong
                   className={
                     primary.points[activeIdx]!.vBps === null
                       ? "text-[#F59E0B]"
                       : (primary.points[activeIdx]!.vBps ?? 0) >= 0
-                        ? "text-[#10B981]"
+                        ? "text-[#22C55E]"
                         : "text-[#EF4444]"
                   }
                 >
@@ -249,16 +249,16 @@ export function IndexChart({
                   x2={width - padRight}
                   y1={y}
                   y2={y}
-                  stroke="#1B2028"
+                  stroke="#24242C"
                   strokeWidth="1"
                 />
                 <text
                   x={padLeft - 8}
                   y={y + 3}
                   textAnchor="end"
-                  fill="#556173"
+                  fill="#71717A"
                   fontSize="10"
-                  fontFamily="var(--font-jetbrains-mono), monospace"
+                  fontFamily="var(--font-ibm-plex-mono), monospace"
                 >
                   {(val / 100).toFixed(1)}%
                 </text>
@@ -299,7 +299,7 @@ export function IndexChart({
                   x2={cx}
                   y1={padTop}
                   y2={padTop + indexPlotH}
-                  stroke="#38BDF8"
+                  stroke="#6366F1"
                   strokeDasharray="3 3"
                   strokeWidth="1.25"
                 />
@@ -309,17 +309,17 @@ export function IndexChart({
                   width="68"
                   height="14"
                   rx="2"
-                  fill="#0E1117"
-                  stroke="#38BDF8"
-                  strokeOpacity="0.5"
+                  fill="#131317"
+                  stroke="#6366F1"
+                  strokeOpacity="0.6"
                 />
                 <text
                   x={cx}
                   y={padTop - 6}
                   textAnchor="middle"
-                  fill="#38BDF8"
+                  fill="#A5B4FC"
                   fontSize="8.5"
-                  fontFamily="var(--font-jetbrains-mono), monospace"
+                  fontFamily="var(--font-ibm-plex-mono), monospace"
                 >
                   NEW SERIES
                 </text>
@@ -367,7 +367,7 @@ export function IndexChart({
                     cy={yAtI(s.points[activeIdx]!.iBps)}
                     r="3.8"
                     fill={s.color}
-                    stroke="#090B0E"
+                    stroke="#0B0B0E"
                     strokeWidth="1.5"
                   />
                 )}
@@ -382,16 +382,16 @@ export function IndexChart({
                 x2={width - padRight}
                 y1={velMid}
                 y2={velMid}
-                stroke="#2A3342"
+                stroke="#32323D"
                 strokeWidth="1"
               />
               <text
                 x={padLeft - 8}
                 y={velMid + 3}
                 textAnchor="end"
-                fill="#556173"
+                fill="#71717A"
                 fontSize="9"
-                fontFamily="var(--font-jetbrains-mono), monospace"
+                fontFamily="var(--font-ibm-plex-mono), monospace"
               >
                 V_n 0
               </text>
@@ -409,7 +409,7 @@ export function IndexChart({
                         textAnchor="middle"
                         fill="#F59E0B"
                         fontSize="7.5"
-                        fontFamily="var(--font-jetbrains-mono), monospace"
+                        fontFamily="var(--font-ibm-plex-mono), monospace"
                       >
                         too small
                       </text>
@@ -427,7 +427,7 @@ export function IndexChart({
                     width={barW}
                     height={barH}
                     rx="1"
-                    fill={isUp ? "#10B981" : "#EF4444"}
+                    fill={isUp ? "#22C55E" : "#EF4444"}
                     fillOpacity={idx === activeIdx ? 0.95 : 0.6}
                   />
                 );
@@ -448,7 +448,7 @@ export function IndexChart({
                     x2={cx}
                     y1={padTop}
                     y2={height - 20}
-                    stroke="#EDF1F7"
+                    stroke="#F4F4F5"
                     strokeOpacity="0.2"
                     strokeDasharray="2 2"
                   />
@@ -458,9 +458,9 @@ export function IndexChart({
                     x={cx}
                     y={height - 6}
                     textAnchor="middle"
-                    fill="#556173"
+                    fill="#71717A"
                     fontSize="9.5"
-                    fontFamily="var(--font-jetbrains-mono), monospace"
+                    fontFamily="var(--font-ibm-plex-mono), monospace"
                   >
                     E{ep}
                   </text>

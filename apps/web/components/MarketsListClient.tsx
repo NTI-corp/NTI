@@ -1,189 +1,442 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
+import { useAccount, useReadContract } from "wagmi";
 import { BetModal } from "./BetModal";
+import { TxStatusBanner } from "./TxStatusBanner";
+import {
+  getActiveChainId,
+  getProtocolAddresses,
+  narrativeMarketAbi,
+  oracleCommitAbi,
+} from "@/lib/contracts";
+import { NARRATIVES } from "@nti/sdk";
 import { formatBpsPercent, formatCountdown, formatEth } from "@/lib/format";
+import { useChainAction } from "@/lib/useChainAction";
 import type { MarketItem } from "@/lib/types";
+
+interface MarketsListClientProps {
+  markets: MarketItem[];
+  awaitingDeployment: boolean;
+  initialNarrativeId?: number | null;
+  latestFinalEpoch?: number | null;
+}
 
 export function MarketsListClient({
   markets,
   awaitingDeployment,
-}: {
-  markets: MarketItem[];
-  awaitingDeployment: boolean;
-}) {
+  initialNarrativeId = null,
+  latestFinalEpoch = null,
+}: MarketsListClientProps) {
   const [filter, setFilter] = useState<"all" | "open" | "locked" | "settled">("all");
+  const [narrativeFilter, setNarrativeFilter] = useState<number | null>(initialNarrativeId);
   const [activeBetMarket, setActiveBetMarket] = useState<{
     market: MarketItem;
     side: 0 | 1;
   } | null>(null);
 
-  const visible = markets.filter((m) =>
-    filter === "all" ? true : m.status === filter,
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newNarA, setNewNarA] = useState<number>(initialNarrativeId ?? 1);
+  const [newNarB, setNewNarB] = useState<number>(initialNarrativeId === 2 ? 1 : 2);
+  const [horizonEpochs, setHorizonEpochs] = useState<6 | 42>(6);
+  const [createErr, setCreateErr] = useState<string | null>(null);
+
+  const { isConnected } = useAccount();
+  const activeChainId = getActiveChainId();
+  const addrs = getProtocolAddresses(activeChainId);
+
+  const { data: onChainFinalEpoch } = useReadContract({
+    address: addrs.oracleCommit ?? undefined,
+    abi: oracleCommitAbi,
+    functionName: "latestFinalEpoch",
+    chainId: activeChainId,
+    query: { enabled: Boolean(addrs.oracleCommit) },
+  });
+
+  const { txState, isBusy, explorerBase, execute, resetTx } = useChainAction();
+
+  const liveFinalEpoch =
+    onChainFinalEpoch !== undefined ? Number(onChainFinalEpoch) : (latestFinalEpoch ?? 0);
+
+  const visible = useMemo(
+    () =>
+      markets.filter((m) => {
+        if (filter !== "all" && m.status !== filter) return false;
+        if (
+          narrativeFilter !== null &&
+          m.narrativeA !== narrativeFilter &&
+          m.narrativeB !== narrativeFilter
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [markets, filter, narrativeFilter],
   );
 
+  async function handleCreateMarket() {
+    setCreateErr(null);
+    if (!addrs.narrativeMarket) {
+      setCreateErr("NarrativeMarket contract address is not configured.");
+      return;
+    }
+    if (!isConnected) {
+      setCreateErr("Connect your wallet in the top bar first.");
+      return;
+    }
+    if (newNarA === newNarB) {
+      setCreateErr("Narrative A and Narrative B must be different.");
+      return;
+    }
+    if (liveFinalEpoch <= 0) {
+      setCreateErr("Oracle has no finalized base epoch yet.");
+      return;
+    }
+
+    const targetSettleEpoch = liveFinalEpoch + horizonEpochs;
+    const hash = await execute(
+      `Create market #${newNarA} vs #${newNarB} (settle E${targetSettleEpoch})`,
+      {
+        address: addrs.narrativeMarket,
+        abi: narrativeMarketAbi,
+        functionName: "createMarket",
+        args: [newNarA, newNarB, targetSettleEpoch],
+      },
+      `Pair market created (settlement epoch #${targetSettleEpoch}).`,
+    );
+
+    if (hash) {
+      setCreateOpen(false);
+    }
+  }
+
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
       {awaitingDeployment && (
-        <div className="rounded-md border border-[#F59E0B]/35 bg-[#F59E0B]/8 px-4 py-2.5 font-mono text-xs text-[#F59E0B]">
-          <strong>PREVIEW MARKETS</strong> · NarrativeMarket contract mirror has 0 indexed markets yet. Showing parimutuel market structure with live contract hooks ready once deployed.
+        <div className="rounded-md border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-2.5 font-mono text-xs text-[#F59E0B]">
+          <strong>PREVIEW MARKETS</strong> · NarrativeMarket contract returned 0 markets. Showing parimutuel market structure with live contract hooks ready.
         </div>
       )}
 
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#1B2028] pb-4">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#556173]">
-            NARRATIVE MARKETS · FIXED-HORIZON PARIMUTUEL
+          <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+            Narrative Markets · Fixed-Horizon Parimutuel
           </span>
-          <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-[#EDF1F7]">
+          <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
             Relative Mindshare Pair Markets
           </h1>
-          <p className="mt-1 max-w-2xl text-xs text-[#8A96A8]">
-            Settled purely by finalized on-chain oracle index Δ = I_A(settle)/I_A(base) − I_B(settle)/I_B(base). Zero leverage, 5 ETH pool cap, 0.1% fee (up to 50% discount for $NTI stakers), full gross refund on re-baseline or incomplete epoch.
+          <p className="mt-1 max-w-2xl text-xs text-[#A1A1AA]">
+            Settled purely by finalized on-chain oracle index Δ = I_A(settle)/I_A(base) − I_B(settle)/I_B(base). Zero leverage, 5 ETH pool cap, 0.10% fee (up to 50% staker discount), full gross refund on tie or incomplete epoch.
           </p>
         </div>
 
-        <div className="flex items-center gap-1.5 font-mono text-xs">
-          {(["all", "open", "locked", "settled"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setFilter(tab)}
-              className={`cursor-pointer border px-3 py-1.5 uppercase transition-colors ${
-                filter === tab
-                  ? "border-[#B8FF2E]/60 bg-[#B8FF2E]/12 text-[#B8FF2E]"
-                  : "border-[#1B202C] bg-[#0B0D12] text-[#8B94A7] hover:text-[#F3F5F8]"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+          <div className="flex items-center rounded-md border border-[#24242C] bg-[#131317] p-0.5">
+            {(["all", "open", "locked", "settled"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setFilter(tab)}
+                className={`rounded px-2.5 py-1 uppercase transition-colors ${
+                  filter === tab
+                    ? "bg-[#24242C] text-[#F4F4F5]"
+                    : "text-[#71717A] hover:text-[#A1A1AA]"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setCreateOpen((v) => !v);
+              setCreateErr(null);
+            }}
+            className="rounded-md border border-[#6366F1]/50 bg-[#6366F1]/15 px-3 py-1.5 font-semibold text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25"
+          >
+            {createOpen ? "CLOSE CREATOR" : "+ CREATE MARKET"}
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {visible.map((m) => {
-          const totalPool = m.poolAEth + m.poolBEth;
-          const pctA = totalPool > 0 ? Math.round((m.poolAEth / totalPool) * 100) : 50;
-          const pctB = 100 - pctA;
-          const relA = m.baseIA > 0 ? m.currentIA / m.baseIA : 1;
-          const relB = m.baseIB > 0 ? m.currentIB / m.baseIB : 1;
-          const delta = relA - relB;
-
+      {/* Sector Filter Bar */}
+      <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
+        <span className="mr-1 text-[10px] uppercase tracking-wider text-[#71717A]">
+          Sector:
+        </span>
+        <button
+          type="button"
+          onClick={() => setNarrativeFilter(null)}
+          className={`rounded-md border px-2.5 py-1 transition-colors ${
+            narrativeFilter === null
+              ? "border-[#6366F1]/60 bg-[#6366F1]/15 text-[#F4F4F5]"
+              : "border-[#24242C] bg-[#131317] text-[#A1A1AA] hover:text-[#F4F4F5]"
+          }`}
+        >
+          All ({markets.length})
+        </button>
+        {NARRATIVES.map((n) => {
+          const active = narrativeFilter === n.id;
           return (
-            <div key={m.marketId} className="panel-surface flex flex-col justify-between rounded-md p-4">
-              <div>
-                <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[#556173]">MKT #{m.marketId}</span>
-                    <span className="rounded border border-[#2A3342] bg-[#131820] px-1.5 py-0.5 text-[10px] text-[#8A96A8]">
-                      {m.horizonLabel}
-                    </span>
-                  </div>
-                  <span
-                    className={`border px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                      m.status === "open"
-                        ? "border-[#B8FF2E]/40 bg-[#B8FF2E]/10 text-[#B8FF2E]"
-                        : m.status === "locked"
-                          ? "border-[#F59E0B]/35 bg-[#F59E0B]/10 text-[#F59E0B]"
-                          : "border-[#23F7DD]/35 bg-[#23F7DD]/10 text-[#23F7DD]"
-                    }`}
-                  >
-                    {m.status}
-                  </span>
-                </div>
-
-                <Link
-                  href={`/markets/${m.marketId}`}
-                  className="mt-2.5 block font-display text-lg font-semibold text-[#F3F5F8] hover:text-[#B8FF2E]"
-                >
-                  {m.narrativeALabel}{" "}
-                  <span className="font-mono text-xs font-normal text-[#5A6478]">vs</span>{" "}
-                  {m.narrativeBLabel}
-                </Link>
-
-                {/* Live relative delta telemetry */}
-                <div className="mt-2 grid grid-cols-3 gap-2 border border-[#1B202C] bg-[#06070A] px-3 py-2 font-mono text-[11px] tabular-nums">
-                  <div>
-                    <div className="text-[9px] text-[#5A6478]">SIDE A ({m.narrativeALabel.slice(0, 10)})</div>
-                    <div className="text-[#F3F5F8]">
-                      {formatBpsPercent(m.baseIA, 1)} → {formatBpsPercent(m.currentIA, 1)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[9px] text-[#5A6478]">SIDE B ({m.narrativeBLabel.slice(0, 10)})</div>
-                    <div className="text-[#F3F5F8]">
-                      {formatBpsPercent(m.baseIB, 1)} → {formatBpsPercent(m.currentIB, 1)}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[9px] text-[#5A6478]">LIVE Δ LEAD</div>
-                    <div
-                      className={
-                        delta > 0
-                          ? "font-semibold text-[#B8FF2E]"
-                          : delta < 0
-                            ? "font-semibold text-[#23F7DD]"
-                            : "text-[#8B94A7]"
-                      }
-                    >
-                      {delta >= 0 ? "+" : ""}
-                      {(delta * 100).toFixed(2)}%
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pool Split Bar */}
-                <div className="mt-3">
-                  <div className="mb-1 flex justify-between font-mono text-[11px] tabular-nums">
-                    <span className="text-[#B8FF2E]">
-                      A: {formatEth(m.poolAEth, 2)} ({pctA}%)
-                    </span>
-                    <span className="text-[#8B94A7]">
-                      TOTAL {formatEth(totalPool, 2)} / {m.maxPoolEth} ETH CAP
-                    </span>
-                    <span className="text-[#23F7DD]">
-                      B: {formatEth(m.poolBEth, 2)} ({pctB}%)
-                    </span>
-                  </div>
-                  <div className="flex h-2 w-full overflow-hidden bg-[#1B202C]">
-                    <div className="bg-[#B8FF2E]" style={{ width: `${pctA}%` }} />
-                    <div className="bg-[#23F7DD]" style={{ width: `${pctB}%` }} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#1B2028] pt-3 font-mono text-[11px]">
-                <span className="text-[#8A96A8] tabular-nums">
-                  {m.status === "open"
-                    ? `Cutoff in ${formatCountdown(m.cutoffAt)} · Settle E${m.settleEpoch}`
-                    : m.status === "locked"
-                      ? `Betting closed · Settles in ${formatCountdown(m.settleAt)}`
-                      : `Settled · Outcome: ${m.outcome ?? "refund"}`}
-                </span>
-                <div className="flex items-center gap-2">
-                  {m.status === "open" && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveBetMarket({ market: m, side: 0 })}
-                      className="rounded border border-[#10B981]/50 bg-[#10B981]/15 px-3 py-1.5 text-[11px] font-semibold text-[#10B981] hover:bg-[#10B981]/25"
-                    >
-                      BET NOW
-                    </button>
-                  )}
-                  <Link
-                    href={`/markets/${m.marketId}`}
-                    className="rounded border border-[#2A3342] bg-[#131820] px-3 py-1.5 text-[11px] text-[#EDF1F7] hover:border-[#38BDF8]/50"
-                  >
-                    DETAIL →
-                  </Link>
-                </div>
-              </div>
-            </div>
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => setNarrativeFilter(active ? null : n.id)}
+              className={`rounded-md border px-2.5 py-1 transition-colors ${
+                active
+                  ? "border-[#6366F1]/60 bg-[#6366F1]/15 text-[#F4F4F5]"
+                  : "border-[#24242C] bg-[#131317] text-[#71717A] hover:border-[#32323D] hover:text-[#F4F4F5]"
+              }`}
+            >
+              {n.label}
+            </button>
           );
         })}
       </div>
+
+      {/* Permissionless Market Creator */}
+      {createOpen && (
+        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#24242C] pb-3">
+            <div>
+              <h2 className="text-sm font-semibold text-[#F4F4F5]">
+                Launch Permissionless Pair Market
+              </h2>
+              <p className="mt-0.5 text-xs text-[#A1A1AA]">
+                Anchored to latest finalized OracleCommit epoch #{liveFinalEpoch || "—"}. Anyone can open a 24H (6 epochs) or 7D (42 epochs) market.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+                Side A Narrative
+              </label>
+              <select
+                value={newNarA}
+                onChange={(e) => setNewNarA(Number(e.target.value))}
+                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
+              >
+                {NARRATIVES.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    #{n.id} {n.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+                Side B Counterparty
+              </label>
+              <select
+                value={newNarB}
+                onChange={(e) => setNewNarB(Number(e.target.value))}
+                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
+              >
+                <option value={0}>0 Market Average</option>
+                {NARRATIVES.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    #{n.id} {n.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+                Settlement Horizon
+              </label>
+              <select
+                value={horizonEpochs}
+                onChange={(e) => setHorizonEpochs(Number(e.target.value) === 42 ? 42 : 6)}
+                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
+              >
+                <option value={6}>24H (6 epochs · E{liveFinalEpoch + 6})</option>
+                <option value={42}>7D (42 epochs · E{liveFinalEpoch + 42})</option>
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                disabled={isBusy || !isConnected || liveFinalEpoch <= 0}
+                onClick={() => void handleCreateMarket()}
+                className="w-full rounded-md bg-[#6366F1] py-2 font-mono text-xs font-semibold text-white transition-colors hover:bg-[#5558E6] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {!isConnected ? "CONNECT WALLET" : "DEPLOY MARKET"}
+              </button>
+            </div>
+          </div>
+
+          {createErr && (
+            <div className="mt-3 rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+              {createErr}
+            </div>
+          )}
+          <div className="mt-3">
+            <TxStatusBanner state={txState} explorerBase={explorerBase} onDismiss={resetTx} />
+          </div>
+        </div>
+      )}
+
+      {/* Market Grid or Empty State */}
+      {visible.length === 0 ? (
+        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-8 text-center">
+          <div className="text-sm font-semibold text-[#F4F4F5]">
+            No markets match the selected filter
+          </div>
+          <p className="mt-1 text-xs text-[#A1A1AA]">
+            Try clearing the status or sector filter, or launch a new permissionless pair market above.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setFilter("all");
+              setNarrativeFilter(null);
+            }}
+            className="mt-3 rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] hover:border-[#6366F1]/50"
+          >
+            RESET FILTERS
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {visible.map((m) => {
+            const totalPool = m.poolAEth + m.poolBEth;
+            const pctA = totalPool > 0 ? Math.round((m.poolAEth / totalPool) * 100) : 50;
+            const pctB = 100 - pctA;
+            const relA = m.baseIA > 0 ? m.currentIA / m.baseIA : 1;
+            const relB = m.baseIB > 0 ? m.currentIB / m.baseIB : 1;
+            const delta = relA - relB;
+
+            return (
+              <div
+                key={m.marketId}
+                className="flex flex-col justify-between rounded-lg border border-[#24242C] bg-[#131317] p-4 transition-colors hover:border-[#32323D]"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#71717A]">MKT #{m.marketId}</span>
+                      <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[10px] text-[#A1A1AA]">
+                        {m.horizonLabel}
+                      </span>
+                    </div>
+                    <span
+                      className={`rounded border px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                        m.status === "open"
+                          ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
+                          : m.status === "locked"
+                            ? "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]"
+                            : "border-[#6366F1]/40 bg-[#6366F1]/10 text-[#A5B4FC]"
+                      }`}
+                    >
+                      {m.status}
+                    </span>
+                  </div>
+
+                  <Link
+                    href={`/markets/${m.marketId}`}
+                    className="mt-2.5 block text-lg font-semibold text-[#F4F4F5] transition-colors hover:text-[#A5B4FC]"
+                  >
+                    {m.narrativeALabel}{" "}
+                    <span className="font-mono text-xs font-normal text-[#71717A]">vs</span>{" "}
+                    {m.narrativeBLabel}
+                  </Link>
+
+                  {/* Live relative delta telemetry */}
+                  <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-[11px] tabular-nums">
+                    <div>
+                      <div className="text-[10px] text-[#71717A]">
+                        SIDE A ({m.narrativeALabel.slice(0, 10)})
+                      </div>
+                      <div className="text-[#F4F4F5]">
+                        {formatBpsPercent(m.baseIA, 1)} → {formatBpsPercent(m.currentIA, 1)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-[#71717A]">
+                        SIDE B ({m.narrativeBLabel.slice(0, 10)})
+                      </div>
+                      <div className="text-[#F4F4F5]">
+                        {formatBpsPercent(m.baseIB, 1)} → {formatBpsPercent(m.currentIB, 1)}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] text-[#71717A]">LIVE Δ LEAD</div>
+                      <div
+                        className={
+                          delta > 0
+                            ? "font-semibold text-[#22C55E]"
+                            : delta < 0
+                              ? "font-semibold text-[#A5B4FC]"
+                              : "text-[#A1A1AA]"
+                        }
+                      >
+                        {delta >= 0 ? "+" : ""}
+                        {(delta * 100).toFixed(2)}%
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pool Split Bar */}
+                  <div className="mt-3">
+                    <div className="mb-1 flex justify-between font-mono text-[11px] tabular-nums">
+                      <span className="text-[#22C55E]">
+                        A: {formatEth(m.poolAEth, 3)} ({pctA}%)
+                      </span>
+                      <span className="text-[#71717A]">
+                        TOTAL {formatEth(totalPool, 3)} / {m.maxPoolEth} ETH CAP
+                      </span>
+                      <span className="text-[#A5B4FC]">
+                        B: {formatEth(m.poolBEth, 3)} ({pctB}%)
+                      </span>
+                    </div>
+                    <div className="flex h-2 w-full overflow-hidden rounded-full bg-[#24242C]">
+                      <div className="bg-[#22C55E]" style={{ width: `${pctA}%` }} />
+                      <div className="bg-[#6366F1]" style={{ width: `${pctB}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#24242C] pt-3 font-mono text-[11px]">
+                  <span className="text-[#A1A1AA] tabular-nums">
+                    {m.status === "open"
+                      ? `Cutoff in ${formatCountdown(m.cutoffAt)} · Settle E${m.settleEpoch}`
+                      : m.status === "locked"
+                        ? `Betting closed · Settles in ${formatCountdown(m.settleAt)}`
+                        : `Settled · Outcome: ${m.outcome ?? "refund"}`}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {m.status === "open" && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveBetMarket({ market: m, side: 0 })}
+                        className="rounded-md bg-[#22C55E] px-3 py-1.5 text-[11px] font-semibold text-[#0B0B0E] transition-colors hover:bg-[#16A34A]"
+                      >
+                        BET NOW
+                      </button>
+                    )}
+                    <Link
+                      href={`/markets/${m.marketId}`}
+                      className="rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 text-[11px] text-[#F4F4F5] transition-colors hover:border-[#6366F1]/50"
+                    >
+                      DETAIL →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {activeBetMarket && (
         <BetModal

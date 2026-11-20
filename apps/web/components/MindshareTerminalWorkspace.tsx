@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type {
   EpochSummary,
+  IndexesSnapshot,
   NarrativeIndexItem,
   RadarResponse,
 } from "@/lib/types";
@@ -40,6 +41,7 @@ const CATEGORY_GROUPS: Record<CategoryFilter, readonly string[] | null> = {
 
 export function MindshareTerminalWorkspace({
   narratives,
+  recentSeries,
   combinedSeries,
   radar,
   activeEpoch,
@@ -47,6 +49,7 @@ export function MindshareTerminalWorkspace({
   pendingFinalization,
 }: {
   narratives: NarrativeIndexItem[];
+  recentSeries: IndexesSnapshot["recentSeries"];
   combinedSeries: IndexChartSeries[];
   radar: RadarResponse;
   activeEpoch: EpochSummary | null;
@@ -65,6 +68,36 @@ export function MindshareTerminalWorkspace({
     [narratives],
   );
 
+  const windowDeltaById = useMemo(() => {
+    const map = new Map<number, number | null>();
+    for (const n of narratives) {
+      if (windowChip === "4H") {
+        map.set(n.narrativeId, n.vBps);
+        continue;
+      }
+      const pts = recentSeries?.[n.narrativeId] ?? [];
+      if (pts.length < 2) {
+        map.set(n.narrativeId, n.vBps);
+        continue;
+      }
+      const latestPt = pts[pts.length - 1]!;
+      const lookbackCount = windowChip === "24H" ? 6 : windowChip === "7D" ? 42 : pts.length - 1;
+      const baseIdx = Math.max(0, pts.length - 1 - lookbackCount);
+      const basePt = pts[baseIdx]!;
+      map.set(n.narrativeId, latestPt.iBps - basePt.iBps);
+    }
+    return map;
+  }, [narratives, recentSeries, windowChip]);
+
+  const windowedChartSeries = useMemo(() => {
+    if (windowChip === "ALL") return combinedSeries;
+    const limit = windowChip === "4H" ? 6 : windowChip === "24H" ? 12 : 42;
+    return combinedSeries.map((s) => ({
+      ...s,
+      points: s.points.slice(-limit),
+    }));
+  }, [combinedSeries, windowChip]);
+
   const filtered = useMemo(() => {
     const slugs = CATEGORY_GROUPS[category];
     const base = slugs
@@ -72,9 +105,11 @@ export function MindshareTerminalWorkspace({
       : narratives;
 
     return [...base].sort((a, b) => {
+      const dA = windowDeltaById.get(a.narrativeId) ?? -999999;
+      const dB = windowDeltaById.get(b.narrativeId) ?? -999999;
       const valA =
         sortCol === "vBps"
-          ? (a.vBps ?? -999999)
+          ? dA
           : sortCol === "mBps"
             ? a.mBps
             : sortCol === "sN"
@@ -84,7 +119,7 @@ export function MindshareTerminalWorkspace({
                 : a.iBps;
       const valB =
         sortCol === "vBps"
-          ? (b.vBps ?? -999999)
+          ? dB
           : sortCol === "mBps"
             ? b.mBps
             : sortCol === "sN"
@@ -94,7 +129,7 @@ export function MindshareTerminalWorkspace({
                 : b.iBps;
       return sortAsc ? valA - valB : valB - valA;
     });
-  }, [narratives, category, sortCol, sortAsc]);
+  }, [narratives, category, sortCol, sortAsc, windowDeltaById]);
 
   const sortedByShare = useMemo(
     () => [...filtered].sort((a, b) => b.iBps - a.iBps),
@@ -283,8 +318,8 @@ export function MindshareTerminalWorkspace({
           {(viewTab === "chart" || viewTab === "combined") && (
             <div className="rounded-xl border border-[#24242C] bg-[#131317] p-4">
               <IndexChart
-                series={combinedSeries}
-                title="Top 5 Narratives · Mindshare Trajectory (I_n)"
+                series={windowedChartSeries}
+                title={`Top 5 Narratives · Mindshare Trajectory (${windowChip})`}
                 subtitle="Toggle sectors below · Velocity bars track selected primary series"
                 showVelocityBars
               />
@@ -323,7 +358,7 @@ export function MindshareTerminalWorkspace({
                           onClick={() => handleSort("vBps")}
                           className="cursor-pointer uppercase hover:text-white"
                         >
-                          4h Chg {renderSortIcon("vBps")}
+                          {windowChip === "ALL" ? "Series" : windowChip} Chg {renderSortIcon("vBps")}
                         </button>
                       </th>
                       <th
@@ -356,70 +391,79 @@ export function MindshareTerminalWorkspace({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1E1E26]">
-                    {filtered.map((n, idx) => {
-                      const isPos = (n.vBps ?? 0) >= 0;
-                      return (
-                        <tr
-                          key={n.narrativeId}
-                          className="transition-colors hover:bg-[#191920]"
-                        >
-                          <td className="px-3 py-3 text-center font-mono text-[11px] tabular-nums text-[#71717A]">
-                            {idx + 1}
-                          </td>
-                          <td className="px-3 py-3">
-                            <Link
-                              href={`/narratives/${n.narrativeId}`}
-                              className="group flex items-center gap-2.5"
-                            >
-                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#282832] bg-[#0D0D10] text-[#D4D4D8] group-hover:text-white">
-                                <SectorIcon slug={n.slug} className="h-3.5 w-3.5" />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="truncate font-semibold text-[#F4F4F5] group-hover:text-[#818CF8]">
-                                  {n.label}
-                                </div>
-                                <div className="hidden max-w-[190px] truncate text-[11px] text-[#71717A] 2xl:block">
-                                  {n.description}
-                                </div>
-                              </div>
-                            </Link>
-                          </td>
-                          <td className="px-3 py-3 text-right font-mono text-sm font-semibold tabular-nums text-white whitespace-nowrap">
-                            {formatBpsPercent(n.iBps)}
-                          </td>
-                          <td className="px-3 py-3 text-right font-mono tabular-nums whitespace-nowrap">
-                            {n.vBps !== null ? (
-                              <span
-                                className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold ${
-                                  isPos
-                                    ? "bg-[#22C55E]/12 text-[#22C55E]"
-                                    : "bg-[#EF4444]/12 text-[#EF4444]"
-                                }`}
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-xs text-[#71717A]">
+                          No narrative sectors match the selected filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((n, idx) => {
+                        const delta = windowDeltaById.get(n.narrativeId) ?? null;
+                        const isPos = (delta ?? 0) >= 0;
+                        return (
+                          <tr
+                            key={n.narrativeId}
+                            className="transition-colors hover:bg-[#191920]"
+                          >
+                            <td className="px-3 py-3 text-center font-mono text-[11px] tabular-nums text-[#71717A]">
+                              {idx + 1}
+                            </td>
+                            <td className="px-3 py-3">
+                              <Link
+                                href={`/narratives/${n.narrativeId}`}
+                                className="group flex items-center gap-2.5"
                               >
-                                {isPos ? "↑" : "↓"} {formatSignedBps(n.vBps, n.vFlag)}
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-[#71717A]">Warming</span>
-                            )}
-                          </td>
-                          <td className="hidden px-3 py-3 text-right font-mono tabular-nums text-[#A1A1AA] whitespace-nowrap sm:table-cell">
-                            {formatBpsPercent(n.mBps)}
-                          </td>
-                          <td className="hidden px-3 py-3 text-right font-mono tabular-nums text-[#A1A1AA] whitespace-nowrap md:table-cell">
-                            {n.sN.toFixed(1)}
-                          </td>
-                          <td className="px-3 py-3 text-right whitespace-nowrap">
-                            <Link
-                              href={`/narratives/${n.narrativeId}`}
-                              className="inline-flex items-center gap-1 rounded-md border border-[#26262F] bg-[#16161C] px-2.5 py-1 text-[11px] font-medium text-[#D4D4D8] hover:border-[#6366F1] hover:text-white"
-                            >
-                              <span>Open</span>
-                              <ArrowUpRight className="h-3 w-3" />
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#282832] bg-[#0D0D10] text-[#D4D4D8] group-hover:text-white">
+                                  <SectorIcon slug={n.slug} className="h-3.5 w-3.5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="truncate font-semibold text-[#F4F4F5] group-hover:text-[#818CF8]">
+                                    {n.label}
+                                  </div>
+                                  <div className="hidden max-w-[190px] truncate text-[11px] text-[#71717A] 2xl:block">
+                                    {n.description}
+                                  </div>
+                                </div>
+                              </Link>
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono text-sm font-semibold tabular-nums text-white whitespace-nowrap">
+                              {formatBpsPercent(n.iBps)}
+                            </td>
+                            <td className="px-3 py-3 text-right font-mono tabular-nums whitespace-nowrap">
+                              {delta !== null ? (
+                                <span
+                                  className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold ${
+                                    isPos
+                                      ? "bg-[#22C55E]/12 text-[#22C55E]"
+                                      : "bg-[#EF4444]/12 text-[#EF4444]"
+                                  }`}
+                                >
+                                  {isPos ? "↑" : "↓"} {formatSignedBps(delta, windowChip === "4H" ? n.vFlag : null)}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-[#71717A]">Warming</span>
+                              )}
+                            </td>
+                            <td className="hidden px-3 py-3 text-right font-mono tabular-nums text-[#A1A1AA] whitespace-nowrap sm:table-cell">
+                              {formatBpsPercent(n.mBps)}
+                            </td>
+                            <td className="hidden px-3 py-3 text-right font-mono tabular-nums text-[#A1A1AA] whitespace-nowrap md:table-cell">
+                              {n.sN.toFixed(1)}
+                            </td>
+                            <td className="px-3 py-3 text-right whitespace-nowrap">
+                              <Link
+                                href={`/narratives/${n.narrativeId}`}
+                                className="inline-flex items-center gap-1 rounded-md border border-[#26262F] bg-[#16161C] px-2.5 py-1 text-[11px] font-medium text-[#D4D4D8] hover:border-[#6366F1] hover:text-white"
+                              >
+                                <span>Open</span>
+                                <ArrowUpRight className="h-3 w-3" />
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
