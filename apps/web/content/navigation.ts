@@ -71,127 +71,123 @@ export interface AnnouncementBanner {
 
 export const ANNOUNCEMENT_BANNER: AnnouncementBanner = {
   enabled: false,
-  text: "Sui Basecamp starts this week. Final tickets →",
-  href: "https://www.sui.io/basecamp?utm_source=pencil_banner",
+  text: "NTI is live on Robinhood Chain Testnet (46630). Open Terminal →",
+  href: "/terminal",
 };
 
 export const NAV_ITEMS: NavItem[] = [
   {
-    id: "stack",
-    label: "Stack",
+    id: "terminal",
+    label: "Terminal",
     kind: "dropdown",
     iconKind: "plus",
     columns: [
       {
-        category: "Overview/",
+        category: "Analytics/",
         links: [
           {
-            label: "Intro to Sui Stack",
-            description: "Modular decentralized infrastructure",
-            href: "https://www.sui.io/intro-to-sui",
+            label: "Mindshare Terminal",
+            description: "10 crypto sectors scored in Hamilton bps",
+            href: "/terminal",
             icon: "sui-stack",
             lottieSrc: "/assets/lottie/intro-sui-stack.json",
           },
         ],
       },
       {
-        category: "Finance/",
+        category: "Discovery/",
         links: [
           {
-            label: "DeepBook",
-            description: "Programmable liquidity layer",
-            href: "https://deepbook.tech/",
-            external: true,
-            icon: "deepbook",
+            label: "Emerging Radar",
+            description: "Velocity spikes & new token signals",
+            href: "/radar",
+            icon: "ai",
           },
           {
-            label: "Hashi",
-            description: "Native Bitcoin collateralization",
-            href: "https://www.sui.io/hashi",
-            icon: "hashi",
+            label: "Builder Heatmap",
+            description: "Mindshare vs. active competition",
+            href: "/heatmap",
+            icon: "capital-markets",
           },
         ],
       },
       {
-        category: "Data/",
+        category: "Products/",
         links: [
           {
-            label: "Seal",
-            description: "Encryption with access control",
-            href: "https://seal.mystenlabs.com/",
-            external: true,
-            icon: "seal",
+            label: "Pair Markets",
+            description: "Relative mindshare parimutuel spreads",
+            href: "/markets",
+            icon: "deepbook",
           },
           {
-            label: "Nautilus",
-            description: "Verifiable offchain compute",
-            href: "https://www.sui.io/nautilus",
-            icon: "nautilus",
+            label: "TWAP Baskets",
+            description: "Whitelisted Uniswap V3 narrative vaults",
+            href: "/baskets",
+            icon: "defi",
           },
           {
-            label: "Walrus",
-            description: "Trusted data layer",
-            href: "https://www.walrus.xyz/",
-            external: true,
+            label: "Ecosystem Grants",
+            description: "Snapshot IVotes grant allocation",
+            href: "/grants",
             icon: "walrus",
           },
         ],
       },
       {
-        category: "Identity/",
+        category: "Security/",
         links: [
           {
-            label: "SuiNS",
-            description: "Onchain naming & identity",
-            href: "https://suins.io/",
-            external: true,
-            icon: "suins",
+            label: "Oracle & Disputes",
+            description: "2-of-3 EIP-712 roots & 2h challenges",
+            href: "/oracle",
+            icon: "seal",
           },
         ],
       },
     ],
   },
   {
-    id: "solutions",
-    label: "Solutions",
+    id: "markets",
+    label: "Markets",
     kind: "dropdown",
     iconKind: "plus",
     columns: [
       {
-        category: "Industries/",
+        category: "Markets & Vaults/",
         links: [
           {
-            label: "Payments",
-            href: "https://www.sui.io/payments",
-            icon: "payments",
-            lottieSrc: "/assets/lottie/gaming.json",
-          },
-          {
-            label: "Capital Markets",
-            href: "https://www.sui.io/institutions-capital-markets",
+            label: "Pair Markets",
+            href: "/markets",
             icon: "capital-markets",
             lottieSrc: "/assets/lottie/capital-markets.json",
           },
           {
-            label: "DeFi",
-            href: "https://www.sui.io/defi",
+            label: "TWAP Baskets",
+            href: "/baskets",
             icon: "defi",
             lottieSrc: "/assets/lottie/defi.json",
           },
           {
-            label: "AI and Agents",
-            href: "https://www.sui.io/ai",
+            label: "AI Agents Vault",
+            href: "/baskets/ai-agents",
             icon: "ai",
             lottieSrc: "/assets/lottie/ai.json",
+          },
+          {
+            label: "Stake $NTI",
+            href: "/stake",
+            icon: "payments",
+            lottieSrc: "/assets/lottie/gaming.json",
           },
         ],
       },
       {
-        category: "Core Capabilities/",
+        category: "Sectors/",
         links: [
           {
-            label: "Privacy",
-            href: "https://www.sui.io/privacy",
+            label: "Privacy / ZK",
+            href: "/narratives/1",
             icon: "privacy",
             lottieSrc: "/assets/lottie/capital-markets.json",
           },
@@ -209,156 +205,86 @@ export const NAV_ITEMS: NavItem[] = [
         category: "Network/",
         links: [
           {
-            label: "Release Schedule",
-            href: "https://www.sui.io/networkinfo",
+            label: "Oracle Epochs",
+            href: "/oracle",
             icon: "release-schedule",
           },
           {
-            label: "Validators",
-            href: "https://www.sui.io/validators",
+            label: "Stake & Validators",
+            href: "/stake",
             icon: "validators",
           },
           {
-            label: "Security",
-            href: "https://www.sui.io/security",
+            label: "Disputes & Bonds",
+            href: "/oracle",
             icon: "security",
           },
           {
-            label: "Status",
-            href: "https://status.sui.io/",
+            label: "API Health",
+            href: "/api/health",
             external: true,
             icon: "status",
           },
           {
-            label: "SUI Circulation",
-            href: "https://www.sui.io/token-schedule",
+            label: "Index JSON Feed",
+            href: "/api/indexes",
+            external: true,
             icon: "circulation",
           },
           {
-            label: "SUI Deflation",
-            href: "https://www.sui.io/deflation",
-            icon: "deflation",
-          },
-          {
-            label: "SUI Buybacks",
-            href: "https://www.sui.io/buybacks",
-            icon: "buybacks",
+            label: "Chain Explorer",
+            href: "https://explorer.testnet.chain.robinhood.com",
+            external: true,
+            icon: "events",
           },
         ],
       },
     ],
   },
   {
-    id: "build",
-    label: "Build",
+    id: "govern",
+    label: "Govern",
     kind: "dropdown",
     iconKind: "plus",
     columns: [
       {
-        category: "Build with AI/",
+        category: "Governance/",
         links: [
           {
-            label: "AI Coding Assistant",
-            href: "https://docs.sui.io/getting-started/sui-mcp-server",
-            external: true,
-            icon: "ai-assistant",
-          },
-          {
-            label: "Agent Skills",
-            href: "https://docs.sui.io/skills",
-            external: true,
-            icon: "agent-skills",
-          },
-          {
-            label: "Agent Payments",
-            href: "https://www.sui.io/agentpayments",
-            icon: "agent-payments",
-          },
-        ],
-      },
-      {
-        category: "Core Tooling/",
-        links: [
-          {
-            label: "Developer Hub",
-            href: "https://www.sui.io/builders",
-            icon: "dev-hub",
-          },
-          {
-            label: "Docs",
-            href: "https://docs.sui.io/",
-            external: true,
-            icon: "docs",
-          },
-          {
-            label: "Move",
-            href: "https://www.sui.io/move",
-            icon: "move",
-          },
-          {
-            label: "Starter Template",
-            href: "https://docs.sui.io/getting-started",
-            external: true,
-            icon: "starter",
-          },
-          {
-            label: "Tools",
-            href: "https://docs.sui.io/getting-started/tooling",
-            external: true,
-            icon: "tools",
-          },
-        ],
-      },
-      {
-        category: "Launch/",
-        links: [
-          {
-            label: "Project Ideas",
-            href: "https://www.sui.io/project-ideas",
-            icon: "ideas",
-          },
-          {
-            label: "Launch Playbook",
-            href: "https://www.sui.io/launch-on-sui",
-            icon: "playbook",
-          },
-          {
-            label: "Founder Starter Pack",
-            href: "https://www.sui.io/founder-starter-pack",
-            icon: "founder",
-          },
-          {
-            label: "Builder FAQ",
-            href: "https://www.sui.io/faq",
-            icon: "faq",
-          },
-          {
-            label: "Programs & Funding",
-            href: "https://www.sui.io/programs-funding",
+            label: "NTIGovernor",
+            href: "/stake",
             icon: "funding",
           },
-        ],
-      },
-      {
-        category: "Get Involved/",
-        links: [
           {
-            label: "Hackathons",
-            href: "https://www.deepsurge.xyz/",
-            external: true,
-            icon: "hackathons",
-          },
-          {
-            label: "Online Communities",
-            href: "https://www.sui.io/community",
+            label: "Ecosystem Grants",
+            href: "/grants",
             icon: "community",
             lottieSrc: "/assets/lottie/globe.json",
           },
           {
-            label: "Events",
-            href: "https://luma.com/sui-network",
-            external: true,
-            icon: "events",
+            label: "Builder Heatmap",
+            href: "/heatmap",
+            icon: "ideas",
+          },
+        ],
+      },
+      {
+        category: "Verification/",
+        links: [
+          {
+            label: "Methodology",
+            href: "/methodology",
+            icon: "docs",
+          },
+          {
+            label: "Oracle Attestations",
+            href: "/oracle",
+            icon: "tools",
+          },
+          {
+            label: "Emerging Radar",
+            href: "/radar",
+            icon: "playbook",
           },
         ],
       },
@@ -368,49 +294,63 @@ export const NAV_ITEMS: NavItem[] = [
     id: "docs",
     label: "Docs",
     kind: "link",
-    href: "https://docs.sui.io/",
-    external: true,
+    href: "/methodology",
+    external: false,
     iconKind: "docs",
   },
   {
-    id: "blog",
-    label: "Blog",
+    id: "radar",
+    label: "Radar",
     kind: "link",
-    href: "https://www.sui.io/blog",
-    external: true,
+    href: "/radar",
+    external: false,
     iconKind: "blog",
   },
 ];
 
-export const GET_STARTED_CTA = {
-  label: "Get started",
-  category: "Get Started/",
+export const GET_STARTED_CTA: {
+  label: string;
+  href: string;
+  category: string;
+  links: Array<{
+    label: string;
+    description: string;
+    href: string;
+    external?: boolean;
+    icon: NavIconKey;
+  }>;
+} = {
+  label: "Launch app",
+  href: "/terminal",
+  category: "Launch NTI/",
   links: [
     {
-      label: "Start building",
+      label: "Mindshare Terminal",
       description:
-        "Build, launch, and scale your product with the right resources and support",
-      href: "https://www.sui.io/ecosystem",
-      icon: "building" as NavIconKey,
+        "Inspect 10 narrative weights, EMA trajectories, and KOL contributors",
+      href: "/terminal",
+      icon: "building",
     },
     {
-      label: "Start coding",
+      label: "Trade Pair Markets",
       description:
-        "Get started with Move, the most powerful smart contract programming language",
-      href: "https://www.sui.io/builders",
-      icon: "coding" as NavIconKey,
+        "Back relative sector mindshare spreads settled by finalized oracle roots",
+      href: "/markets",
+      icon: "coding",
     },
     {
-      label: "Start earning",
-      description: "Get a wallet, buy SUI, and explore top dApps",
-      href: "https://www.sui.io/get-started",
-      icon: "earning" as NavIconKey,
+      label: "Stake $NTI",
+      description:
+        "Earn ETH fee yield, unlock real-time Radar, and vote in governance",
+      href: "/stake",
+      icon: "earning",
     },
     {
-      label: "Start connecting",
-      description: "Join a global community of builders and collaborators",
-      href: "https://www.sui.io/community",
-      icon: "connecting" as NavIconKey,
+      label: "Verify Oracle",
+      description:
+        "Audit dataset hashes, 2-of-3 validator signatures, and dispute bonds",
+      href: "/oracle",
+      icon: "connecting",
     },
   ],
 };

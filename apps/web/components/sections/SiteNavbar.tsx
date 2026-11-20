@@ -417,20 +417,44 @@ export function SiteNavbar() {
           <div className="bg-[#131518] backdrop-blur-[12px] px-[0.75em] py-[0.875em] md:px-[1.031em] md:py-[0.719em] flex items-center justify-between gap-[2em] min-h-[3.75em] max-h-[4.25em]">
             {/* Brand Logo */}
             <a
-              href="#"
-              aria-label="Sui Home"
+              href="/"
+              aria-label="NTI Home"
               onMouseEnter={() => {
                 clearCloseTimer();
                 setActiveDropdown(null);
                 setGetStartedOpen(false);
               }}
-              className="flex items-center shrink-0 h-[2em] md:h-[2.063em] md:max-w-[3.947em]"
+              className="flex items-center gap-[0.55em] shrink-0 h-[2em] md:h-[2.063em]"
             >
-              <img
-                src="/assets/logos/logo-sui.svg"
-                alt="Sui"
-                className="h-full w-auto object-contain block"
-              />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 32 32"
+                fill="none"
+                aria-hidden="true"
+                className="h-[1.65em] w-[1.65em] shrink-0"
+              >
+                <rect
+                  x="1"
+                  y="1"
+                  width="30"
+                  height="30"
+                  rx="6"
+                  fill="#0B0D12"
+                  stroke="#343940"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M7.5 21.5L13 12.5L17.5 17.5L24.5 9.5"
+                  stroke="#FFFFFF"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="24.5" cy="9.5" r="2.3" fill="#298DFF" />
+              </svg>
+              <span className="text-[1.15em] font-semibold tracking-[-0.03em] text-white leading-none">
+                NTI
+              </span>
             </a>
 
             {/* Desktop Center Nav Links */}
@@ -707,8 +731,8 @@ export function SiteNavbar() {
                       <React.Fragment key={link.label}>
                         <a
                           href={link.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          target={link.external ? "_blank" : undefined}
+                          rel={link.external ? "noopener noreferrer" : undefined}
                           onMouseEnter={(e) => {
                             setHoveredCtaIdx(idx);
                             const bg = e.currentTarget.querySelector<HTMLElement>("[data-cta-bg]");
@@ -858,9 +882,8 @@ export function SiteNavbar() {
 
             <div className="pt-[1.5em] pb-[3em]">
               <a
-                href="https://www.sui.io/get-started"
-                target="_blank"
-                rel="noopener noreferrer"
+                href={GET_STARTED_CTA.href}
+                onClick={() => setMobileOpen(false)}
                 className="block w-full bg-[#298dff] text-white text-center py-[0.95em] font-normal text-[1em]"
               >
                 {GET_STARTED_CTA.label}
