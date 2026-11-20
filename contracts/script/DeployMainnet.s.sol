@@ -56,7 +56,19 @@ contract DeployMainnet is Script {
     }
 
     function run() external returns (Deployed memory d) {
+        require(block.chainid == 4663, "mainnet only");
+        // msg.sender is the broadcaster (--private-key / --account). Roles are granted to DEPLOYER_ADDRESS,
+        // so a mismatch would leave the suite owned by an address that cannot administer it.
         address deployer = vm.envAddress("DEPLOYER_ADDRESS");
+        require(msg.sender == deployer, "broadcaster != DEPLOYER_ADDRESS");
+        _requireCode(MAINNET_WETH, "WETH");
+        _requireCode(MAINNET_V3_FACTORY, "V3 factory");
+        _requireCode(MAINNET_V3_SWAP_ROUTER02, "V3 router");
+        _requireCode(MAINNET_UNIVERSAL_ROUTER, "universal router");
+        _requireCode(MAINNET_PERMIT2, "permit2");
+        _requireCode(MAINNET_STATE_VIEW, "state view");
+        _requireCode(MAINNET_PONS_V2_MEME_HOOK, "pons hook");
+
         address operator = vm.envAddress("OPERATOR_ADDRESS");
         address keeper = vm.envAddress("KEEPER_ADDRESS");
         address attester = vm.envAddress("ATTESTER_ADDRESS");
@@ -68,8 +80,10 @@ contract DeployMainnet is Script {
         // Optional: if live $NTI CA is already known at deploy time, attach immediately.
         address ntiToken = vm.envOr("NTI_TOKEN_ADDRESS", address(0));
         uint64 genesisTs = uint64(vm.envOr("ORACLE_GENESIS_TIMESTAMP", uint256(0)));
-        bytes32 initConfigHash =
-            vm.envOr("INITIAL_CONFIG_HASH", keccak256("nti-mainnet-config-v1"));
+        // Must equal the canonical hash of config/nti.v1.json (see infra/scripts/mainnet-preflight.py),
+        // otherwise OracleCommit.commit reverts with ConfigHashMismatch. No default on purpose.
+        bytes32 initConfigHash = vm.envBytes32("INITIAL_CONFIG_HASH");
+        require(initConfigHash != bytes32(0), "INITIAL_CONFIG_HASH required");
 
         vm.startBroadcast();
 
@@ -164,6 +178,10 @@ contract DeployMainnet is Script {
         d.governor = address(governor);
 
         _writeManifest(d);
+    }
+
+    function _requireCode(address target, string memory label) internal view {
+        require(target.code.length > 0, string.concat("no bytecode at ", label));
     }
 
     function _writeManifest(Deployed memory d) internal {
