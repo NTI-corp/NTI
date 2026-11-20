@@ -25,7 +25,6 @@ const ANATOMY_STAGES = [
       "Every four hours, independent worker lanes pull timelines across 25+ curated crypto accounts, enforcing a strict 60-post per-account ceiling and sealing the raw dataset with SHA-256.",
     metricLabel: "25+ KOLs · 60-post ceiling · SHA-256 manifest",
     icon: Radio,
-    accent: "#38BDF8",
   },
   {
     key: "classification",
@@ -35,7 +34,6 @@ const ANATOMY_STAGES = [
       "Posts are evaluated deterministically at temperature 0, producing calibrated multi-label relevance weights q ∈ [0, 1] across Privacy, AI Agents, RWA, DeFi, Perp DEX, and more.",
     metricLabel: "Gemini Flash-Lite · temp = 0 · 10 verticals",
     icon: Cpu,
-    accent: "#818CF8",
   },
   {
     key: "normalization",
@@ -45,7 +43,6 @@ const ANATOMY_STAGES = [
       "A 48-hour exponential decay weights fresh conviction while iterative truncation caps any single KOL at 10% share before Hamilton largest-remainder rounding guarantees 10,000 bps.",
     metricLabel: "48h decay · 10% KOL cap · α = 0.3 EMA",
     icon: Scale,
-    accent: "#F59E0B",
   },
   {
     key: "settlement",
@@ -55,7 +52,6 @@ const ANATOMY_STAGES = [
       "At least three independent validators sharing ≥95% KOL overlap sign the packed vector. Once committed to Robinhood Chain, a permissionless 2-hour Dispute window guards finalization.",
     metricLabel: "Validators ≥ 3 · 95% overlap · 7,200s challenge",
     icon: ShieldCheck,
-    accent: "#10B981",
   },
 ] as const;
 
@@ -63,13 +59,13 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
   if (stageIndex === 0) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-[#222836] pb-3">
-          <span className="flex items-center gap-2 text-xs font-semibold text-[#38BDF8]">
-            <Radio className="h-4 w-4" />
+        <div className="flex items-center justify-between border-b border-[#1E222B] pb-3">
+          <span className="flex items-center gap-2 text-xs font-semibold text-[#F5F6F8]">
+            <Radio className="h-4 w-4 text-[#34D399]" />
             <span>3-Lane Ingestion Collector</span>
           </span>
           <span
-            className="text-[11px] text-[#64748B]"
+            className="text-[11px] text-[#6B7280]"
             style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
           >
             Cycle 4h
@@ -82,29 +78,29 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
             { lane: "Lane B", accounts: "8 KOLs", posts: "136 posts", pct: "76%" },
             { lane: "Lane C", accounts: "8 KOLs", posts: "134 posts", pct: "74%" },
           ].map((l) => (
-            <div key={l.lane} className="rounded-xl border border-[#222836] bg-[#0B0D13] p-3.5">
+            <div key={l.lane} className="rounded-xl border border-[#1E222B] bg-[#08090C] p-3.5">
               <div
                 className="flex items-center justify-between text-xs"
                 style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
               >
-                <span className="font-semibold text-[#F4F6FA]">{l.lane}</span>
-                <span className="text-[#94A0B8]">
+                <span className="font-semibold text-[#F5F6F8]">{l.lane}</span>
+                <span className="text-[#9CA3AF]">
                   {l.accounts} · {l.posts}
                 </span>
               </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#191E2B]">
-                <div className="h-full rounded-full bg-[#38BDF8]" style={{ width: l.pct }} />
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#1A1E26]">
+                <div className="h-full rounded-full bg-[#34D399]" style={{ width: l.pct }} />
               </div>
             </div>
           ))}
         </div>
 
         <div
-          className="flex items-center justify-between rounded-xl border border-[#222836] bg-[#0B0D13] px-4 py-3 text-xs"
+          className="flex items-center justify-between rounded-xl border border-[#1E222B] bg-[#08090C] px-4 py-3 text-xs"
           style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
         >
-          <span className="text-[#64748B]">Dataset Hash</span>
-          <span className="text-[#10B981]">SHA-256 Locked</span>
+          <span className="text-[#6B7280]">Dataset Hash</span>
+          <span className="text-[#34D399]">SHA-256 Locked</span>
         </div>
       </div>
     );
@@ -113,13 +109,13 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
   if (stageIndex === 1) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-[#222836] pb-3">
-          <span className="flex items-center gap-2 text-xs font-semibold text-[#818CF8]">
-            <Cpu className="h-4 w-4" />
+        <div className="flex items-center justify-between border-b border-[#1E222B] pb-3">
+          <span className="flex items-center gap-2 text-xs font-semibold text-[#F5F6F8]">
+            <Cpu className="h-4 w-4 text-[#34D399]" />
             <span>Multi-Label Sector Classifier</span>
           </span>
           <span
-            className="text-[11px] text-[#64748B]"
+            className="text-[11px] text-[#6B7280]"
             style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
           >
             temp = 0.0
@@ -134,24 +130,27 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
             { name: "Stablecoins", score: "0.55" },
             { name: "Privacy / ZK", score: "0.48" },
             { name: "RWA", score: "0.41" },
-          ].map((item) => (
+          ].map((item, idx) => (
             <div
               key={item.name}
-              className="rounded-xl border border-[#222836] bg-[#0B0D13] p-3"
+              className="rounded-xl border border-[#1E222B] bg-[#08090C] p-3"
             >
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-[#E2E8F0]">{item.name}</span>
+                <span className="font-medium text-[#E5E7EB]">{item.name}</span>
                 <span
-                  className="font-semibold text-[#818CF8]"
+                  className="font-semibold text-[#34D399]"
                   style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                 >
                   q={item.score}
                 </span>
               </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#191E2B]">
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#1A1E26]">
                 <div
-                  className="h-full rounded-full bg-[#818CF8]"
-                  style={{ width: `${Number(item.score) * 100}%` }}
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Number(item.score) * 100}%`,
+                    backgroundColor: idx === 0 ? "#34D399" : "#9CA3AF",
+                  }}
                 />
               </div>
             </div>
@@ -159,11 +158,11 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
         </div>
 
         <div
-          className="flex items-center justify-between rounded-xl border border-[#222836] bg-[#0B0D13] px-4 py-3 text-xs"
+          className="flex items-center justify-between rounded-xl border border-[#1E222B] bg-[#08090C] px-4 py-3 text-xs"
           style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
         >
-          <span className="text-[#64748B]">Classifier Mode</span>
-          <span className="text-[#F4F6FA]">Deterministic Replayable</span>
+          <span className="text-[#6B7280]">Classifier Mode</span>
+          <span className="text-[#F5F6F8]">Deterministic Replayable</span>
         </div>
       </div>
     );
@@ -172,13 +171,13 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
   if (stageIndex === 2) {
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between border-b border-[#222836] pb-3">
-          <span className="flex items-center gap-2 text-xs font-semibold text-[#F59E0B]">
-            <Scale className="h-4 w-4" />
+        <div className="flex items-center justify-between border-b border-[#1E222B] pb-3">
+          <span className="flex items-center gap-2 text-xs font-semibold text-[#F5F6F8]">
+            <Scale className="h-4 w-4 text-[#34D399]" />
             <span>Single-KOL Dominance Cap</span>
           </span>
           <span
-            className="text-[11px] text-[#F59E0B]"
+            className="text-[11px] text-[#34D399]"
             style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
           >
             Ceiling 10.00%
@@ -191,20 +190,20 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
             { handle: "@DeFiResearch", raw: 38, capped: 38, status: "Organic 8.6%" },
             { handle: "@MacroDesk", raw: 31, capped: 31, status: "Organic 7.1%" },
           ].map((row) => (
-            <div key={row.handle} className="rounded-xl border border-[#222836] bg-[#0B0D13] p-3.5">
+            <div key={row.handle} className="rounded-xl border border-[#1E222B] bg-[#08090C] p-3.5">
               <div
                 className="flex items-center justify-between text-xs"
                 style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
               >
-                <span className="text-[#F4F6FA]">{row.handle}</span>
-                <span className={row.raw > row.capped ? "text-[#F59E0B]" : "text-[#10B981]"}>
+                <span className="text-[#F5F6F8]">{row.handle}</span>
+                <span className={row.raw > row.capped ? "text-[#34D399]" : "text-[#9CA3AF]"}>
                   {row.status}
                 </span>
               </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#191E2B]">
-                <div className="h-full bg-[#2A3244]" style={{ width: `${row.raw}%` }}>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#1A1E26]">
+                <div className="h-full bg-[#2B313C]" style={{ width: `${row.raw}%` }}>
                   <div
-                    className="h-full rounded-full bg-[#F59E0B]"
+                    className="h-full rounded-full bg-[#34D399]"
                     style={{ width: `${Math.round((row.capped / row.raw) * 100)}%` }}
                   />
                 </div>
@@ -214,11 +213,11 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
         </div>
 
         <div
-          className="flex items-center justify-between rounded-xl border border-[#222836] bg-[#0B0D13] px-4 py-3 text-xs"
+          className="flex items-center justify-between rounded-xl border border-[#1E222B] bg-[#08090C] px-4 py-3 text-xs"
           style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
         >
-          <span className="text-[#64748B]">Hamilton Vector Check</span>
-          <span className="text-[#10B981]">Sum = 10,000 bps</span>
+          <span className="text-[#6B7280]">Hamilton Vector Check</span>
+          <span className="text-[#34D399]">Sum = 10,000 bps</span>
         </div>
       </div>
     );
@@ -226,13 +225,13 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between border-b border-[#222836] pb-3">
-        <span className="flex items-center gap-2 text-xs font-semibold text-[#10B981]">
-          <ShieldCheck className="h-4 w-4" />
+      <div className="flex items-center justify-between border-b border-[#1E222B] pb-3">
+        <span className="flex items-center gap-2 text-xs font-semibold text-[#F5F6F8]">
+          <ShieldCheck className="h-4 w-4 text-[#34D399]" />
           <span>EIP-712 Quorum &amp; Dispute Guard</span>
         </span>
         <span
-          className="text-[11px] text-[#10B981]"
+          className="text-[11px] text-[#34D399]"
           style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
         >
           Finalized
@@ -247,18 +246,18 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
         ].map((v) => (
           <div
             key={v.signer}
-            className="flex items-center justify-between rounded-xl border border-[#222836] bg-[#0B0D13] px-4 py-3"
+            className="flex items-center justify-between rounded-xl border border-[#1E222B] bg-[#08090C] px-4 py-3"
           >
             <div>
-              <div className="text-xs font-semibold text-[#F4F6FA]">{v.signer}</div>
+              <div className="text-xs font-semibold text-[#F5F6F8]">{v.signer}</div>
               <div
-                className="text-[11px] text-[#64748B]"
+                className="text-[11px] text-[#6B7280]"
                 style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
               >
                 {v.overlap}
               </div>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#10B981]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#10B981]">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#34D399]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#34D399]">
               <CheckCircle2 className="h-3.5 w-3.5" />
               <span>Signed</span>
             </span>
@@ -267,14 +266,14 @@ function AnatomyVisual({ stageIndex }: { stageIndex: number }) {
       </div>
 
       <div
-        className="flex items-center justify-between rounded-xl border border-[#222836] bg-[#0B0D13] px-4 py-3 text-xs"
+        className="flex items-center justify-between rounded-xl border border-[#1E222B] bg-[#08090C] px-4 py-3 text-xs"
         style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
       >
-        <span className="flex items-center gap-1.5 text-[#94A0B8]">
-          <Lock className="h-3.5 w-3.5 text-[#F59E0B]" />
+        <span className="flex items-center gap-1.5 text-[#9CA3AF]">
+          <Lock className="h-3.5 w-3.5 text-[#34D399]" />
           <span>Dispute Window</span>
         </span>
-        <span className="text-[#F4F6FA]">2h Challenge Active</span>
+        <span className="text-[#F5F6F8]">2h Challenge Active</span>
       </div>
     </div>
   );
@@ -322,17 +321,20 @@ export function PinnedOracleAnatomy() {
     <section
       id="engine"
       ref={containerRef}
-      className="flex min-h-screen items-center bg-[#08090D] py-16 lg:py-0"
+      className="flex min-h-screen w-full items-center bg-[#07080A] py-16 lg:py-0"
     >
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-[1680px] px-5 sm:px-8 lg:px-14">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#38BDF8]">
+            <span
+              className="text-xs font-medium uppercase tracking-wider text-[#34D399]"
+              style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
+            >
               Oracle Engine Anatomy
             </span>
             <h2
-              className="mt-2 text-3xl font-bold tracking-tight text-[#F4F6FA] sm:text-4xl"
-              style={{ fontFamily: "var(--font-syne), sans-serif" }}
+              className="mt-2 text-3xl font-bold tracking-tight text-[#F5F6F8] sm:text-4xl lg:text-5xl"
+              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
             >
               How attention becomes settlement proof
             </h2>
@@ -340,25 +342,25 @@ export function PinnedOracleAnatomy() {
 
           <Link
             href="/methodology"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#38BDF8] hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#D1D5DB] hover:text-[#34D399]"
           >
             <span>Read Decimal(40) Specs</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        {/* Scroll-Scrubbed Progress Track */}
-        <div className="mb-8 h-[2px] w-full overflow-hidden rounded-full bg-[#1C2130]">
+        {/* Monotone Progress Track */}
+        <div className="mb-8 h-[2px] w-full overflow-hidden rounded-full bg-[#1A1E26]">
           <div
             ref={progressBarRef}
-            className="h-full w-full origin-left bg-gradient-to-r from-[#38BDF8] via-[#818CF8] to-[#10B981]"
+            className="h-full w-full origin-left bg-[#34D399]"
             style={{ transform: "scaleX(0.25)" }}
           />
         </div>
 
         <div className="grid items-stretch gap-6 lg:grid-cols-12">
           {/* Left: 4 Scroll-Linked Interactive Stage Selectors */}
-          <div className="space-y-2.5 lg:col-span-6">
+          <div className="space-y-3 lg:col-span-6">
             {ANATOMY_STAGES.map((stage, idx) => {
               const Icon = stage.icon;
               const isActive = idx === activeStage;
@@ -368,34 +370,32 @@ export function PinnedOracleAnatomy() {
                   key={stage.key}
                   type="button"
                   onClick={() => setActiveStage(idx)}
-                  className={`flex w-full cursor-pointer items-start gap-4 rounded-2xl border p-4 text-left transition-all ${
+                  className={`flex w-full cursor-pointer items-start gap-4 rounded-2xl border p-5 text-left transition-all ${
                     isActive
-                      ? "border-[#38BDF8]/60 bg-[#121622] shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
-                      : "border-[#1C2130] bg-[#0D1017] opacity-65 hover:opacity-100"
+                      ? "border-[#34D399]/50 bg-[#10141A]"
+                      : "border-[#1A1E26] bg-[#0B0D11] opacity-60 hover:opacity-100"
                   }`}
                 >
                   <div
-                    className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#242B3D] bg-[#08090D]"
-                    style={{ color: isActive ? stage.accent : "#64748B" }}
+                    className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#222731] bg-[#07080A] ${
+                      isActive ? "text-[#34D399]" : "text-[#6B7280]"
+                    }`}
                   >
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
                       <span
-                        className="text-sm font-bold text-[#F4F6FA]"
-                        style={{ fontFamily: "var(--font-syne), sans-serif" }}
+                        className="text-base font-bold text-[#F5F6F8]"
+                        style={{ fontFamily: "var(--font-outfit), sans-serif" }}
                       >
                         {stage.label}
                       </span>
                       {isActive && (
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: stage.accent }}
-                        />
+                        <span className="h-2 w-2 rounded-full bg-[#34D399]" />
                       )}
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-[#94A0B8]">
+                    <p className="mt-1 text-xs leading-relaxed text-[#9CA3AF]">
                       {stage.headline}
                     </p>
                   </div>
@@ -405,19 +405,16 @@ export function PinnedOracleAnatomy() {
           </div>
 
           {/* Right: Live Visual Funnel Stage */}
-          <div className="flex flex-col justify-between rounded-2xl border border-[#222836] bg-[#10131C] p-6 lg:col-span-6">
+          <div className="flex flex-col justify-between rounded-2xl border border-[#1E222B] bg-[#0E1015] p-6 sm:p-7 lg:col-span-6">
             <AnatomyVisual stageIndex={activeStage} />
 
-            <div className="mt-6 border-t border-[#1D2230] pt-4">
-              <p className="text-xs leading-relaxed text-[#94A0B8]">
+            <div className="mt-6 border-t border-[#1A1E26] pt-4">
+              <p className="text-xs leading-relaxed text-[#9CA3AF]">
                 {current.detail}
               </p>
               <div
-                className="mt-3 text-[11px] font-medium"
-                style={{
-                  color: current.accent,
-                  fontFamily: "var(--font-ibm-mono), monospace",
-                }}
+                className="mt-3 text-[11px] font-medium text-[#34D399]"
+                style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
               >
                 {current.metricLabel}
               </div>

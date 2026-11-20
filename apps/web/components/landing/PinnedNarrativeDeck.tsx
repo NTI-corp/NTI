@@ -4,25 +4,12 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ArrowRight, ArrowUpRight, Flame } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 import type { NarrativeIndexItem } from "@/lib/types";
 import { formatBpsPercent, formatSignedBps } from "@/lib/format";
 import { SectorIcon } from "./NtiLogos";
 
 gsap.registerPlugin(ScrollTrigger);
-
-const CARD_ACCENTS = [
-  "#38BDF8",
-  "#F59E0B",
-  "#10B981",
-  "#818CF8",
-  "#2DD4BF",
-  "#FB7185",
-  "#60A5FA",
-  "#FBBF24",
-  "#A78BFA",
-  "#94A3B8",
-] as const;
 
 export function PinnedNarrativeDeck({
   narratives,
@@ -48,7 +35,7 @@ export function PinnedNarrativeDeck({
       "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
       () => {
         const getScrollDistance = () =>
-          Math.max(0, track.scrollWidth - window.innerWidth + 96);
+          Math.max(0, track.scrollWidth - window.innerWidth + 112);
 
         const tl = gsap.timeline({
           scrollTrigger: {
@@ -72,12 +59,7 @@ export function PinnedNarrativeDeck({
         );
 
         if (bar) {
-          tl.fromTo(
-            bar,
-            { scaleX: 0.08 },
-            { scaleX: 1, ease: "none" },
-            0,
-          );
+          tl.fromTo(bar, { scaleX: 0.08 }, { scaleX: 1, ease: "none" }, 0);
         }
       },
     );
@@ -89,75 +71,79 @@ export function PinnedNarrativeDeck({
     <section
       id="narratives"
       ref={sectionRef}
-      className="relative flex min-h-screen flex-col justify-center overflow-hidden border-y border-[#1D2230] bg-[#0B0D13] py-16 lg:py-0"
+      className="relative flex min-h-screen w-full flex-col justify-center overflow-hidden border-y border-[#1B1F27] bg-[#0A0C10] py-16 lg:py-0"
     >
-      <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-8">
+      <div className="mx-auto w-full max-w-[1680px] px-5 sm:px-8 lg:px-14">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <span
-              className="inline-flex items-center gap-2 rounded-full border border-[#242B3D] bg-[#121622] px-3 py-1 text-[11px] font-medium text-[#38BDF8]"
+              className="text-xs font-medium uppercase tracking-wider text-[#34D399]"
               style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
             >
-              <Flame className="h-3.5 w-3.5 text-[#F59E0B]" />
-              <span>Tracked Sectors · Scroll Deck</span>
+              Tracked Sectors
             </span>
             <h2
-              className="mt-3 text-3xl font-bold tracking-tight text-[#F4F6FA] sm:text-4xl lg:text-5xl"
-              style={{ fontFamily: "var(--font-syne), sans-serif" }}
+              className="mt-2 text-3xl font-bold tracking-tight text-[#F5F6F8] sm:text-4xl lg:text-5xl"
+              style={{ fontFamily: "var(--font-outfit), sans-serif" }}
             >
               Ten Narratives. One Distribution.
             </h2>
-            <p className="mt-2 max-w-2xl text-sm text-[#94A0B8] sm:text-base">
-              Scroll across all ten crypto sectors normalized to exactly 10,000 basis points
+            <p className="mt-2 max-w-2xl text-sm text-[#9CA3AF] sm:text-base">
+              All ten crypto verticals normalized to 10,000 basis points
               {epochId ? ` in Epoch #${epochId}.` : "."}
             </p>
           </div>
 
           <Link
             href="/terminal"
-            className="inline-flex items-center gap-2 rounded-xl border border-[#2B3345] bg-[#121622] px-4 py-2.5 text-xs font-semibold text-[#F4F6FA] transition-colors hover:border-[#38BDF8]"
+            className="inline-flex items-center gap-2 rounded-xl border border-[#272C36] bg-[#11141B] px-4 py-2.5 text-xs font-semibold text-[#F5F6F8] transition-colors hover:border-[#34D399]"
           >
             <span>Inspect Matrix</span>
-            <ArrowRight className="h-3.5 w-3.5 text-[#38BDF8]" />
+            <ArrowRight className="h-3.5 w-3.5 text-[#34D399]" />
           </Link>
         </div>
 
-        {/* Horizontal Scroll-Driven Progress Rail */}
-        <div className="mt-6 h-[2px] w-full overflow-hidden rounded-full bg-[#1C2130]">
+        {/* Single-Tone Progress Rail */}
+        <div className="mt-6 h-[2px] w-full overflow-hidden rounded-full bg-[#1A1E26]">
           <div
             ref={barRef}
-            className="h-full w-full origin-left bg-gradient-to-r from-[#38BDF8] via-[#818CF8] to-[#F59E0B]"
+            className="h-full w-full origin-left bg-[#34D399]"
           />
         </div>
       </div>
 
-      {/* Horizontal Card Track (Pinned on lg+, swipeable overflow on smaller screens) */}
-      <div className="mt-8 w-full overflow-x-auto px-4 pb-4 sm:px-8 lg:overflow-visible lg:pb-0">
+      {/* Edge-to-Edge Horizontal Card Track */}
+      <div className="mt-8 w-full overflow-x-auto px-5 pb-4 sm:px-8 lg:overflow-visible lg:px-0 lg:pb-0">
         <div
           ref={trackRef}
-          className="flex w-max gap-4 will-change-transform lg:pl-[max(2rem,calc((100vw-1440px)/2+2rem))]"
+          className="flex w-max gap-4 will-change-transform lg:pl-14 xl:pl-[max(3.5rem,calc((100vw-1680px)/2+3.5rem))]"
         >
           {sorted.map((n, idx) => {
-            const accent = CARD_ACCENTS[idx % CARD_ACCENTS.length] ?? "#38BDF8";
             const barWidth = Math.min(100, Math.max(6, (n.iBps / 2600) * 100));
+            const isLeader = idx === 0;
             const isPos = (n.vBps ?? 0) >= 0;
 
             return (
               <Link
                 key={n.narrativeId}
                 href={`/narratives/${n.narrativeId}`}
-                className="group flex w-[290px] shrink-0 flex-col justify-between rounded-2xl border border-[#222836] bg-[#10131C] p-6 transition-colors hover:border-[#38BDF8]/60 hover:bg-[#141824] sm:w-[320px]"
+                className={`group flex w-[290px] shrink-0 flex-col justify-between rounded-2xl border p-6 transition-colors sm:w-[325px] ${
+                  isLeader
+                    ? "border-[#34D399]/40 bg-[#10141A] hover:border-[#34D399]"
+                    : "border-[#1E222B] bg-[#0E1015] hover:border-[#363D4D] hover:bg-[#12151C]"
+                }`}
               >
                 <div>
                   <div className="flex items-center justify-between">
                     <div
-                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#252D40] bg-[#0B0D13]"
-                      style={{ color: accent }}
+                      className={`flex h-10 w-10 items-center justify-center rounded-xl border border-[#232833] bg-[#08090C] ${
+                        isLeader ? "text-[#34D399]" : "text-[#D1D5DB]"
+                      }`}
                     >
                       <SectorIcon slug={n.slug} className="h-5 w-5" />
                     </div>
                     <span
-                      className="rounded-full border border-[#242B3D] bg-[#0B0D13] px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-[#94A0B8]"
+                      className="rounded-full border border-[#232833] bg-[#08090C] px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-[#9CA3AF]"
                       style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                     >
                       Rank #{idx + 1}
@@ -165,12 +151,12 @@ export function PinnedNarrativeDeck({
                   </div>
 
                   <h3
-                    className="mt-5 text-xl font-bold text-[#F4F6FA] group-hover:text-[#38BDF8]"
-                    style={{ fontFamily: "var(--font-syne), sans-serif" }}
+                    className="mt-5 text-xl font-bold text-[#F5F6F8] group-hover:text-[#34D399]"
+                    style={{ fontFamily: "var(--font-outfit), sans-serif" }}
                   >
                     {n.label}
                   </h3>
-                  <p className="mt-1.5 min-h-[40px] text-xs leading-relaxed text-[#94A0B8]">
+                  <p className="mt-1.5 min-h-[40px] text-xs leading-relaxed text-[#9CA3AF]">
                     {n.description}
                   </p>
                 </div>
@@ -179,42 +165,45 @@ export function PinnedNarrativeDeck({
                   <div>
                     <div className="flex items-baseline justify-between">
                       <span
-                        className="text-3xl font-bold tabular-nums text-[#F4F6FA]"
+                        className="text-3xl font-bold tabular-nums text-[#F5F6F8]"
                         style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                       >
                         {formatBpsPercent(n.iBps)}
                       </span>
                       <span
-                        className="text-xs tabular-nums text-[#64748B]"
+                        className="text-xs tabular-nums text-[#6B7280]"
                         style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                       >
                         {n.iBps.toLocaleString("en-US")} bps
                       </span>
                     </div>
-                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#1C2130]">
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#1A1E26]">
                       <div
                         className="h-full rounded-full"
-                        style={{ width: `${barWidth}%`, backgroundColor: accent }}
+                        style={{
+                          width: `${barWidth}%`,
+                          backgroundColor: isLeader ? "#34D399" : "#9CA3AF",
+                        }}
                       />
                     </div>
                   </div>
 
                   <div
-                    className="flex items-center justify-between border-t border-[#1D2230] pt-3 text-[11px]"
+                    className="flex items-center justify-between border-t border-[#1A1E26] pt-3 text-[11px]"
                     style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                   >
                     <span
                       className={
                         n.vBps === null
-                          ? "text-[#64748B]"
+                          ? "text-[#6B7280]"
                           : isPos
-                            ? "text-[#10B981]"
+                            ? "text-[#34D399]"
                             : "text-[#FB7185]"
                       }
                     >
                       {n.vBps !== null ? `Vel ${formatSignedBps(n.vBps)}` : `Decay ${n.sN.toFixed(1)}`}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[#CBD5E1] group-hover:text-[#38BDF8]">
+                    <span className="inline-flex items-center gap-1 text-[#D1D5DB] group-hover:text-[#34D399]">
                       <span>Inspect</span>
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     </span>

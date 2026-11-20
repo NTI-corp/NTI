@@ -8,7 +8,6 @@ gsap.registerPlugin(ScrollTrigger);
 
 /**
  * Lightweight native-scroll GSAP ScrollTrigger effects (zero scroll-hijacking).
- * Drives the top progress bar and gentle hardware-accelerated card reveals.
  */
 export function ScrollShowcaseEffects() {
   const barRef = useRef<HTMLDivElement>(null);
@@ -39,16 +38,16 @@ export function ScrollShowcaseEffects() {
       cards.forEach((card, i) => {
         gsap.fromTo(
           card,
-          { y: 18, opacity: 0.72 },
+          { y: 16, opacity: 0.75 },
           {
             y: 0,
             opacity: 1,
-            duration: 0.5,
-            delay: (i % 3) * 0.06,
+            duration: 0.45,
+            delay: (i % 3) * 0.05,
             ease: "power2.out",
             scrollTrigger: {
               trigger: card,
-              start: "top 90%",
+              start: "top 92%",
               once: true,
             },
           },
@@ -63,7 +62,7 @@ export function ScrollShowcaseEffects() {
     <div
       ref={barRef}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[2px] origin-left bg-gradient-to-r from-[#38BDF8] via-[#818CF8] to-[#F59E0B]"
+      className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[2px] origin-left bg-[#34D399]"
       style={{ transform: "scaleX(0)" }}
     />
   );

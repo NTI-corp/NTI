@@ -27,15 +27,15 @@ export function CopyAddrButton({
     <button
       type="button"
       onClick={() => void handleCopy()}
-      className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#242B3D] bg-[#10141E] px-3 py-1.5 text-xs text-[#CBD5E1] transition-colors hover:border-[#38BDF8]/60 hover:text-white"
+      className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#22262F] bg-[#0D0F13] px-3 py-1.5 text-xs text-[#9CA3AF] transition-colors hover:border-[#3A404D] hover:text-white"
       style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
     >
-      {label && <span className="text-[11px] text-[#64748B]">{label}</span>}
-      <span className="tabular-nums text-[#F4F6FA]">{truncateHex(address, 6, 4)}</span>
+      {label && <span className="text-[11px] text-[#6B7280]">{label}</span>}
+      <span className="tabular-nums text-[#F5F6F8]">{truncateHex(address, 6, 4)}</span>
       {copied ? (
-        <Check className="h-3.5 w-3.5 text-[#10B981]" />
+        <Check className="h-3.5 w-3.5 text-[#34D399]" />
       ) : (
-        <Copy className="h-3.5 w-3.5 text-[#64748B]" />
+        <Copy className="h-3.5 w-3.5 text-[#6B7280]" />
       )}
     </button>
   );

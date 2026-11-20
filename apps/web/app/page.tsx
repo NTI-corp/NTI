@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DM_Sans, IBM_Plex_Mono, Syne } from "next/font/google";
+import { DM_Sans, IBM_Plex_Mono, Outfit } from "next/font/google";
 import {
   Activity,
   ArrowRight,
@@ -22,10 +22,10 @@ import { ScrollShowcaseEffects } from "@/components/landing/ScrollShowcaseEffect
 
 export const revalidate = 60;
 
-const syne = Syne({
+const outfit = Outfit({
   subsets: ["latin"],
-  variable: "--font-syne",
-  weight: ["600", "700", "800"],
+  variable: "--font-outfit",
+  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -79,20 +79,20 @@ export default async function LandingPage() {
 
   return (
     <div
-      className={`${syne.variable} ${dmSans.variable} ${ibmMono.variable} min-h-screen bg-[#08090D] text-[#F4F6FA] antialiased`}
+      className={`${outfit.variable} ${dmSans.variable} ${ibmMono.variable} min-h-screen w-full bg-[#07080A] text-[#F5F6F8] antialiased`}
       style={{ fontFamily: "var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif" }}
     >
       <ScrollShowcaseEffects />
 
-      {/* Clean Single-Row Sticky Navigation */}
-      <header className="sticky top-0 z-40 border-b border-[#1D2230] bg-[#08090D]/88 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      {/* Full-Width Single-Row Sticky Navigation */}
+      <header className="sticky top-0 z-40 w-full border-b border-[#1A1E26] bg-[#07080A]/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 w-full max-w-[1680px] items-center justify-between gap-4 px-5 sm:px-8 lg:px-14">
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2.5">
               <NtiBrandMark className="h-8 w-8" />
               <span
-                className="text-base font-bold tracking-tight text-[#F4F6FA]"
-                style={{ fontFamily: "var(--font-syne), sans-serif" }}
+                className="text-base font-bold tracking-tight text-[#F5F6F8]"
+                style={{ fontFamily: "var(--font-outfit), sans-serif" }}
               >
                 NTI
               </span>
@@ -104,25 +104,25 @@ export default async function LandingPage() {
 
           <nav
             aria-label="Landing navigation"
-            className="hidden items-center gap-7 text-xs font-medium text-[#94A0B8] md:flex"
+            className="hidden items-center gap-8 text-xs font-medium text-[#9CA3AF] md:flex"
           >
-            <a href="#narratives" className="transition-colors hover:text-[#F4F6FA]">
+            <a href="#narratives" className="transition-colors hover:text-[#F5F6F8]">
               Narratives
             </a>
-            <a href="#engine" className="transition-colors hover:text-[#F4F6FA]">
+            <a href="#engine" className="transition-colors hover:text-[#F5F6F8]">
               Engine
             </a>
-            <a href="#ecosystem" className="transition-colors hover:text-[#F4F6FA]">
+            <a href="#ecosystem" className="transition-colors hover:text-[#F5F6F8]">
               Ecosystem
             </a>
-            <a href="#contracts" className="transition-colors hover:text-[#F4F6FA]">
+            <a href="#contracts" className="transition-colors hover:text-[#F5F6F8]">
               Contracts
             </a>
           </nav>
 
           <Link
             href="/terminal"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#38BDF8] px-4 py-2 text-xs font-semibold text-[#08090D] transition-colors hover:bg-[#7DD3FC]"
+            className="inline-flex items-center gap-2 rounded-xl bg-[#F5F6F8] px-4 py-2 text-xs font-semibold text-[#07080A] transition-colors hover:bg-[#34D399]"
           >
             <span>Launch Terminal</span>
             <ArrowRight className="h-3.5 w-3.5" />
@@ -130,19 +130,19 @@ export default async function LandingPage() {
         </div>
       </header>
 
-      <main>
-        {/* Asymmetric Hero with Pure-CSS Atmosphere & Concentric Mindshare Ring */}
+      <main className="w-full">
+        {/* Full-Width Asymmetric Hero with Restrained Monochrome + Emerald Atmosphere */}
         <section
-          className="relative overflow-hidden border-b border-[#1D2230]"
+          className="relative w-full overflow-hidden border-b border-[#1A1E26]"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 76% 24%, rgba(56, 189, 248, 0.12), transparent 46%), radial-gradient(circle at 18% 82%, rgba(245, 158, 11, 0.08), transparent 42%)",
+              "radial-gradient(circle at 82% 20%, rgba(52, 211, 153, 0.08), transparent 45%)",
           }}
         >
-          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-12 lg:py-24">
-            <div className="lg:col-span-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#242B3D] bg-[#10131C] px-3 py-1 text-xs font-medium text-[#38BDF8]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+          <div className="mx-auto grid w-full max-w-[1680px] items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-12 lg:px-14 lg:py-24">
+            <div className="lg:col-span-7">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#22262F] bg-[#0E1015] px-3 py-1 text-xs font-medium text-[#D1D5DB]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#34D399]" />
                 <span>
                   {activeEpoch
                     ? `Epoch #${activeEpoch.epochId} · ${activeEpoch.status}`
@@ -151,16 +151,14 @@ export default async function LandingPage() {
               </div>
 
               <h1
-                className="mt-6 text-4xl font-extrabold leading-[1.05] tracking-tight text-[#F4F6FA] sm:text-5xl lg:text-[56px]"
-                style={{ fontFamily: "var(--font-syne), sans-serif" }}
+                className="mt-6 text-4xl font-semibold leading-[1.04] tracking-[-0.03em] text-[#F5F6F8] sm:text-6xl xl:text-[68px]"
+                style={{ fontFamily: "var(--font-outfit), sans-serif" }}
               >
                 The Signal Beneath{" "}
-                <span className="bg-gradient-to-r from-[#38BDF8] via-[#818CF8] to-[#F59E0B] bg-clip-text text-transparent">
-                  Crypto Attention.
-                </span>
+                <span className="text-[#8E96A4]">Crypto Attention.</span>
               </h1>
 
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-[#94A0B8] sm:text-lg">
+              <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#9CA3AF] sm:text-lg">
                 NTI converts real-time crypto X conversations across 25+ curated accounts into
                 ten dispute-guarded sector weights summing to 10,000 basis points — settling pair
                 markets, TWAP vaults, and native ETH staker yields.
@@ -169,20 +167,20 @@ export default async function LandingPage() {
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
                   href="/terminal"
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#38BDF8] px-5 py-3 text-sm font-semibold text-[#08090D] transition-colors hover:bg-[#7DD3FC]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#F5F6F8] px-6 py-3.5 text-sm font-semibold text-[#07080A] transition-colors hover:bg-[#34D399]"
                 >
                   <span>Open Terminal</span>
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/markets"
-                  className="inline-flex items-center gap-2 rounded-xl border border-[#283044] bg-[#10131C] px-5 py-3 text-sm font-semibold text-[#F4F6FA] transition-colors hover:border-[#38BDF8]/60"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#242933] bg-[#0E1015] px-6 py-3.5 text-sm font-semibold text-[#F5F6F8] transition-colors hover:border-[#34D399]/60"
                 >
                   <span>Pair Markets</span>
                 </Link>
                 <Link
                   href="/methodology"
-                  className="inline-flex items-center gap-1 px-3 py-3 text-sm font-medium text-[#94A0B8] transition-colors hover:text-[#F4F6FA]"
+                  className="inline-flex items-center gap-1 px-4 py-3.5 text-sm font-medium text-[#9CA3AF] transition-colors hover:text-[#F5F6F8]"
                 >
                   <span>Methodology</span>
                   <ArrowUpRight className="h-4 w-4" />
@@ -190,10 +188,10 @@ export default async function LandingPage() {
               </div>
 
               {addresses.oracleCommit && (
-                <div className="mt-7 flex flex-wrap items-center gap-3">
+                <div className="mt-8 flex flex-wrap items-center gap-3">
                   <CopyAddrButton label="OracleCommit" address={addresses.oracleCommit} />
                   <span
-                    className="text-xs text-[#64748B]"
+                    className="text-xs text-[#6B7280]"
                     style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                   >
                     Sum {totalBps.toLocaleString("en-US")} bps
@@ -202,26 +200,26 @@ export default async function LandingPage() {
               )}
             </div>
 
-            {/* Right: Concentric Mindshare Donut Ring + Live Stats */}
-            <div className="lg:col-span-6">
-              <div className="rounded-3xl border border-[#222836] bg-[#10131C]/95 p-6 shadow-[0_24px_60px_rgba(0,0,0,0.45)] sm:p-7">
-                <div className="mb-6 flex items-center justify-between border-b border-[#1D2230] pb-4">
+            {/* Right: Monochromatic Concentric Mindshare Ring + Live Stats */}
+            <div className="lg:col-span-5">
+              <div className="rounded-3xl border border-[#1E222B] bg-[#0D0F13] p-6 shadow-[0_24px_60px_rgba(0,0,0,0.45)] sm:p-7">
+                <div className="mb-6 flex items-center justify-between border-b border-[#1A1E26] pb-4">
                   <div>
-                    <span className="text-xs font-medium text-[#64748B]">
+                    <span className="text-xs font-medium text-[#6B7280]">
                       Live Distribution Vector
                     </span>
                     <div
-                      className="mt-0.5 text-sm font-semibold text-[#F4F6FA]"
+                      className="mt-0.5 text-sm font-semibold text-[#F5F6F8]"
                       style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                     >
                       {activeEpoch ? `Epoch #${activeEpoch.epochId}` : "Current Epoch"} ·{" "}
-                      <span className="text-[#10B981]">
+                      <span className="text-[#34D399]">
                         {activeEpoch?.status.toUpperCase() ?? "LIVE"}
                       </span>
                     </div>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F59E0B]/10 px-2.5 py-1 text-xs font-medium text-[#F59E0B]">
-                    <Radar className="h-3.5 w-3.5" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#22262F] bg-[#08090C] px-2.5 py-1 text-xs font-medium text-[#D1D5DB]">
+                    <Radar className="h-3.5 w-3.5 text-[#34D399]" />
                     <span>{radar.alerts.length} Signals</span>
                   </span>
                 </div>
@@ -231,26 +229,26 @@ export default async function LandingPage() {
                   epochId={activeEpoch?.epochId ?? null}
                 />
 
-                <div className="mt-6 grid grid-cols-3 gap-2.5 border-t border-[#1D2230] pt-5">
-                  <div className="rounded-xl bg-[#0B0D13] p-3">
-                    <div className="text-[11px] text-[#64748B]">Leader</div>
-                    <div className="mt-0.5 truncate text-xs font-semibold text-[#F4F6FA]">
+                <div className="mt-6 grid grid-cols-3 gap-2.5 border-t border-[#1A1E26] pt-5">
+                  <div className="rounded-xl border border-[#1A1E26] bg-[#08090C] p-3">
+                    <div className="text-[11px] text-[#6B7280]">Leader</div>
+                    <div className="mt-0.5 truncate text-xs font-semibold text-[#F5F6F8]">
                       {leader?.label ?? "—"}
                     </div>
                     <div
-                      className="text-xs font-semibold text-[#38BDF8]"
+                      className="text-xs font-semibold text-[#34D399]"
                       style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                     >
                       {leader ? formatBpsPercent(leader.iBps) : "—"}
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#0B0D13] p-3">
-                    <div className="text-[11px] text-[#64748B]">Velocity</div>
-                    <div className="mt-0.5 truncate text-xs font-semibold text-[#F4F6FA]">
+                  <div className="rounded-xl border border-[#1A1E26] bg-[#08090C] p-3">
+                    <div className="text-[11px] text-[#6B7280]">Velocity</div>
+                    <div className="mt-0.5 truncate text-xs font-semibold text-[#F5F6F8]">
                       {fastest?.label ?? "Warming"}
                     </div>
                     <div
-                      className="text-xs font-semibold text-[#10B981]"
+                      className="text-xs font-semibold text-[#D1D5DB]"
                       style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                     >
                       {fastest?.vBps !== null && fastest?.vBps !== undefined
@@ -258,15 +256,15 @@ export default async function LandingPage() {
                         : "EMA 3"}
                     </div>
                   </div>
-                  <div className="rounded-xl bg-[#0B0D13] p-3">
-                    <div className="text-[11px] text-[#64748B]">Manifest</div>
+                  <div className="rounded-xl border border-[#1A1E26] bg-[#08090C] p-3">
+                    <div className="text-[11px] text-[#6B7280]">Manifest</div>
                     <div
-                      className="mt-0.5 truncate text-xs font-semibold text-[#F4F6FA]"
+                      className="mt-0.5 truncate text-xs font-semibold text-[#F5F6F8]"
                       style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                     >
                       {activeEpoch ? truncateHex(activeEpoch.datasetHash, 5, 4) : "Pending"}
                     </div>
-                    <div className="text-[11px] text-[#64748B]">SHA-256</div>
+                    <div className="text-[11px] text-[#6B7280]">SHA-256</div>
                   </div>
                 </div>
               </div>
@@ -283,27 +281,30 @@ export default async function LandingPage() {
         {/* Pinned Scroll 2: 4-Stage Scroll-Driven Oracle Anatomy */}
         <PinnedOracleAnatomy />
 
-        {/* Scroll-Driven Asymmetric Ecosystem Bento + Live Radar */}
+        {/* Full-Width Monotone Ecosystem Bento + Live Radar */}
         <section
           id="ecosystem"
-          className="border-t border-[#1D2230] bg-[#0B0D13] py-20 lg:py-28"
+          className="w-full border-t border-[#1A1E26] bg-[#0A0C10] py-20 lg:py-28"
         >
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto w-full max-w-[1680px] px-5 sm:px-8 lg:px-14">
             <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#F59E0B]">
+                <span
+                  className="text-xs font-medium uppercase tracking-wider text-[#34D399]"
+                  style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
+                >
                   On-Chain Applications
                 </span>
                 <h2
-                  className="mt-2 text-3xl font-bold tracking-tight text-[#F4F6FA] sm:text-4xl"
-                  style={{ fontFamily: "var(--font-syne), sans-serif" }}
+                  className="mt-2 text-3xl font-bold tracking-tight text-[#F5F6F8] sm:text-4xl lg:text-5xl"
+                  style={{ fontFamily: "var(--font-outfit), sans-serif" }}
                 >
                   Four Ways to Trade &amp; Govern Attention
                 </h2>
               </div>
               <Link
                 href="/terminal"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#38BDF8] hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#D1D5DB] hover:text-[#34D399]"
               >
                 <span>Open Full Terminal</span>
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -311,166 +312,99 @@ export default async function LandingPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-12">
-              {/* Feature Bento Cards (Left 8 cols) */}
               <div className="grid gap-4 sm:grid-cols-2 lg:col-span-8">
-                <Link
-                  href="/markets"
-                  data-scroll-card
-                  className="group flex flex-col justify-between rounded-2xl border border-[#222836] bg-[#10131C] p-6 transition-colors hover:border-[#38BDF8]/60"
-                >
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#242B3D] bg-[#08090D] text-[#38BDF8]">
-                        <Activity className="h-5 w-5" />
-                      </div>
-                      <span className="rounded-full bg-[#38BDF8]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#38BDF8]">
-                        24h &amp; 7d Pools
-                      </span>
-                    </div>
-                    <h3
-                      className="mt-5 text-xl font-bold text-[#F4F6FA] group-hover:text-[#38BDF8]"
-                      style={{ fontFamily: "var(--font-syne), sans-serif" }}
+                {[
+                  {
+                    href: "/markets",
+                    badge: "24h & 7d Pools",
+                    title: "Narrative Pair Markets",
+                    body: "Bet on which crypto narrative leads the next epoch cycle in pure parimutuel ETH pools with zero external price oracles.",
+                    foot: "0.1% Pool Fee",
+                    cta: "Explore",
+                    icon: Activity,
+                  },
+                  {
+                    href: "/baskets",
+                    badge: "Uniswap V3 TWAP",
+                    title: "TWAP Narrative Baskets",
+                    body: "Deposit ETH into curated token baskets protected by 30-minute Uniswap V3 TWAP pricing and permissionless redemptions.",
+                    foot: "30m TWAP Bound",
+                    cta: "Open Vaults",
+                    icon: Layers,
+                  },
+                  {
+                    href: "/stake",
+                    badge: "30% ETH Fees",
+                    title: "Stake $NTI & Tiers",
+                    body: "Lock 100k, 1M, or 5M $NTI to unlock zero-delay Radar signals, up to 50% fee discounts, and 30% of protocol ETH revenue.",
+                    foot: "Up to 50% Off",
+                    cta: "Stake",
+                    icon: Coins,
+                  },
+                  {
+                    href: "/grants",
+                    badge: "Quadratic Rounds",
+                    title: "Grants & Disputes",
+                    body: "Direct 30% of fee revenue into quadratic ecosystem rounds or verify SHA-256 dataset proofs via Oracle & Disputes.",
+                    foot: "30% Ecosystem Pool",
+                    cta: "Govern",
+                    icon: Sparkles,
+                  },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      data-scroll-card
+                      className="group flex flex-col justify-between rounded-2xl border border-[#1E222B] bg-[#0D0F13] p-6 transition-colors hover:border-[#34D399]/60"
                     >
-                      Narrative Pair Markets
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-[#94A0B8]">
-                      Bet on which crypto narrative leads the next epoch cycle in pure parimutuel
-                      ETH pools with zero external price oracles.
-                    </p>
-                  </div>
-                  <div className="mt-6 flex items-center justify-between border-t border-[#1D2230] pt-4 text-xs text-[#CBD5E1]">
-                    <span style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
-                      0.1% Pool Fee
-                    </span>
-                    <span className="inline-flex items-center gap-1 group-hover:text-[#38BDF8]">
-                      <span>Explore</span>
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </span>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/baskets"
-                  data-scroll-card
-                  className="group flex flex-col justify-between rounded-2xl border border-[#222836] bg-[#10131C] p-6 transition-colors hover:border-[#10B981]/60"
-                >
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#242B3D] bg-[#08090D] text-[#10B981]">
-                        <Layers className="h-5 w-5" />
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#232833] bg-[#08090C] text-[#D1D5DB] group-hover:text-[#34D399]">
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <span className="rounded-full border border-[#22262F] bg-[#08090C] px-2.5 py-0.5 text-[11px] font-medium text-[#9CA3AF]">
+                            {item.badge}
+                          </span>
+                        </div>
+                        <h3
+                          className="mt-5 text-xl font-bold text-[#F5F6F8] group-hover:text-[#34D399]"
+                          style={{ fontFamily: "var(--font-outfit), sans-serif" }}
+                        >
+                          {item.title}
+                        </h3>
+                        <p className="mt-2 text-sm leading-relaxed text-[#9CA3AF]">
+                          {item.body}
+                        </p>
                       </div>
-                      <span className="rounded-full bg-[#10B981]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#10B981]">
-                        Uniswap V3 TWAP
-                      </span>
-                    </div>
-                    <h3
-                      className="mt-5 text-xl font-bold text-[#F4F6FA] group-hover:text-[#10B981]"
-                      style={{ fontFamily: "var(--font-syne), sans-serif" }}
-                    >
-                      TWAP Narrative Baskets
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-[#94A0B8]">
-                      Deposit ETH into curated token baskets protected by 30-minute Uniswap V3
-                      TWAP pricing and permissionless redemptions.
-                    </p>
-                  </div>
-                  <div className="mt-6 flex items-center justify-between border-t border-[#1D2230] pt-4 text-xs text-[#CBD5E1]">
-                    <span style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
-                      30m TWAP Bound
-                    </span>
-                    <span className="inline-flex items-center gap-1 group-hover:text-[#10B981]">
-                      <span>Open Vaults</span>
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </span>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/stake"
-                  data-scroll-card
-                  className="group flex flex-col justify-between rounded-2xl border border-[#222836] bg-[#10131C] p-6 transition-colors hover:border-[#F59E0B]/60"
-                >
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#242B3D] bg-[#08090D] text-[#F59E0B]">
-                        <Coins className="h-5 w-5" />
+                      <div className="mt-6 flex items-center justify-between border-t border-[#1A1E26] pt-4 text-xs text-[#D1D5DB]">
+                        <span style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
+                          {item.foot}
+                        </span>
+                        <span className="inline-flex items-center gap-1 group-hover:text-[#34D399]">
+                          <span>{item.cta}</span>
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </span>
                       </div>
-                      <span className="rounded-full bg-[#F59E0B]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#F59E0B]">
-                        30% ETH Fees
-                      </span>
-                    </div>
-                    <h3
-                      className="mt-5 text-xl font-bold text-[#F4F6FA] group-hover:text-[#F59E0B]"
-                      style={{ fontFamily: "var(--font-syne), sans-serif" }}
-                    >
-                      Stake $NTI &amp; Tiers
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-[#94A0B8]">
-                      Lock 100k, 1M, or 5M $NTI to unlock zero-delay Radar signals, up to 50% fee
-                      discounts, and 30% of protocol ETH revenue.
-                    </p>
-                  </div>
-                  <div className="mt-6 flex items-center justify-between border-t border-[#1D2230] pt-4 text-xs text-[#CBD5E1]">
-                    <span style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
-                      Up to 50% Off
-                    </span>
-                    <span className="inline-flex items-center gap-1 group-hover:text-[#F59E0B]">
-                      <span>Stake</span>
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </span>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/grants"
-                  data-scroll-card
-                  className="group flex flex-col justify-between rounded-2xl border border-[#222836] bg-[#10131C] p-6 transition-colors hover:border-[#818CF8]/60"
-                >
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#242B3D] bg-[#08090D] text-[#818CF8]">
-                        <Sparkles className="h-5 w-5" />
-                      </div>
-                      <span className="rounded-full bg-[#818CF8]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#818CF8]">
-                        Quadratic Rounds
-                      </span>
-                    </div>
-                    <h3
-                      className="mt-5 text-xl font-bold text-[#F4F6FA] group-hover:text-[#818CF8]"
-                      style={{ fontFamily: "var(--font-syne), sans-serif" }}
-                    >
-                      Grants &amp; Disputes
-                    </h3>
-                    <p className="mt-2 text-sm leading-relaxed text-[#94A0B8]">
-                      Direct 30% of fee revenue into quadratic ecosystem rounds or verify SHA-256
-                      dataset proofs via Oracle &amp; Disputes.
-                    </p>
-                  </div>
-                  <div className="mt-6 flex items-center justify-between border-t border-[#1D2230] pt-4 text-xs text-[#CBD5E1]">
-                    <span style={{ fontFamily: "var(--font-ibm-mono), monospace" }}>
-                      30% Ecosystem Pool
-                    </span>
-                    <span className="inline-flex items-center gap-1 group-hover:text-[#818CF8]">
-                      <span>Govern</span>
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </span>
-                  </div>
-                </Link>
+                    </Link>
+                  );
+                })}
               </div>
 
-              {/* Live Radar Signals Panel (Right 4 cols) */}
+              {/* Live Radar Panel (Right 4 cols) */}
               <div
                 data-scroll-card
-                className="flex flex-col justify-between rounded-2xl border border-[#222836] bg-[#10131C] p-6 lg:col-span-4"
+                className="flex flex-col justify-between rounded-2xl border border-[#1E222B] bg-[#0D0F13] p-6 lg:col-span-4"
               >
                 <div>
-                  <div className="flex items-center justify-between border-b border-[#1D2230] pb-4">
-                    <span className="flex items-center gap-2 text-xs font-semibold text-[#F4F6FA]">
-                      <Radar className="h-4 w-4 text-[#F59E0B]" />
+                  <div className="flex items-center justify-between border-b border-[#1A1E26] pb-4">
+                    <span className="flex items-center gap-2 text-xs font-semibold text-[#F5F6F8]">
+                      <Radar className="h-4 w-4 text-[#34D399]" />
                       <span>Emerging Radar</span>
                     </span>
                     <span
-                      className="text-[11px] text-[#F59E0B]"
+                      className="text-[11px] text-[#9CA3AF]"
                       style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                     >
                       60m Staker Edge
@@ -481,24 +415,24 @@ export default async function LandingPage() {
                     {radar.alerts.slice(0, 4).map((alert) => (
                       <div
                         key={alert.id}
-                        className="rounded-xl border border-[#1E2434] bg-[#0B0D13] p-3.5"
+                        className="rounded-xl border border-[#1A1E26] bg-[#08090C] p-3.5"
                       >
                         <div
-                          className="flex items-center justify-between text-[10px] uppercase text-[#64748B]"
+                          className="flex items-center justify-between text-[10px] uppercase text-[#6B7280]"
                           style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                         >
-                          <span className="text-[#38BDF8]">
+                          <span className="text-[#34D399]">
                             {alert.kind === "new_token" ? "Token Signal" : "Velocity Spike"}
                           </span>
                           <span>Sector #{alert.narrativeId}</span>
                         </div>
                         <div className="mt-1 flex items-baseline justify-between gap-2">
-                          <span className="text-sm font-semibold text-[#F4F6FA]">
+                          <span className="text-sm font-semibold text-[#F5F6F8]">
                             {alert.narrativeLabel}
                           </span>
                           {alert.vBps !== null && (
                             <span
-                              className="text-xs font-semibold tabular-nums text-[#10B981]"
+                              className="text-xs font-semibold tabular-nums text-[#34D399]"
                               style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
                             >
                               {formatSignedBps(alert.vBps)}
@@ -508,27 +442,27 @@ export default async function LandingPage() {
                       </div>
                     ))}
                     {radar.alerts.length === 0 && (
-                      <div className="rounded-xl border border-[#1E2434] bg-[#0B0D13] p-4 text-xs text-[#64748B]">
+                      <div className="rounded-xl border border-[#1A1E26] bg-[#08090C] p-4 text-xs text-[#6B7280]">
                         Radar scanner armed — awaiting next velocity breakout.
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="mt-6 space-y-2 border-t border-[#1D2230] pt-4">
+                <div className="mt-6 space-y-2 border-t border-[#1A1E26] pt-4">
                   <Link
                     href="/radar"
-                    className="flex items-center justify-between rounded-xl border border-[#242B3D] bg-[#0B0D13] px-4 py-2.5 text-xs font-medium text-[#F4F6FA] transition-colors hover:border-[#38BDF8]"
+                    className="flex items-center justify-between rounded-xl border border-[#22262F] bg-[#08090C] px-4 py-2.5 text-xs font-medium text-[#F5F6F8] transition-colors hover:border-[#34D399]"
                   >
                     <span>Open Radar Feed</span>
-                    <ArrowRight className="h-3.5 w-3.5 text-[#38BDF8]" />
+                    <ArrowRight className="h-3.5 w-3.5 text-[#34D399]" />
                   </Link>
                   <Link
                     href="/heatmap"
-                    className="flex items-center justify-between rounded-xl border border-[#242B3D] bg-[#0B0D13] px-4 py-2.5 text-xs font-medium text-[#94A0B8] transition-colors hover:border-[#10B981] hover:text-[#F4F6FA]"
+                    className="flex items-center justify-between rounded-xl border border-[#22262F] bg-[#08090C] px-4 py-2.5 text-xs font-medium text-[#9CA3AF] transition-colors hover:border-[#34D399] hover:text-[#F5F6F8]"
                   >
                     <span>Builder Heatmap</span>
-                    <ArrowRight className="h-3.5 w-3.5 text-[#10B981]" />
+                    <ArrowRight className="h-3.5 w-3.5 text-[#34D399]" />
                   </Link>
                 </div>
               </div>
@@ -536,17 +470,20 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        {/* Contracts Ledger & Closing Banner */}
-        <section id="contracts" className="border-t border-[#1D2230] bg-[#08090D] py-20 lg:py-24">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {/* Full-Width Contracts Directory & Closing CTA */}
+        <section id="contracts" className="w-full border-t border-[#1A1E26] bg-[#07080A] py-20 lg:py-24">
+          <div className="mx-auto w-full max-w-[1680px] px-5 sm:px-8 lg:px-14">
             <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#10B981]">
+                <span
+                  className="text-xs font-medium uppercase tracking-wider text-[#34D399]"
+                  style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
+                >
                   Verified Infrastructure
                 </span>
                 <h2
-                  className="mt-2 text-3xl font-bold tracking-tight text-[#F4F6FA] sm:text-4xl"
-                  style={{ fontFamily: "var(--font-syne), sans-serif" }}
+                  className="mt-2 text-3xl font-bold tracking-tight text-[#F5F6F8] sm:text-4xl lg:text-5xl"
+                  style={{ fontFamily: "var(--font-outfit), sans-serif" }}
                 >
                   Deployed Contracts on Robinhood Chain
                 </h2>
@@ -555,37 +492,37 @@ export default async function LandingPage() {
                 href={explorerBase}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#38BDF8] hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#D1D5DB] hover:text-[#34D399]"
               >
                 <span>Open Explorer</span>
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
             </div>
 
-            <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {coreContracts.map((c) => (
                 <div
                   key={c.name}
                   data-scroll-card
-                  className="flex flex-col justify-between rounded-2xl border border-[#222836] bg-[#10131C] p-5"
+                  className="flex flex-col justify-between rounded-2xl border border-[#1E222B] bg-[#0D0F13] p-5"
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-sm font-bold text-[#F4F6FA]">
-                        <ShieldCheck className="h-4 w-4 text-[#10B981]" />
+                      <span className="flex items-center gap-2 text-sm font-bold text-[#F5F6F8]">
+                        <ShieldCheck className="h-4 w-4 text-[#34D399]" />
                         <span>{c.name}</span>
                       </span>
                       <a
                         href={`${explorerBase}/address/${c.address}`}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="inline-flex items-center gap-0.5 text-xs font-medium text-[#38BDF8] hover:underline"
+                        className="inline-flex items-center gap-0.5 text-xs font-medium text-[#9CA3AF] hover:text-[#34D399]"
                       >
                         <span>Explorer</span>
                         <ArrowUpRight className="h-3 w-3" />
                       </a>
                     </div>
-                    <p className="mt-1.5 text-xs text-[#94A0B8]">{c.role}</p>
+                    <p className="mt-1.5 text-xs text-[#9CA3AF]">{c.role}</p>
                   </div>
                   <div className="mt-4">
                     <CopyAddrButton address={c.address} />
@@ -594,16 +531,16 @@ export default async function LandingPage() {
               ))}
             </div>
 
-            {/* Clean Dark CTA Card */}
-            <div className="mt-12 flex flex-col items-start justify-between gap-6 rounded-3xl border border-[#262E42] bg-gradient-to-br from-[#131826] via-[#10131C] to-[#0B0D13] p-8 sm:p-10 lg:flex-row lg:items-center">
+            {/* Clean Monotone CTA Card */}
+            <div className="mt-12 flex flex-col items-start justify-between gap-6 rounded-3xl border border-[#22262F] bg-[#0E1015] p-8 sm:p-10 lg:flex-row lg:items-center">
               <div>
                 <h3
-                  className="text-2xl font-bold tracking-tight text-[#F4F6FA] sm:text-3xl"
-                  style={{ fontFamily: "var(--font-syne), sans-serif" }}
+                  className="text-2xl font-bold tracking-tight text-[#F5F6F8] sm:text-3xl"
+                  style={{ fontFamily: "var(--font-outfit), sans-serif" }}
                 >
                   Ready to trade live narrative momentum?
                 </h3>
-                <p className="mt-2 max-w-xl text-sm text-[#94A0B8]">
+                <p className="mt-2 max-w-2xl text-sm text-[#9CA3AF]">
                   Enter the full workspace to inspect real-time sector trajectories, stake $NTI,
                   allocate into TWAP baskets, or participate in pair pools.
                 </p>
@@ -611,14 +548,14 @@ export default async function LandingPage() {
               <div className="flex flex-wrap gap-3">
                 <Link
                   href="/terminal"
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#38BDF8] px-6 py-3 text-sm font-semibold text-[#08090D] transition-colors hover:bg-[#7DD3FC]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#F5F6F8] px-6 py-3 text-sm font-semibold text-[#07080A] transition-colors hover:bg-[#34D399]"
                 >
                   <span>Enter Terminal</span>
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   href="/oracle"
-                  className="inline-flex items-center gap-2 rounded-xl border border-[#2B3345] px-6 py-3 text-sm font-semibold text-[#F4F6FA] transition-colors hover:border-[#38BDF8]"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#242933] px-6 py-3 text-sm font-semibold text-[#F5F6F8] transition-colors hover:border-[#34D399]"
                 >
                   <span>Audit Oracle</span>
                 </Link>
@@ -628,27 +565,27 @@ export default async function LandingPage() {
         </section>
       </main>
 
-      {/* Clean Footer with Brand Logo */}
-      <footer className="border-t border-[#1D2230] bg-[#08090D]">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-xs text-[#64748B] sm:px-6">
+      {/* Clean Full-Width Footer with Brand Logo */}
+      <footer className="w-full border-t border-[#1A1E26] bg-[#07080A]">
+        <div className="mx-auto flex w-full max-w-[1680px] flex-wrap items-center justify-between gap-4 px-5 py-8 text-xs text-[#6B7280] sm:px-8 lg:px-14">
           <div className="flex items-center gap-3">
             <NtiBrandMark className="h-6 w-6" />
             <span>NTI Protocol · Measures crypto narrative attention, not token prices.</span>
           </div>
-          <nav className="flex flex-wrap items-center gap-5 font-medium text-[#94A0B8]">
-            <Link href="/terminal" className="hover:text-[#F4F6FA]">
+          <nav className="flex flex-wrap items-center gap-6 font-medium text-[#9CA3AF]">
+            <Link href="/terminal" className="hover:text-[#F5F6F8]">
               Terminal
             </Link>
-            <Link href="/markets" className="hover:text-[#F4F6FA]">
+            <Link href="/markets" className="hover:text-[#F5F6F8]">
               Markets
             </Link>
-            <Link href="/baskets" className="hover:text-[#F4F6FA]">
+            <Link href="/baskets" className="hover:text-[#F5F6F8]">
               Baskets
             </Link>
-            <Link href="/oracle" className="hover:text-[#F4F6FA]">
+            <Link href="/oracle" className="hover:text-[#F5F6F8]">
               Oracle
             </Link>
-            <Link href="/methodology" className="hover:text-[#F4F6FA]">
+            <Link href="/methodology" className="hover:text-[#F5F6F8]">
               Methodology
             </Link>
           </nav>
