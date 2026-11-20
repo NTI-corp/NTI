@@ -218,10 +218,10 @@ export function WalletButton() {
             setError(null);
             setModalOpen(true);
           }}
-          className="inline-flex min-h-[34px] cursor-pointer items-center gap-2 border border-[#B8FF2E]/60 bg-[#B8FF2E] px-3.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#06070A] transition-colors hover:bg-[#c9ff5c]"
+          className="inline-flex min-h-[34px] cursor-pointer items-center gap-2 rounded-lg bg-[#6366F1] px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#818CF8]"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#06070A]" />
-          <span>{isConnecting ? "CONNECTING..." : "CONNECT WALLET"}</span>
+          <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+          <span>{isConnecting ? "Connecting..." : "Connect Wallet"}</span>
         </button>
       ) : (
         <>
@@ -230,26 +230,26 @@ export function WalletButton() {
               type="button"
               disabled={isSwitching}
               onClick={() => void handleSwitchChain()}
-              className="min-h-[34px] cursor-pointer border border-[#F59E0B]/60 bg-[#F59E0B]/15 px-2.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#F59E0B] transition-colors hover:bg-[#F59E0B]/25 disabled:opacity-50"
+              className="min-h-[34px] cursor-pointer rounded-lg border border-[#F59E0B]/50 bg-[#F59E0B]/15 px-2.5 py-1.5 text-xs font-semibold text-[#F59E0B] transition-colors hover:bg-[#F59E0B]/25 disabled:opacity-50"
             >
-              {isSwitching ? "SWITCHING..." : "SWITCH CHAIN"}
+              {isSwitching ? "Switching..." : "Switch Chain"}
             </button>
           )}
 
           {!wrongChain && session?.authenticated && (
             <span
-              className={`hidden min-h-[34px] items-center gap-1.5 border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider sm:inline-flex ${
+              className={`hidden min-h-[34px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium sm:inline-flex ${
                 session.hasRadarAccess
-                  ? "border-[#B8FF2E]/40 bg-[#B8FF2E]/10 text-[#B8FF2E]"
-                  : "border-[#2B3345] bg-[#0B0D12] text-[#8B94A7]"
+                  ? "border-[#10B981]/40 bg-[#10B981]/10 text-[#34D399]"
+                  : "border-[#26262E] bg-[#141418] text-[#A1A1AA]"
               }`}
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  session.hasRadarAccess ? "bg-[#B8FF2E]" : "bg-[#8B94A7]"
+                  session.hasRadarAccess ? "bg-[#34D399]" : "bg-[#A1A1AA]"
                 }`}
               />
-              {session.hasRadarAccess ? "RT RADAR" : "SIWE"}
+              {session.hasRadarAccess ? "RT Radar" : "SIWE"}
             </span>
           )}
 
@@ -257,19 +257,19 @@ export function WalletButton() {
             type="button"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
-            className={`inline-flex min-h-[34px] cursor-pointer items-center gap-2 border px-3 py-1.5 font-mono text-[11px] transition-colors ${
+            className={`inline-flex min-h-[34px] cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 font-mono text-xs transition-colors ${
               wrongChain
-                ? "border-[#F59E0B]/50 bg-[#0B0D12] text-[#F59E0B]"
-                : "border-[#2B3345] bg-[#0B0D12] text-[#F3F5F8] hover:border-[#B8FF2E]/50"
+                ? "border-[#F59E0B]/50 bg-[#141418] text-[#F59E0B]"
+                : "border-[#26262E] bg-[#141418] text-[#F4F4F5] hover:border-[#3F3F4C]"
             }`}
           >
             {activeIcon ? (
               <img src={activeIcon} alt="" className="h-4 w-4 shrink-0 object-contain" />
             ) : (
-              <span className="h-1.5 w-1.5 rounded-full bg-[#B8FF2E]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
             )}
             <span className="tabular-nums">{truncateHex(address, 6, 4)}</span>
-            <span className="text-[9px] text-[#5A6478]">{menuOpen ? "▲" : "▼"}</span>
+            <span className="text-[9px] text-[#71717A]">{menuOpen ? "▲" : "▼"}</span>
           </button>
         </>
       )}
@@ -403,7 +403,7 @@ export function WalletButton() {
               aria-modal="true"
               aria-labelledby="nti-wallet-modal-title"
               onClick={(e) => e.stopPropagation()}
-              className="reticle-frame w-full max-w-md border border-[#2B3345] bg-[#0B0D12] shadow-2xl"
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-[#26262F] bg-[#131317] shadow-2xl"
             >
               <header className="flex items-start justify-between border-b border-[#1B202C] px-5 py-4">
                 <div>

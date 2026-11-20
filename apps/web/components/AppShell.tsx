@@ -1,18 +1,37 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Activity,
+  BarChart3,
+  BookOpen,
+  Coins,
+  ExternalLink,
+  Flame,
+  Layers,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Radar,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  X,
+} from "lucide-react";
+import { NARRATIVES } from "@nti/sdk";
 import { EpochBadge } from "./EpochBadge";
 import { TestnetBanner } from "./TestnetBanner";
 import { WalletButton } from "./WalletButton";
 import { getActiveChainId, getChain } from "@/lib/contracts";
 import type { EpochStatus, IndexesSnapshot } from "@/lib/types";
+import { NtiBrandMark } from "@/components/landing/NtiLogos";
 
 interface NavItem {
   href: string;
   label: string;
-  detail: string;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
 interface NavGroup {
@@ -20,56 +39,78 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+const TOP_TABS = [
+  { href: "/terminal", label: "Mindshare" },
+  { href: "/radar", label: "Radar" },
+  { href: "/heatmap", label: "Heatmap" },
+  { href: "/markets", label: "Markets" },
+  { href: "/baskets", label: "Baskets" },
+  { href: "/grants", label: "Grants" },
+  { href: "/oracle", label: "Oracle" },
+] as const;
+
+const SIDEBAR_GROUPS: NavGroup[] = [
   {
-    label: "TELEMETRY",
+    label: "ANALYTICS",
     items: [
-      { href: "/terminal", label: "Terminal", detail: "10-sector index matrix" },
-      { href: "/radar", label: "Radar", detail: "Velocity & token signals" },
-      { href: "/heatmap", label: "Heatmap", detail: "Builder opportunity grid" },
+      { href: "/terminal", label: "Mindshare", icon: BarChart3 },
+      { href: "/radar", label: "Emerging Radar", icon: Radar },
+      { href: "/heatmap", label: "Opportunity Heatmap", icon: Flame },
     ],
   },
   {
-    label: "PROTOCOLS",
+    label: "MARKETS & VAULTS",
     items: [
-      { href: "/markets", label: "Markets", detail: "24h & 7d parimutuel pools" },
-      { href: "/baskets", label: "Baskets", detail: "Uniswap V3 TWAP vaults" },
-      { href: "/grants", label: "Grants", detail: "Quadratic mindshare rounds" },
+      { href: "/markets", label: "Pair Markets", icon: Activity },
+      { href: "/baskets", label: "TWAP Baskets", icon: Layers },
+      { href: "/grants", label: "Ecosystem Grants", icon: Sparkles },
     ],
   },
   {
-    label: "GOVERNANCE & PROOF",
+    label: "VERIFICATION",
     items: [
-      { href: "/stake", label: "Stake $NTI", detail: "30% ETH fees & tiers" },
-      { href: "/oracle", label: "Oracle", detail: "EIP-712 & delta proofs" },
-      { href: "/methodology", label: "Methodology", detail: "Decimal(40) formulas" },
+      { href: "/stake", label: "Stake $NTI", icon: Coins },
+      { href: "/oracle", label: "Oracle & Disputes", icon: ShieldCheck },
+      { href: "/methodology", label: "Methodology", icon: BookOpen },
     ],
   },
 ];
 
-const PAGE_TITLES: Record<string, string> = {
-  "/terminal": "Index Terminal",
-  "/radar": "Emerging Radar",
-  "/heatmap": "Opportunity Heatmap",
-  "/markets": "Pair Markets",
-  "/baskets": "Narrative Baskets",
-  "/grants": "Ecosystem Grants",
-  "/stake": "Staking & Governance",
-  "/oracle": "Oracle & Disputes",
-  "/methodology": "Methodology",
-};
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   const [epochMeta, setEpochMeta] = useState<{
     epochId: number | null;
     status: EpochStatus;
   }>({ epochId: null, status: "collecting" });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarFilter, setSidebarFilter] = useState("");
+  const [topSearch, setTopSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setMobileMenuOpen(false);
+    setSearchFocused(false);
+    setTopSearch("");
   }, [pathname]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === "/" &&
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA"
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -97,7 +138,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const chainId = getActiveChainId();
   const chain = getChain(chainId);
-  const explorerUrl = chain.blockExplorers?.default.url ?? "https://explorer.testnet.chain.robinhood.com";
+  const explorerUrl =
+    chain.blockExplorers?.default.url ?? "https://explorer.testnet.chain.robinhood.com";
 
   const isNavActive = (href: string) => {
     if (href === "/terminal") {
@@ -106,199 +148,278 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const currentTitle =
-    Object.entries(PAGE_TITLES).find(([k]) => pathname === k || pathname.startsWith(`${k}/`))?.[1] ??
-    (pathname.startsWith("/narratives") ? "Narrative Deep-Dive" : "NTI Workspace");
+  const filteredGroups = useMemo(() => {
+    const q = sidebarFilter.trim().toLowerCase();
+    if (!q) return SIDEBAR_GROUPS;
+    return SIDEBAR_GROUPS.map((g) => ({
+      ...g,
+      items: g.items.filter((i) => i.label.toLowerCase().includes(q)),
+    })).filter((g) => g.items.length > 0);
+  }, [sidebarFilter]);
+
+  const quickSearchResults = useMemo(() => {
+    const q = topSearch.trim().toLowerCase();
+    const sectors = NARRATIVES.map((n) => ({
+      href: `/narratives/${n.id}`,
+      label: n.label,
+      kind: "Sector",
+    }));
+    const pages = SIDEBAR_GROUPS.flatMap((g) =>
+      g.items.map((i) => ({ href: i.href, label: i.label, kind: "Dashboard" })),
+    );
+    const all = [...sectors, ...pages];
+    if (!q) return all.slice(0, 7);
+    return all.filter((item) => item.label.toLowerCase().includes(q)).slice(0, 8);
+  }, [topSearch]);
 
   return (
-    <div className="flex min-h-screen bg-[#06070A] text-[#F3F5F8]">
-      {/* Desktop Left Sidebar (BELL Terminal Architecture) */}
-      <aside
-        aria-label="NTI Terminal navigation"
-        className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between border-r border-[#1B202C] bg-[#080A0F] lg:flex"
-      >
-        <div>
-          {/* Brand */}
-          <div className="flex h-14 items-center justify-between border-b border-[#1B202C] px-4">
-            <Link href="/" className="group flex items-center gap-2.5">
-              <div className="relative flex h-8 w-8 items-center justify-center border border-[#2B3345] bg-[#0B0D12] transition-colors group-hover:border-[#B8FF2E]/70">
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  className="h-4 w-4 text-[#B8FF2E]"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M5 19V5l14 14V5" />
-                </svg>
-                <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 bg-[#23F7DD]" />
-              </div>
-              <div className="flex flex-col leading-none">
-                <span className="font-display text-sm font-bold tracking-tight text-[#F3F5F8]">
-                  NTI <span className="font-mono font-normal text-[#5A6478]">//</span> APP
-                </span>
-                <span className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-[#5A6478]">
-                  BACK TO LANDING
-                </span>
-              </div>
+    <div className="min-h-screen bg-[#0B0B0E] text-[#F4F4F5]">
+      {/* Global Blockworks-Inspired Top Bar */}
+      <header className="sticky top-0 z-40 border-b border-[#222229] bg-[#0B0B0D]/95 backdrop-blur-md">
+        <div className="flex h-13 items-center justify-between gap-3 px-4 lg:px-5">
+          {/* Left: Brand + Horizontal Category Tabs */}
+          <div className="flex items-center gap-4">
+            <Link href="/" className="flex items-center gap-2 pr-2">
+              <NtiBrandMark className="h-7 w-7" />
+              <span className="font-display text-sm font-bold tracking-tight text-white">
+                NTI
+              </span>
             </Link>
-          </div>
 
-          {/* Grouped Sidebar Navigation */}
-          <div className="space-y-5 overflow-y-auto px-3 py-5">
-            {NAV_GROUPS.map((group) => (
-              <section key={group.label} aria-label={group.label}>
-                <p className="mb-1.5 px-2.5 font-mono text-[9px] uppercase tracking-[0.2em] text-[#5A6478]">
-                  {group.label}
-                </p>
-                <nav className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const active = isNavActive(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={active ? "page" : undefined}
-                        className={`relative block border px-3 py-2 transition-colors ${
-                          active
-                            ? "border-[#2B3345] bg-[#11141C] text-[#F3F5F8]"
-                            : "border-transparent text-[#8B94A7] hover:border-[#1B202C] hover:bg-[#0B0D12] hover:text-[#F3F5F8]"
-                        }`}
-                      >
-                        {active && (
-                          <span className="absolute top-1.5 bottom-1.5 left-0 w-[2px] bg-[#B8FF2E]" />
-                        )}
-                        <div className="font-display text-xs font-semibold">{item.label}</div>
-                        <div className="font-mono text-[10px] text-[#5A6478]">{item.detail}</div>
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </section>
-            ))}
-          </div>
-        </div>
-
-        {/* Bottom Robinhood Chain Card */}
-        <div className="border-t border-[#1B202C] bg-[#06070A] p-4 font-mono text-[10px]">
-          <div className="flex items-center justify-between text-[#5A6478]">
-            <span>SETTLEMENT</span>
-            <span className="inline-flex items-center gap-1.5 text-[#B8FF2E]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#B8FF2E]" />
-              LIVE
-            </span>
-          </div>
-          <div className="mt-1 font-display text-xs font-semibold text-[#F3F5F8]">
-            {chain.name}
-          </div>
-          <div className="text-[#8B94A7] tabular-nums">CHAIN ID · {chainId}</div>
-          <div className="mt-3 flex items-center justify-between border-t border-[#1B202C] pt-2.5 text-[10px]">
-            <a
-              href={explorerUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="text-[#8B94A7] hover:text-[#23F7DD]"
+            <nav
+              aria-label="Workspace modules"
+              className="hidden items-center gap-1 lg:flex"
             >
-              EXPLORER ↗
-            </a>
-            <Link href="/" className="text-[#5A6478] hover:text-[#F3F5F8]">
-              HOME /
-            </Link>
+              {TOP_TABS.map((tab) => {
+                const active = isNavActive(tab.href);
+                return (
+                  <Link
+                    key={tab.href}
+                    href={tab.href}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      active
+                        ? "bg-[#22222A] text-white"
+                        : "text-[#A1A1AA] hover:bg-[#16161B] hover:text-white"
+                    }`}
+                  >
+                    {tab.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Right: Global Search (/) + Epoch Status + Wallet */}
+          <div className="flex items-center gap-2.5">
+            <div className="relative hidden md:block">
+              <div className="flex items-center gap-2 rounded-lg border border-[#24242C] bg-[#141418] px-2.5 py-1.5 text-xs focus-within:border-[#6366F1]">
+                <Search className="h-3.5 w-3.5 text-[#71717A]" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={topSearch}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+                  onChange={(e) => setTopSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && quickSearchResults[0]) {
+                      router.push(quickSearchResults[0].href);
+                      setSearchFocused(false);
+                    }
+                  }}
+                  placeholder="Search sectors & pages..."
+                  className="w-44 bg-transparent text-xs text-[#F4F4F5] placeholder-[#71717A] outline-none lg:w-52"
+                />
+                <kbd className="rounded border border-[#2B2B35] bg-[#0B0B0E] px-1.5 py-0.5 font-mono text-[10px] text-[#71717A]">
+                  /
+                </kbd>
+              </div>
+
+              {searchFocused && quickSearchResults.length > 0 && (
+                <div className="absolute top-[calc(100%+6px)] right-0 z-50 w-72 overflow-hidden rounded-xl border border-[#26262F] bg-[#141418] py-1.5 shadow-2xl">
+                  {quickSearchResults.map((res) => (
+                    <button
+                      key={`${res.kind}-${res.href}`}
+                      type="button"
+                      onMouseDown={() => router.push(res.href)}
+                      className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2 text-left text-xs transition-colors hover:bg-[#1E1E24]"
+                    >
+                      <span className="font-medium text-[#F4F4F5]">{res.label}</span>
+                      <span className="rounded bg-[#22222A] px-1.5 py-0.5 text-[10px] text-[#A1A1AA]">
+                        {res.kind}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="hidden xl:block">
+              <EpochBadge epochId={epochMeta.epochId} status={epochMeta.status} compact />
+            </div>
+
+            <WalletButton />
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((v) => !v)}
+              aria-label="Toggle workspace menu"
+              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-[#24242C] bg-[#141418] text-[#A1A1AA] lg:hidden"
+            >
+              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
           </div>
         </div>
-      </aside>
 
-      {/* Main Workspace */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top Workspace Header */}
-        <header className="sticky top-0 z-40 border-b border-[#1B202C] bg-[#06070A]/92 backdrop-blur-md">
-          <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
-            <div className="flex items-center gap-3">
-              <Link href="/" className="flex items-center gap-2 lg:hidden">
-                <div className="flex h-7 w-7 items-center justify-center border border-[#2B3345] bg-[#0B0D12] font-mono text-xs font-bold text-[#B8FF2E]">
-                  N
-                </div>
+        {/* Mobile Nav Drawer */}
+        {mobileMenuOpen && (
+          <div className="border-t border-[#222229] bg-[#0E0E12] px-4 py-3 lg:hidden">
+            <div className="mb-3 flex items-center justify-between">
+              <EpochBadge epochId={epochMeta.epochId} status={epochMeta.status} />
+              <Link href="/" className="text-xs font-medium text-[#A1A1AA] hover:text-white">
+                Home
               </Link>
-              <div className="flex items-center gap-2">
-                <span className="hidden font-mono text-[10px] uppercase tracking-[0.18em] text-[#5A6478] sm:inline">
-                  NTI //
-                </span>
-                <span className="font-display text-sm font-semibold text-[#F3F5F8]">
-                  {currentTitle}
-                </span>
-              </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              <div className="hidden md:block">
-                <EpochBadge epochId={epochMeta.epochId} status={epochMeta.status} compact />
-              </div>
-
-              <WalletButton />
-
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen((v) => !v)}
-                aria-label="Toggle navigation"
-                className="min-h-[34px] cursor-pointer border border-[#1B202C] bg-[#0B0D12] px-2.5 py-1.5 font-mono text-[11px] uppercase text-[#8B94A7] lg:hidden"
-              >
-                {mobileMenuOpen ? "CLOSE" : "MENU"}
-              </button>
-            </div>
-          </div>
-
-          {mobileMenuOpen && (
-            <div className="border-t border-[#1B202C] bg-[#0B0D12] px-4 py-3 lg:hidden">
-              <div className="mb-3 flex items-center justify-between">
-                <EpochBadge epochId={epochMeta.epochId} status={epochMeta.status} />
-                <Link href="/" className="font-mono text-[10px] text-[#23F7DD]">
-                  LANDING /
-                </Link>
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {NAV_GROUPS.flatMap((g) => g.items).map((item) => (
+            <div className="grid grid-cols-3 gap-1.5">
+              {SIDEBAR_GROUPS.flatMap((g) => g.items).map((item) => {
+                const active = isNavActive(item.href);
+                return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex min-h-[44px] items-center justify-center border px-2 py-2 text-center font-mono text-[10px] uppercase ${
-                      isNavActive(item.href)
-                        ? "border-[#B8FF2E]/50 bg-[#11141C] text-[#B8FF2E]"
-                        : "border-[#1B202C] text-[#8B94A7]"
+                    className={`rounded-lg border px-2.5 py-2 text-center text-[11px] font-medium ${
+                      active
+                        ? "border-[#6366F1]/50 bg-[#1D1D24] text-white"
+                        : "border-[#222229] text-[#A1A1AA]"
                     }`}
                   >
                     {item.label}
                   </Link>
-                ))}
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </header>
+
+      <div className="flex min-h-[calc(100vh-52px)]">
+        {/* Blockworks-Style Left Collapsible Dashboard Rail */}
+        <aside
+          aria-label="Dashboard navigation"
+          className={`sticky top-13 hidden h-[calc(100vh-52px)] shrink-0 flex-col justify-between border-r border-[#222229] bg-[#0A0A0D] transition-all lg:flex ${
+            sidebarCollapsed ? "w-14" : "w-56"
+          }`}
+        >
+          <div className="flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-3.5 pt-4 pb-2">
+              {!sidebarCollapsed && (
+                <span className="text-sm font-semibold text-[#F4F4F5]">Workspace</span>
+              )}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed((c) => !c)}
+                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-[#222229] bg-[#131317] text-[#A1A1AA] hover:text-white"
+              >
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen className="h-3.5 w-3.5" />
+                ) : (
+                  <PanelLeftClose className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </div>
+
+            {!sidebarCollapsed && (
+              <div className="px-3 pb-3">
+                <div className="flex items-center gap-2 rounded-lg border border-[#222229] bg-[#131317] px-2.5 py-1.5 text-xs focus-within:border-[#3B3B48]">
+                  <Search className="h-3.5 w-3.5 text-[#71717A]" />
+                  <input
+                    type="text"
+                    value={sidebarFilter}
+                    onChange={(e) => setSidebarFilter(e.target.value)}
+                    placeholder="Search dashboards"
+                    className="w-full bg-transparent text-xs text-[#F4F4F5] placeholder-[#71717A] outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4 overflow-y-auto px-2.5 py-1">
+              {filteredGroups.map((group) => (
+                <section key={group.label} aria-label={group.label}>
+                  {!sidebarCollapsed && (
+                    <p className="mb-1.5 px-2.5 text-[10px] font-semibold tracking-wider text-[#52525B]">
+                      {group.label}
+                    </p>
+                  )}
+                  <nav className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const active = isNavActive(item.href);
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          title={item.label}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors ${
+                            active
+                              ? "border border-[#2B2B36] bg-[#1A1A21] text-white"
+                              : "border border-transparent text-[#A1A1AA] hover:bg-[#141419] hover:text-white"
+                          }`}
+                        >
+                          <Icon
+                            className={`h-4 w-4 shrink-0 ${
+                              active ? "text-[#34D399]" : "text-[#71717A]"
+                            }`}
+                          />
+                          {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                </section>
+              ))}
+            </div>
+          </div>
+
+          {!sidebarCollapsed && (
+            <div className="border-t border-[#222229] p-3.5 text-[11px]">
+              <div className="flex items-center justify-between text-[#71717A]">
+                <span>Robinhood Chain</span>
+                <span className="inline-flex items-center gap-1 font-medium text-[#10B981]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                  {chainId}
+                </span>
+              </div>
+              <div className="mt-2.5 flex items-center justify-between text-[#71717A]">
+                <a
+                  href={explorerUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 hover:text-white"
+                >
+                  <span>Explorer</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+                <Link href="/" className="hover:text-white">
+                  Landing
+                </Link>
               </div>
             </div>
           )}
-        </header>
+        </aside>
 
-        <TestnetBanner />
-
-        <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 py-6 sm:px-6">
-          {children}
-        </main>
-
-        <footer className="mt-10 border-t border-[#1B202C] bg-[#06070A]">
-          <div className="mx-auto flex max-w-[1360px] flex-col gap-3 px-4 py-5 text-xs sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <p className="text-[#8B94A7]">
-              <span className="mr-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#5A6478]">
-                METHODOLOGY NOTICE
-              </span>
-              Measures how actively crypto narratives are discussed across X; does not predict token prices.
-            </p>
-            <div className="flex flex-wrap items-center gap-4 font-mono text-[11px] text-[#5A6478]">
-              <span>ROBINHOOD CHAIN · ID {chainId}</span>
-              <span>4H EPOCHS · DECIMAL(40)</span>
-              <Link href="/methodology" className="text-[#B8FF2E] hover:underline">
-                VERIFY FORMULAS →
-              </Link>
-            </div>
+        {/* Main Workspace Canvas */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="mx-auto w-full max-w-[1600px] px-4 pt-4 sm:px-6">
+            <TestnetBanner />
           </div>
-        </footer>
+          <main className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-5 sm:px-6">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );
