@@ -258,7 +258,7 @@ export async function readLiveBasketsFromChain(): Promise<BasketItem[] | null> {
                 .readContract({ address: addr, abi: basketAbi, functionName: "maxTVL" })
                 .catch(() => 10_000_000_000_000_000_000n),
               client
-                .readContract({ address: addr, abi: basketAbi, functionName: "constituentTokens" })
+                .readContract({ address: addr, abi: basketAbi, functionName: "constituents" })
                 .catch(() => [[], []] as readonly [readonly Address[], readonly number[]]),
             ]);
 

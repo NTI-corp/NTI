@@ -104,11 +104,58 @@ export function createIndexerStore(cfg: IndexerConfig): IndexerStore {
   return new InMemoryStore();
 }
 
+const BASKET_FACTORY_ABI = [
+  {
+    type: "function",
+    name: "allBaskets",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address[]" }],
+  },
+] as const;
+
+/**
+ * Basket vaults are deployed by BasketFactory, so their addresses are not in PROTOCOL_ADDRESSES.
+ * Without them Deposited/Redeemed/Rebalanced events would never be indexed.
+ * Mutates cfg.addresses in place (the poller holds the same array reference).
+ */
+export async function discoverBasketAddresses(cfg: IndexerConfig): Promise<number> {
+  const factory = PROTOCOL_ADDRESSES[cfg.chainId].basketFactory;
+  if (!factory) return 0;
+  const client = createPublicClient({ chain: getChain(cfg.chainId), transport: http(cfg.rpcUrl) });
+  const baskets = await client.readContract({
+    address: factory,
+    abi: BASKET_FACTORY_ABI,
+    functionName: "allBaskets",
+  });
+  let added = 0;
+  for (const b of baskets) {
+    if (!cfg.addresses.some((a) => a.toLowerCase() === b.toLowerCase())) {
+      cfg.addresses.push(b);
+      added++;
+    }
+  }
+  return added;
+}
+
 async function main() {
   const cfg = loadIndexerConfig();
   const client = createIndexerClient(cfg);
   const store = createIndexerStore(cfg);
   const once = process.argv.includes("--once");
+
+  try {
+    const added = await discoverBasketAddresses(cfg);
+    if (added > 0) console.log(`[nti-indexer] discovered ${added} basket vault(s)`);
+  } catch (err) {
+    console.error("[nti-indexer] basket discovery failed:", err);
+  }
+  if (!once) {
+    const timer = setInterval(() => {
+      discoverBasketAddresses(cfg).catch(() => undefined);
+    }, 5 * 60_000);
+    timer.unref();
+  }
 
   const poller = new IndexerPoller(client, store, {
     chainId: cfg.chainId,

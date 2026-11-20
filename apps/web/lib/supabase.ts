@@ -892,11 +892,13 @@ export async function fetchMarketsData(): Promise<{
   const snapshot = await fetchIndexesSnapshot();
   const iById = new Map(snapshot.narratives.map((n) => [n.narrativeId, n.iBps]));
 
+  // On-chain state is the source of truth; the Supabase mirror only fills in if the RPC read fails.
+  const liveMarkets = await readLiveMarketsFromChain(iById);
+  if (liveMarkets && liveMarkets.length > 0) {
+    return { awaitingDeployment: false, markets: liveMarkets };
+  }
+
   if (!rows || rows.length === 0) {
-    const liveMarkets = await readLiveMarketsFromChain(iById);
-    if (liveMarkets && liveMarkets.length > 0) {
-      return { awaitingDeployment: false, markets: liveMarkets };
-    }
     const now = Date.now();
     const previewMarkets: MarketItem[] = [
       {
@@ -1040,11 +1042,12 @@ export async function fetchBasketsData(): Promise<{
     weights_bps?: number[];
   }>("baskets?select=*&order=narrative_id.asc", "anon");
 
+  const liveBaskets = await readLiveBasketsFromChain();
+  if (liveBaskets && liveBaskets.length > 0) {
+    return { awaitingDeployment: false, baskets: liveBaskets };
+  }
+
   if (!rows || rows.length === 0) {
-    const liveBaskets = await readLiveBasketsFromChain();
-    if (liveBaskets && liveBaskets.length > 0) {
-      return { awaitingDeployment: false, baskets: liveBaskets };
-    }
     const now = Date.now();
     const previewBaskets: BasketItem[] = [
       {
@@ -1151,11 +1154,12 @@ export async function fetchGrantsData(): Promise<{
     status: "active" | "finalized" | "upcoming";
   }>("grant_rounds?select=*&order=round_id.desc&limit=5", "anon");
 
+  const liveRounds = await readLiveGrantRoundsFromChain();
+  if (liveRounds && liveRounds.length > 0) {
+    return { awaitingDeployment: false, rounds: liveRounds };
+  }
+
   if (!rows || rows.length === 0) {
-    const liveRounds = await readLiveGrantRoundsFromChain();
-    if (liveRounds && liveRounds.length > 0) {
-      return { awaitingDeployment: false, rounds: liveRounds };
-    }
     const now = Date.now();
     const previewRound: GrantRoundItem = {
       roundId: 1,
@@ -1227,7 +1231,6 @@ export async function fetchGrantsData(): Promise<{
     return { awaitingDeployment: true, rounds: [previewRound] };
   }
 
-  const liveRounds = await readLiveGrantRoundsFromChain();
   const liveMap = new Map((liveRounds ?? []).map((r) => [r.roundId, r]));
 
   return {

@@ -143,12 +143,14 @@ export const PROTOCOL_ADDRESSES: Record<SupportedChainId, ProtocolAddresses> = {
     dispute: "0x2526eFc15FeFafee9C51a8ff2e078e3494794B71",
     narrativeMarket: "0xA3D54141719d7937f5c2e1EAa2aaC97d44359DBE",
     feeRouter: "0x25D2D1f8aC4B4673585dC3D69EF2B93daC715f25",
-    buybackAdapterV3: null,
+    // Mock Uniswap V3 stack (46630 has no real V3); see contracts/deployments/46630.finalize.json
+    buybackAdapterV3: "0x68201A31d45F3B375AFeADe072D536b59586F78B",
     buybackAdapterV4: null,
-    basketFactory: "0x49bE60aAAF1c0CCeB8214aDe88cc3c8Ffdf51A09",
+    basketFactory: "0xc43F249242CC1988E34b195340fB87511f01f35A",
     grants: "0x4f600E5bf2Bc7a9DEb35F77F946E280F8900D3E5",
-    governor: "0x82328D31742c133F791daA4e8014A9CcA682e9D0",
-    timelock: "0x11a35A4Ca88A20e6d2F9B73aEB4F5b760F60391A",
+    // Fast-parameter testnet governance (60s timelock, 50-block vote)
+    governor: "0xDB5d40618C8b437C9923a8188DC1072F55B7232e",
+    timelock: "0x9962f7C9216875085ba157a1Aa030088cB32b93e",
     insuranceFund: "0x289C161854D3FdD0129156aE28E8307129D3eAb9",
     kolRegistry: "0x4f7ec78dF7f4b6a83FE357c277367b188Cf0A8F3",
   },

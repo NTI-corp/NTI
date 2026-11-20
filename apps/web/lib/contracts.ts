@@ -102,7 +102,7 @@ export const basketAbi = parseAbi([
   "function narrativeId() view returns (uint8)",
   "function name() view returns (string)",
   "function symbol() view returns (string)",
-  "function constituentTokens() view returns (address[] tokens, uint16[] weightsBps)",
+  "function constituents() view returns (address[] tokens, uint16[] weightsBps)",
 ]);
 
 export const grantsAbi = parseAbi([

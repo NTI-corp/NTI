@@ -10,6 +10,17 @@ const BYTEA_COLUMNS = new Set([
   "challenger",
   "evidence_hash",
   "wallet",
+  "basket_address",
+  "bettor",
+  "proposer",
+  "recipient",
+  "metadata_hash",
+  "voter",
+  "account",
+  "handle_hash",
+  "nti_token",
+  "staking",
+  "buyback_adapter",
 ]);
 
 function encodeByteaValue(val: unknown): unknown {
@@ -110,16 +121,26 @@ export class SupabaseRestStore implements IndexerStore {
     if (upserts.length === 0) return;
 
     // Group by table + conflict columns so each group is batched cleanly.
-    const grouped = new Map<string, { table: string; conflict: string; rows: Record<string, unknown>[] }>();
+    // PostgREST requires every object in one batch to share the same key set, and Postgres rejects an
+    // upsert that touches the same conflict key twice, so group by key signature and collapse duplicates
+    // (later rows win, in event order).
+    const grouped = new Map<
+      string,
+      { table: string; conflict: string; rows: Map<string, Record<string, unknown>> }
+    >();
     for (const u of upserts) {
       const conflict = u.conflictColumns.join(",");
-      const key = `${u.table}::${conflict}`;
-      const bucket = grouped.get(key) ?? { table: u.table, conflict, rows: [] };
-      bucket.rows.push(formatRowForPostgres(u.row));
+      const formatted = formatRowForPostgres(u.row);
+      const signature = Object.keys(formatted).sort().join(",");
+      const key = `${u.table}::${conflict}::${signature}`;
+      const bucket = grouped.get(key) ?? { table: u.table, conflict, rows: new Map() };
+      const rowKey = u.conflictColumns.map((c) => String(formatted[c])).join("|");
+      bucket.rows.set(rowKey, formatted);
       grouped.set(key, bucket);
     }
 
-    for (const { table, conflict, rows } of grouped.values()) {
+    for (const { table, conflict, rows: rowMap } of grouped.values()) {
+      const rows = [...rowMap.values()];
       const url = `${this.baseUrl}/rest/v1/${encodeURIComponent(table)}?on_conflict=${encodeURIComponent(conflict)}`;
       const res = await this.fetchImpl(url, {
         method: "POST",
@@ -131,7 +152,42 @@ export class SupabaseRestStore implements IndexerStore {
         if (this.tolerateMissingMirrorTables && (res.status === 404 || body.includes("PGRST205"))) {
           continue;
         }
+        // Partial-column rows (e.g. epoch status flips) violate NOT NULL on the INSERT half of an
+        // upsert even when the row already exists. Fall back to updating just the provided columns.
+        if (body.includes('"23502"')) {
+          await this.patchPartialRows(table, conflict.split(","), rows);
+          continue;
+        }
+        // Referenced parent row not mirrored yet (e.g. dispute on an epoch older than the first DB epoch).
+        if (body.includes('"23503"')) {
+          console.warn(`[nti-indexer] skipped ${table} mirror rows with missing parent row: ${body}`);
+          continue;
+        }
         throw new Error(`Supabase upsertMirror(${table}) failed (${res.status}): ${body}`);
+      }
+    }
+  }
+
+  private async patchPartialRows(
+    table: string,
+    conflictColumns: string[],
+    rows: Record<string, unknown>[],
+  ): Promise<void> {
+    for (const row of rows) {
+      const filter = conflictColumns
+        .map((c) => `${encodeURIComponent(c)}=eq.${encodeURIComponent(String(row[c]))}`)
+        .join("&");
+      const patch: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(row)) {
+        if (!conflictColumns.includes(k)) patch[k] = v;
+      }
+      const res = await this.fetchImpl(`${this.baseUrl}/rest/v1/${encodeURIComponent(table)}?${filter}`, {
+        method: "PATCH",
+        headers: this.headers("return=minimal"),
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        throw new Error(`Supabase patch(${table}) failed (${res.status}): ${await res.text()}`);
       }
     }
   }

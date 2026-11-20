@@ -95,7 +95,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
   const { data: constituentsOnChain, refetch: refetchConstituents } = useReadContract({
     address: vaultAddress,
     abi: basketAbi,
-    functionName: "constituentTokens",
+    functionName: "constituents",
     chainId: activeChainId,
     query: { enabled: hasVaultAddress },
   });

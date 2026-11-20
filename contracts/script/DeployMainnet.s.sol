@@ -33,7 +33,7 @@ contract DeployMainnet is Script {
     address internal constant MAINNET_PONS_V2_MEME_HOOK = 0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044;
 
     uint48 internal constant DEFAULT_VOTING_DELAY = 1; // 1 block
-    uint32 internal constant DEFAULT_VOTING_PERIOD = 259_200; // ~3 days at 1s blocks
+    uint32 internal constant DEFAULT_VOTING_PERIOD = 21_600; // ~3 days: Staking.clock() is block.number, which on Arbitrum Orbit is the ~12s parent-chain block
     uint8 internal constant INITIAL_NARRATIVE_COUNT = 10;
 
     struct Deployed {
