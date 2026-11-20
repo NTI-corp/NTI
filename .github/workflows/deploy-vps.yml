@@ -25,4 +25,4 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes "${VPS_USER}@${VPS_HOST}" \
-            "export PATH=\$HOME/.local/bin:\$PATH; bash /home/ubuntu/apps/nti/infra/scripts/deploy-vps.sh"
+            "export PATH=\$HOME/.local/bin:\$PATH; cd /home/ubuntu/apps/nti && git config core.fileMode false && { git diff --quiet || git stash push -q -m pre-deploy-\$(date +%s); } && bash infra/scripts/deploy-vps.sh"
