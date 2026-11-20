@@ -54,3 +54,32 @@ jobs:
       - run: pnpm indexer:test
       - run: pnpm typecheck
       - run: pnpm build:web
+
+  slither:
+    name: Slither static analysis (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile || pnpm install
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install slither-analyzer
+      - name: Run Slither (medium and above)
+        working-directory: contracts
+        run: |
+          slither . --filter-paths "lib|node_modules|test|script" \
+            --exclude-informational --exclude-low --exclude-optimization \
+            2>&1 | tee slither.txt || true
+          { echo '## Slither (medium and above)'; echo '```'; tail -n 200 slither.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

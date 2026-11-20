@@ -30,12 +30,23 @@ interface CachedStake {
 
 const stakeCache = new Map<string, CachedStake>();
 
-function getSessionSecret(): string {
-  return (
-    process.env.SIWE_SESSION_SECRET ||
-    process.env.SUPABASE_SERVICE_KEY ||
-    "nti-dev-ephemeral-siwe-secret-change-in-production"
-  );
+const MIN_SECRET_LENGTH = 32;
+const DEV_SECRET = "nti-dev-ephemeral-siwe-secret-not-for-production";
+
+/**
+ * Production fails closed: without a dedicated SIWE_SESSION_SECRET (>= 32 chars) no session can be issued
+ * or accepted, instead of silently signing with a publicly known development key.
+ */
+function getSessionSecret(): string | null {
+  const configured = process.env.SIWE_SESSION_SECRET;
+  if (process.env.NODE_ENV === "production") {
+    return configured && configured.length >= MIN_SECRET_LENGTH ? configured : null;
+  }
+  return configured || DEV_SECRET;
+}
+
+export function isSiweConfigured(): boolean {
+  return getSessionSecret() !== null;
 }
 
 export function getRadarMinStakeWei(): bigint {
@@ -49,10 +60,9 @@ export function getRadarMinStakeWei(): bigint {
 }
 
 function signPayload(payloadB64: string): string {
-  return crypto
-    .createHmac("sha256", getSessionSecret())
-    .update(payloadB64)
-    .digest("base64url");
+  const secret = getSessionSecret();
+  if (!secret) throw new Error("SIWE_SESSION_SECRET is not configured");
+  return crypto.createHmac("sha256", secret).update(payloadB64).digest("base64url");
 }
 
 function encodeSignedToken<T extends object>(payload: T): string {
@@ -68,6 +78,7 @@ function decodeSignedToken<T>(token: string | undefined | null): T | null {
   const [b64, sig] = parts;
   if (!b64 || !sig) return null;
 
+  if (!isSiweConfigured()) return null;
   const expected = signPayload(b64);
   const sigBuf = Buffer.from(sig);
   const expBuf = Buffer.from(expected);

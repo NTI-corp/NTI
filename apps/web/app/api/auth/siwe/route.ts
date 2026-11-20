@@ -6,6 +6,7 @@ import {
   SIWE_SESSION_COOKIE,
   createSessionCookie,
   getSiweSessionState,
+  isSiweConfigured,
   issueNonce,
   verifyNonceCookie,
   verifySiweSubmission,
@@ -15,11 +16,19 @@ export const dynamic = "force-dynamic";
 
 const isProd = process.env.NODE_ENV === "production";
 
+function siweUnavailable() {
+  return NextResponse.json(
+    { error: "Wallet sign-in is not configured on this deployment." },
+    { status: 503 },
+  );
+}
+
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
   const wantNonce = request.nextUrl.searchParams.get("nonce") === "1";
 
   if (wantNonce) {
+    if (!isSiweConfigured()) return siweUnavailable();
     const { nonce, cookieValue, maxAge } = issueNonce();
     const res = NextResponse.json({ nonce });
     res.cookies.set(SIWE_NONCE_COOKIE, cookieValue, {
@@ -59,6 +68,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.action === "nonce") {
+    if (!isSiweConfigured()) return siweUnavailable();
     const { nonce, cookieValue, maxAge } = issueNonce();
     const res = NextResponse.json({ nonce });
     res.cookies.set(SIWE_NONCE_COOKIE, cookieValue, {
@@ -70,6 +80,8 @@ export async function POST(request: NextRequest) {
     });
     return res;
   }
+
+  if (!isSiweConfigured()) return siweUnavailable();
 
   if (!body.message || !body.signature || !body.address) {
     return NextResponse.json(

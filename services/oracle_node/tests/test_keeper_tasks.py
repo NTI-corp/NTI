@@ -11,6 +11,7 @@ from eth_utils import keccak
 from nti_oracle.chain import ChainRpcError
 from nti_oracle.keeper_tasks import (
     _guard,
+    accrue_basket_fees,
     distribute_fees,
     manage_grant_round,
     run_buyback,
@@ -228,3 +229,16 @@ def test_sync_radar_alerts_is_idempotent() -> None:
     assert asyncio.run(sync_radar_alerts(st))["created"] == 1
     assert asyncio.run(sync_radar_alerts(st))["created"] == 0
     assert len(st.alerts) == 1
+
+
+def test_accrue_basket_fees_only_for_stale_baskets() -> None:
+    now = 5_000_000
+    stale, fresh = "0x" + "aa" * 20, "0x" + "bb" * 20
+    factory = FakeContract({"allBaskets()": (["address[]"], [[stale, fresh]])})
+    baskets = {
+        stale: FakeContract({"lastFeeAccrual()": (["uint256"], [now - 90_000])}),
+        fresh: FakeContract({"lastFeeAccrual()": (["uint256"], [now - 100])}),
+    }
+    res = asyncio.run(accrue_basket_fees(factory, lambda a: baskets[a], private_key=KEY, now=now))
+    assert [a["basket"] for a in res["accrued"]] == [stale]
+    assert baskets[stale].sent == [sel("accrueFee()")] and baskets[fresh].sent == []

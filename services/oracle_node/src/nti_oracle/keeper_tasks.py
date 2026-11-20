@@ -198,6 +198,34 @@ async def manage_grant_round(
     return {"task": "grant_round", "status": "ok" if actions else "idle", "actions": actions}
 
 
+async def accrue_basket_fees(
+    factory: ContractCaller,
+    basket_at: Callable[[str], ContractCaller],
+    *,
+    private_key: str,
+    now: int | None = None,
+    interval_seconds: int = 24 * 3600,
+) -> dict[str, Any]:
+    """Mint the pending management fee for every basket that has not accrued within a day."""
+    now = now or int(time.time())
+    raw = await factory._call("allBaskets()", [], [])
+    baskets = [str(a) for a in abi_decode(["address[]"], raw)[0]]
+    accrued: list[dict[str, Any]] = []
+    for address in baskets:
+        basket = basket_at(address)
+        last = await _uint(basket, "lastFeeAccrual()")
+        if now - last < interval_seconds:
+            continue
+        tx = await basket._send_tx(private_key, _enc("accrueFee()", [], []))
+        accrued.append({"basket": address, "tx_hash": tx})
+    return {
+        "task": "accrue_basket_fees",
+        "status": "ok",
+        "baskets": len(baskets),
+        "accrued": accrued,
+    }
+
+
 def velocity_alert_rows(
     epoch_id: int,
     epoch_finalized_at: datetime,

@@ -27,6 +27,7 @@ from nti_oracle.chain import OracleCommitClient
 from nti_oracle.dataset import ZERO_HASH, LocalFileUploader, tx_id_to_bytes32
 from nti_oracle.keeper_tasks import (
     _guard,
+    accrue_basket_fees,
     distribute_fees,
     manage_grant_round,
     run_buyback,
@@ -674,6 +675,20 @@ async def _run_keeper_tasks(
             )
 
         results.append(await _guard("grant_round", _grants))
+    basket_factory = at("basketFactory")
+    if basket_factory is not None:
+        results.append(
+            await _guard(
+                "accrue_basket_fees",
+                lambda: accrue_basket_fees(
+                    basket_factory,
+                    lambda addr: OracleCommitClient(
+                        rpc_url=rpc_url, contract_address=addr, chain_id=args.chain_id
+                    ),
+                    private_key=keeper_key,
+                ),
+            )
+        )
     results.append(await _guard("radar_alerts", lambda: sync_radar_alerts(storage)))
     return results
 
