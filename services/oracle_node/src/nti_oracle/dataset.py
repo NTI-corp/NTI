@@ -362,6 +362,86 @@ class LocalFileUploader:
         return self.upload_sync(epoch_id, chain_hash, data)
 
 
+class SupabaseStorageMirror:
+    """Off-box copy of every delta dataset in a private Supabase Storage bucket.
+
+    The VPS disk is the primary store; this mirror keeps the dataset chain recoverable if the disk
+    is lost.
+    Objects are keyed by the same tx id the epoch record carries, so recovery needs no extra index.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        service_key: str,
+        bucket: str = "nti-datasets",
+        client: httpx.AsyncClient | None = None,
+        timeout: float = 60.0,
+    ) -> None:
+        self._base = base_url.rstrip("/") + "/storage/v1"
+        self._bucket = bucket
+        self._headers = {"apikey": service_key, "Authorization": f"Bearer {service_key}"}
+        self._client = client
+        self._timeout = timeout
+        self._bucket_ready = False
+
+    async def _send(
+        self, method: str, url: str, extra_headers: dict[str, str] | None = None, **kwargs: Any
+    ) -> httpx.Response:
+        headers = {**self._headers, **(extra_headers or {})}
+        if self._client is not None:
+            return await self._client.request(method, url, headers=headers, **kwargs)
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            return await client.request(method, url, headers=headers, **kwargs)
+
+    async def _ensure_bucket(self) -> None:
+        if self._bucket_ready:
+            return
+        resp = await self._send(
+            "POST",
+            f"{self._base}/bucket",
+            json={"id": self._bucket, "name": self._bucket, "public": False},
+        )
+        if resp.status_code >= 400 and "already exists" not in resp.text.lower():
+            resp.raise_for_status()
+        self._bucket_ready = True
+
+    async def put(self, tx_id: str, data: bytes) -> None:
+        await self._ensure_bucket()
+        resp = await self._send(
+            "POST",
+            f"{self._base}/object/{self._bucket}/{tx_id}.jsonl.gz",
+            extra_headers={"x-upsert": "true", "Content-Type": "application/gzip"},
+            content=data,
+        )
+        resp.raise_for_status()
+
+    async def get(self, tx_id: str) -> bytes | None:
+        resp = await self._send("GET", f"{self._base}/object/{self._bucket}/{tx_id}.jsonl.gz")
+        if resp.status_code in (400, 404):
+            return None
+        resp.raise_for_status()
+        return resp.content
+
+
+class MirroredUploader:
+    """Primary uploader plus a best-effort mirror; a mirror failure never blocks an epoch."""
+
+    def __init__(self, primary: DatasetUploader, mirror: SupabaseStorageMirror | None) -> None:
+        self._primary = primary
+        self._mirror = mirror
+        self.mirror_errors: list[str] = []
+
+    async def upload(self, epoch_id: int, chain_hash: str, data: bytes) -> str:
+        tx_id = await self._primary.upload(epoch_id, chain_hash, data)
+        if self._mirror is not None:
+            try:
+                await self._mirror.put(tx_id, data)
+            except Exception as exc:  # noqa: BLE001 - mirroring is best effort
+                self.mirror_errors.append(f"{tx_id}: {str(exc)[:160]}")
+        return tx_id
+
+
 def tx_id_to_bytes32(tx_id: str) -> str:
     """Encode an Arweave/IPFS/local tx string deterministically into bytes32 hex for Solidity."""
     return keccak256_hex(tx_id.encode("utf-8")) if tx_id else ZERO_HASH

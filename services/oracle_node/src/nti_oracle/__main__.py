@@ -24,7 +24,13 @@ from nti_fetcher.runner import FetchRunner
 from nti_fetcher.storage import SupabaseStorage
 
 from nti_oracle.chain import OracleCommitClient
-from nti_oracle.dataset import ZERO_HASH, LocalFileUploader, tx_id_to_bytes32
+from nti_oracle.dataset import (
+    ZERO_HASH,
+    LocalFileUploader,
+    MirroredUploader,
+    SupabaseStorageMirror,
+    tx_id_to_bytes32,
+)
 from nti_oracle.keeper_tasks import (
     _guard,
     accrue_basket_fees,
@@ -422,7 +428,9 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
         )
         for pk in val_keys
     ]
-    uploader = LocalFileUploader(REPO_ROOT / "data" / "deltas")
+    local_uploader = LocalFileUploader(REPO_ROOT / "data" / "deltas")
+    mirror = SupabaseStorageMirror(sb_url, sb_key)
+    uploader = MirroredUploader(local_uploader, mirror)
     operator_node = OperatorNode(
         cfg=cfg,
         uploader=uploader,
@@ -440,8 +448,17 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
     prev_deltas: list[bytes] = []
     if prev_arweave_tx.startswith("local_"):
         candidate = REPO_ROOT / "data" / "deltas" / f"{prev_arweave_tx}.jsonl.gz"
+        recovered: bytes | None = None
+        if not candidate.exists():
+            try:
+                recovered = await mirror.get(prev_arweave_tx)
+            except Exception:  # noqa: BLE001 - an unreachable mirror just means no recovery
+                recovered = None
         if candidate.exists():
             prev_deltas.append(candidate.read_bytes())
+        elif recovered is not None:
+            candidate.write_bytes(recovered)  # disk was lost: restore the chain from the mirror
+            prev_deltas.append(recovered)
         else:
             prev_dataset_hash = ZERO_HASH
             prev_arweave_tx = ""
