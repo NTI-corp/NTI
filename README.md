@@ -45,7 +45,7 @@ pnpm build:web
 
 Live and automated: contracts (`contracts/deployments/46630.json`), fetcher, operator, keeper, monitor and indexer on
 the VPS (PM2), Supabase, and the web app on Vercel. Contract waits are short on testnet (5 s dispute window, 10 s
-unstake cooldown, 60 s commit delay) and frozen at production values on mainnet; the only remaining wait is the 4 hour
+unstake cooldown; the 60 minute commit delay stays because it is the window X scraping needs under its rate limits) and frozen at production values on mainnet; the only remaining wait is the 4 hour
 epoch cadence.
 
 ```bash
