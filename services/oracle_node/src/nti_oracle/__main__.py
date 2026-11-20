@@ -168,23 +168,24 @@ async def _ensure_classified_posts(
             boundary=datetime.fromtimestamp(boundary_unix, tz=UTC),
             kols=kols,
         )
+        cycle_rows = [
+            {
+                "epoch_id": epoch_id,
+                "lane": lane.lane,
+                "source": lane.source,
+                "started_at": lane.started_at,
+                "finished_at": lane.finished_at,
+                "accounts_ok": lane.accounts_ok,
+                "accounts_failed": lane.accounts_failed,
+                "post_count": lane.post_count,
+                "manifest_sha256": lane.sha256,
+            }
+            for lane in fetch_res.lanes
+        ]
+        # Record the cycle even when nothing new was found, so the staleness check above clears.
+        inserted = await storage.insert_returning("fetch_cycles", cycle_rows) if cycle_rows else []
+        cid = int(inserted[0]["id"]) if inserted else 1
         if fetch_res.posts:
-            cycle_rows = [
-                {
-                    "epoch_id": epoch_id,
-                    "lane": lane.lane,
-                    "source": lane.source,
-                    "started_at": lane.started_at,
-                    "finished_at": lane.finished_at,
-                    "accounts_ok": lane.accounts_ok,
-                    "accounts_failed": lane.accounts_failed,
-                    "post_count": lane.post_count,
-                    "manifest_sha256": lane.sha256,
-                }
-                for lane in fetch_res.lanes
-            ]
-            inserted = await storage.insert_returning("fetch_cycles", cycle_rows)
-            cid = int(inserted[0]["id"]) if inserted else 1
             await storage.upsert_posts(
                 [
                     {
