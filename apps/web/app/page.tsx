@@ -243,7 +243,7 @@ export default async function LandingPage() {
                 style={{ fontFamily: "var(--font-bricolage), sans-serif" }}
               >
                 Quantify crypto narrative momentum{" "}
-                <span className="text-blue-600">on-chain.</span>
+                <span className="whitespace-nowrap text-blue-600">on-chain.</span>
               </h1>
 
               <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
@@ -439,7 +439,7 @@ export default async function LandingPage() {
                 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl"
                 style={{ fontFamily: "var(--font-bricolage), sans-serif" }}
               >
-                From X timelines to disputed-guarded settlement
+                From X timelines to dispute-guarded settlement
               </h2>
             </div>
 
