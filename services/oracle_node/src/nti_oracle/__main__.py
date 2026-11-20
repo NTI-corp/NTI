@@ -146,9 +146,9 @@ async def _ensure_classified_posts(
 
     post_rows = await load_post_rows()
 
-    # Fetch fresh posts when none exist yet OR the last fetch finished before this epoch boundary. The
-    # commit delay can be shorter than the fetcher's schedule, and a commit built on stale data fails the
-    # validators' omission check.
+    # Fetch fresh posts when none exist yet OR the last fetch finished before this epoch boundary.
+    # The commit delay can be shorter than the fetcher schedule, and a commit built on stale data
+    # fails the validators' omission check.
     last_cycle = await storage.select(
         "fetch_cycles", columns="finished_at", order="id.desc", limit=1
     )
