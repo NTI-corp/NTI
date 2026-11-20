@@ -14,7 +14,7 @@ export default async function HeatmapPage() {
 
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
-          <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
             Builder Heatmap · Attention vs. Supply Density
           </span>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">

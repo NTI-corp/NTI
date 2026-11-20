@@ -5,7 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { HOME_CONTENT, type StackTimelineCard } from "@/content/home";
 import { ProtocolIcon } from "@/components/ui/Icons";
-import { RiveCanvas } from "@/components/ui/RiveCanvas";
+import { NtiStackVisual } from "@/components/ui/NtiStackVisual";
 
 const GLYPHS = "abcdefghijklmnopqrstuvwxyz0123456789!$^*()-_=+[]{}";
 
@@ -448,13 +448,13 @@ export function StackTimelineSection() {
               >
                 <div
                   ref={topTrailRef}
-                  className="absolute bottom-1/2 left-0 w-[2px] bg-[#298dff] pointer-events-none"
+                  className="absolute bottom-1/2 left-0 w-[2px] bg-[#CCFF00] pointer-events-none"
                   style={{ height: "0%" }}
                 />
-                <div className="relative z-[2] w-[0.75em] h-[0.75em] min-h-[0.75em] bg-white shadow-[0_0_16px_rgba(41,141,255,0.9)] shrink-0" />
+                <div className="relative z-[2] w-[0.75em] h-[0.75em] min-h-[0.75em] bg-white shadow-[0_0_16px_rgba(204,255,0,0.9)] shrink-0" />
                 <div
                   ref={bottomTrailRef}
-                  className="absolute top-1/2 left-0 w-[2px] bg-[#298dff] pointer-events-none"
+                  className="absolute top-1/2 left-0 w-[2px] bg-[#CCFF00] pointer-events-none"
                   style={{ height: "0%" }}
                 />
               </div>
@@ -541,8 +541,8 @@ function TimelineCardItem({
           if (t) runDomScramble(t, card.title);
         }}
       >
-        <div className="w-[2.5em] h-[2.5em] border-r-[1.5px] border-[#4b515b] text-white flex items-center justify-center shrink-0">
-          <span className="font-mono text-[0.875em]">{card.number}</span>
+        <div className="w-[2.5em] h-[2.5em] border-r-[1.5px] border-[#4b515b] text-[#CCFF00] flex items-center justify-center shrink-0">
+          <ProtocolIcon name={card.iconKey} className="w-[1.15em] h-[1.15em]" />
         </div>
         <div className="font-mono text-[0.875em] text-white pr-[1em] py-[0.55em] leading-[1.3]">
           <span data-card-title="" data-text={card.title}>
@@ -565,13 +565,9 @@ function TimelineCardItem({
       >
         <div
           data-rive-inner=""
-          className={`w-full h-[13.438em] md:h-[17em] pl-[2.25em] flex items-center justify-center origin-bottom ${card.rivePadClass ?? ""}`}
+          className={`w-full h-[13.438em] md:h-[17em] pl-[2.25em] pr-[1em] py-[0.75em] flex items-center justify-center origin-bottom ${card.rivePadClass ?? ""}`}
         >
-          <RiveCanvas
-            src={card.riveSrc}
-            fit={card.riveFit}
-            className="w-full h-full"
-          />
+          <NtiStackVisual kind={card.iconKey} />
         </div>
       </div>
 

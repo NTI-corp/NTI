@@ -20,8 +20,8 @@ const QUADRANT_BADGE: Record<
   },
   crowded: {
     label: "CROWDED LEADER",
-    color: "#6366F1",
-    bg: "border-[#6366F1]/40 bg-[#6366F1]/15 text-[#A5B4FC]",
+    color: "#CCFF00",
+    bg: "border-[#CCFF00]/40 bg-[#CCFF00]/12 text-[#CCFF00]",
   },
   emerging: {
     label: "EARLY / QUIET",
@@ -152,7 +152,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
               x={padL + plotW - 8}
               y={padT + 16}
               textAnchor="end"
-              fill="#A5B4FC"
+              fill="#CCFF00"
               fontSize="9.5"
               fontFamily="var(--font-ibm-plex-mono), monospace"
             >
@@ -304,7 +304,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
                         <div>
                           <Link
                             href={`/narratives/${pt.narrativeId}`}
-                            className="font-sans text-xs font-medium text-[#F4F4F5] hover:text-[#A5B4FC]"
+                            className="font-sans text-xs font-medium text-[#F4F4F5] hover:text-[#CCFF00]"
                           >
                             {pt.label}
                           </Link>

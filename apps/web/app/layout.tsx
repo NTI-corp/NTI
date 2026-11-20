@@ -22,7 +22,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NTI — Narrative Token Index",
+  title: "NTI | Narrative Token Index",
   description:
     "Narrative Token Index (NTI): onchain crypto mindshare index, relative pair markets, TWAP narrative vaults, and native ETH yield on Robinhood Chain.",
 };

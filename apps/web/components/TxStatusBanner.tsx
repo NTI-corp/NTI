@@ -23,7 +23,7 @@ export function TxStatusBanner({
     ? "border-[#EF4444]/40 bg-[#EF4444]/10 text-[#FCA5A5]"
     : isConfirmed
       ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#86EFAC]"
-      : "border-[#6366F1]/40 bg-[#6366F1]/10 text-[#C7D2FE]";
+      : "border-[#CCFF00]/40 bg-[#CCFF00]/10 text-[#CCFF00]";
 
   return (
     <div

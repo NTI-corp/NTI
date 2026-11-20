@@ -12,8 +12,7 @@ export function AwaitingEpochBanner({
       role="status"
       className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-2.5 font-mono text-xs text-[#F59E0B]"
     >
-      <div className="flex items-center gap-2.5">
-        <span className="h-2 w-2 shrink-0 rounded-full bg-[#F59E0B] animate-pulse" />
+      <div className="flex items-center">
         <span>
           <strong className="tracking-wider">AWAITING FIRST FINALIZED EPOCH</strong>
           <span className="ml-2 text-[#F59E0B]/85">{message}</span>

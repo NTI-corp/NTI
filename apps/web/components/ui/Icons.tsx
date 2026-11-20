@@ -244,28 +244,84 @@ export function LinkedInIcon({ className = "w-4 h-4" }: { className?: string }) 
   );
 }
 
+export function NtiEngineIcon({ className = "w-full h-auto" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M3 17L9 10L13.5 14.5L21 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="21" cy="6" r="2.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function NtiArchiveIcon({ className = "w-full h-auto" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3" y="4" width="18" height="4.5" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="3" y="10" width="18" height="4.5" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="3" y="16" width="18" height="4.5" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+export function NtiOracleIcon({ className = "w-full h-auto" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className={className}>
+      <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8.5 12.2L11 14.5L15.5 9.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function NtiGuardIcon({ className = "w-full h-auto" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M12 3L19 6V12C19 16.5 15.8 19.6 12 21C8.2 19.6 5 16.5 5 12V6L12 3Z" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function NtiMarketIcon({ className = "w-full h-auto" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M4 8H20M16 4L20 8L16 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 16H4M8 12L4 16L8 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function NtiTwapIcon({ className = "w-full h-auto" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="3" y="13" width="4" height="7" fill="currentColor" />
+      <rect x="10" y="9" width="4" height="11" fill="currentColor" />
+      <rect x="17" y="5" width="4" height="15" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function ProtocolIcon({
   name,
   className = "w-full h-full",
 }: {
-  name: "sui" | "walrus" | "seal" | "nautilus" | "deepbook" | "suins" | "hashi";
+  name: "engine" | "archive" | "oracle" | "guard" | "market" | "twap" | "hashi";
   className?: string;
 }) {
   switch (name) {
-    case "sui":
-      return <SuiDropletIcon className={className} />;
-    case "walrus":
-      return <WalrusIcon className={className} />;
-    case "nautilus":
-      return <NautilusIcon className={className} />;
-    case "deepbook":
-      return <DeepBookIcon className={className} />;
-    case "suins":
-      return <SuiNSIcon className={className} />;
+    case "engine":
+      return <NtiEngineIcon className={className} />;
+    case "archive":
+      return <NtiArchiveIcon className={className} />;
+    case "oracle":
+      return <NtiOracleIcon className={className} />;
+    case "guard":
+      return <NtiGuardIcon className={className} />;
+    case "market":
+      return <NtiMarketIcon className={className} />;
+    case "twap":
+      return <NtiTwapIcon className={className} />;
     case "hashi":
       return <HashiIcon className={className} />;
-    case "seal":
-      return <img src="/assets/logos/seal-logo.svg" alt="Seal" className={className} />;
   }
 }
 
@@ -274,26 +330,19 @@ export function NavMenuIcon({ icon, className = "w-4 h-4" }: { icon: NavIconKey;
     case "sui-stack":
     case "building":
     case "ideas":
-      return (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 22" fill="none" className={className}>
-          <path
-            d="M9.37586 19.2781L18.7522 13.3348H18.7573V15.3867L9.3756 21.3333L0 15.3871V13.3348H0.00497212L9.37586 19.2781ZM13.4148 2.56159V4.61667L9.37586 2.05664L0.00497212 8L9.37586 13.9434L18.7522 8H18.7573V10.052L9.3756 15.9986L0 10.0523V5.94766L9.3756 0.00143229L13.4148 2.56159Z"
-            fill="currentColor"
-          />
-        </svg>
-      );
+      return <NtiEngineIcon className={className} />;
     case "deepbook":
-      return <DeepBookIcon className={className} />;
+      return <NtiMarketIcon className={className} />;
     case "hashi":
-      return <HashiIcon className={className} />;
+      return <NtiTwapIcon className={className} />;
     case "nautilus":
-      return <NautilusIcon className={className} />;
+      return <NtiGuardIcon className={className} />;
     case "walrus":
-      return <WalrusIcon className={className} />;
+      return <NtiArchiveIcon className={className} />;
     case "suins":
-      return <SuiNSIcon className={className} />;
+      return <NtiTwapIcon className={className} />;
     case "seal":
-      return <img src="/assets/logos/seal-logo.svg" alt="Seal" className={className} />;
+      return <NtiOracleIcon className={className} />;
     case "ai":
     case "ai-assistant":
       return <AiSparkIcon className={className} />;
@@ -332,6 +381,189 @@ export function NavMenuIcon({ icon, className = "w-4 h-4" }: { icon: NavIconKey;
         </svg>
       );
     default:
-      return <SuiDropletIcon className={className} />;
+      return <NtiEngineIcon className={className} />;
+  }
+}
+
+/** Official Robinhood feather + wordmark copied from BELL/QTimeline partners asset. */
+export function RobinhoodMark({
+  className = "h-[1em] w-auto",
+  dark = false,
+}: {
+  className?: string;
+  dark?: boolean;
+}) {
+  return (
+    <img
+      src="/assets/partners/robinhood.svg"
+      alt="Robinhood"
+      className={`${className} shrink-0 select-none ${
+        dark ? "brightness-0" : "brightness-0 invert"
+      }`}
+    />
+  );
+}
+
+/**
+ * 10 distinct architectural sector icons for NTI's canonical narratives.
+ */
+export function SectorIcon({
+  slug,
+  className = "w-4 h-4",
+}: {
+  slug: string;
+  className?: string;
+}) {
+  const shared = {
+    viewBox: "0 0 20 20",
+    fill: "none" as const,
+    xmlns: "http://www.w3.org/2000/svg",
+    className,
+    "aria-hidden": true as const,
+  };
+
+  switch (slug) {
+    case "privacy":
+      return (
+        <svg {...shared}>
+          <path
+            d="M10 2L16.5 4.8V9.6C16.5 13.7 13.7 16.9 10 18.2C6.3 16.9 3.5 13.7 3.5 9.6V4.8L10 2Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+          <circle cx="10" cy="9.8" r="2.3" stroke="currentColor" strokeWidth="1.5" />
+          <path d="M6.2 13.6L13.8 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      );
+    case "ai_agents":
+      return (
+        <svg {...shared}>
+          <circle cx="10" cy="4" r="2" fill="currentColor" />
+          <circle cx="4.2" cy="14.5" r="2" fill="currentColor" />
+          <circle cx="15.8" cy="14.5" r="2" fill="currentColor" />
+          <circle cx="10" cy="10.8" r="1.8" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M10 5.8V9M8.5 11.7L5.6 13.6M11.5 11.7L14.4 13.6M5.8 14.5H14.2"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "rwa":
+      return (
+        <svg {...shared}>
+          <path
+            d="M3 7.5L10 3L17 7.5H3Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M5.5 7.5V14.5M10 7.5V14.5M14.5 7.5V14.5M3 16.8H17M4 14.5H16"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "stablecoins":
+      return (
+        <svg {...shared}>
+          <polygon
+            points="6.5,2.2 13.5,2.2 17.8,6.5 17.8,13.5 13.5,17.8 6.5,17.8 2.2,13.5 2.2,6.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M6.5 8.2H13.5M6.5 11.8H13.5M10 5.6V14.4"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "depin":
+      return (
+        <svg {...shared}>
+          <circle cx="10" cy="8.5" r="2" fill="currentColor" />
+          <path
+            d="M6.2 5.2C4.6 6.8 4.6 10.2 6.2 11.8M13.8 5.2C15.4 6.8 15.4 10.2 13.8 11.8M3.7 3.2C1.2 6.1 1.2 10.9 3.7 13.8M16.3 3.2C18.8 6.1 18.8 10.9 16.3 13.8"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+          <path
+            d="M10 10.5L6.5 17H13.5L10 10.5Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case "prediction_markets":
+      return (
+        <svg {...shared}>
+          <path d="M2.8 16.5H17.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <rect x="4" y="5" width="4.5" height="9" stroke="currentColor" strokeWidth="1.5" />
+          <rect x="11.5" y="8.5" width="4.5" height="5.5" fill="currentColor" />
+          <path d="M4 3L8.5 3M11.5 5.5L16 5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      );
+    case "perp_dex":
+      return (
+        <svg {...shared}>
+          <path
+            d="M3.5 7.2H15.5L12.5 4.2M16.5 12.8H4.5L7.5 15.8"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path d="M8.8 10H11.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    case "defi":
+      return (
+        <svg {...shared}>
+          <circle cx="7.6" cy="10" r="4.6" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="12.4" cy="10" r="4.6" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    case "memecoin":
+      return (
+        <svg {...shared}>
+          <path
+            d="M10 2.2L12.1 7.9L17.8 10L12.1 12.1L10 17.8L7.9 12.1L2.2 10L7.9 7.9L10 2.2Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <circle cx="10" cy="10" r="1.4" fill="currentColor" />
+        </svg>
+      );
+    case "gaming":
+      return (
+        <svg {...shared}>
+          <path
+            d="M10 2.4L16.8 6.2V13.8L10 17.6L3.2 13.8V6.2L10 2.4Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M7.5 8.5V11.5M6 10H9"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <circle cx="13.4" cy="9" r="1" fill="currentColor" />
+          <circle cx="11.8" cy="11.2" r="1" fill="currentColor" />
+        </svg>
+      );
+    default:
+      return <NtiEngineIcon className={className} />;
   }
 }

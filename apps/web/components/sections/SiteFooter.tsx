@@ -3,30 +3,10 @@
 import React, { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { FOOTER_CONTENT, type FooterSocial } from "@/content/footer";
+import { FOOTER_CONTENT } from "@/content/footer";
 import { DottedDivider } from "@/components/ui/DottedDivider";
-import {
-  DiscordIcon,
-  ExternalArrowIcon,
-  LinkedInIcon,
-  SuiDropletIcon,
-  XIcon,
-  YouTubeIcon,
-} from "@/components/ui/Icons";
+import { ExternalArrowIcon, RobinhoodMark, XIcon } from "@/components/ui/Icons";
 import { ScrambleText } from "@/components/ui/ScrambleText";
-
-function SocialGlyph({ name }: { name: FooterSocial["name"] }) {
-  switch (name) {
-    case "youtube":
-      return <YouTubeIcon className="w-[1.15em] h-[1.15em]" />;
-    case "discord":
-      return <DiscordIcon className="w-[1.15em] h-[1.15em]" />;
-    case "linkedin":
-      return <LinkedInIcon className="w-[1em] h-[1em]" />;
-    case "x":
-      return <XIcon className="w-[1em] h-[1em]" />;
-  }
-}
 
 const PILLARS = [
   { x1: 634.196, x2: 846.378, opacity: "0.8" },
@@ -39,31 +19,30 @@ const PILLARS = [
 ];
 
 const DOT_LINES = [
-  { x: 1269.54, grad: "url(#suiFooterStroke3)" },
-  { x: 1058.23, grad: "url(#suiFooterStroke2)" },
-  { x: 846.928, grad: "url(#suiFooterStroke1)" },
-  { x: 635.621, grad: "url(#suiFooterStroke1)" },
-  { x: 424.314, grad: "url(#suiFooterStroke2)" },
-  { x: 213.007, grad: "url(#suiFooterStroke3)" },
+  { x: 1269.54, grad: "url(#ntiFooterStroke3)" },
+  { x: 1058.23, grad: "url(#ntiFooterStroke2)" },
+  { x: 846.928, grad: "url(#ntiFooterStroke1)" },
+  { x: 635.621, grad: "url(#ntiFooterStroke1)" },
+  { x: 424.314, grad: "url(#ntiFooterStroke2)" },
+  { x: 213.007, grad: "url(#ntiFooterStroke3)" },
 ];
 
 export function SiteFooter() {
-  const { gridColumns, socials, copyright } = FOOTER_CONTENT;
+  const { brandSubtitle, columns, xUrl, xHandle, networkLabel, copyright } = FOOTER_CONTENT;
   const expanderRef = useRef<HTMLDivElement>(null);
   const blockPathRefs = useRef<(SVGPathElement | null)[]>([]);
   const overlayPathRefs = useRef<(SVGPathElement | null)[]>([]);
   const dotPathRefs = useRef<(SVGPathElement | null)[]>([]);
 
-  // Scroll-driven pillar stretch matching sui.io initRubberBandScroll (without trapping scroll)
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
     const wrap = expanderRef.current;
     if (!wrap) return;
 
     const yBottom = 535.131;
-    const baseHeight = yBottom - 321.395; // 213.736
+    const baseHeight = yBottom - 321.395;
     const dotBottom = 541.232;
-    const dotFullH = dotBottom - 418.396; // 122.836
+    const dotFullH = dotBottom - 418.396;
 
     const applyProgress = (p: number) => {
       const clamped = Math.min(0.95, Math.max(0, p));
@@ -97,71 +76,96 @@ export function SiteFooter() {
   }, []);
 
   return (
-    <footer className="relative w-full bg-black text-white pt-[2em] overflow-hidden">
-      <div className="sui-padding-global">
+    <footer className="relative w-full bg-[#090B0E] text-white pt-[2em] overflow-hidden">
+      <div className="relative z-10 sui-padding-global">
         <div className="sui-container-1400">
           <DottedDivider color="#4B515B" />
 
-          {/* Main Footer Content */}
-          <div className="pt-[3em] pb-[4em]">
-            <div className="mb-[2.75em]">
-              <SuiDropletIcon className="w-[1.625em] h-[2.0625em] text-white" />
-            </div>
+          {/* Main Footer Content: Brand + 3 Clean Columns */}
+          <div className="pt-[3em] pb-[2.5em]">
+            <div className="grid grid-cols-1 md:grid-cols-[1.35fr_1fr_1fr_1fr] gap-x-[2em] gap-y-[2.5em] items-start">
+              {/* Brand Column */}
+              <div className="flex flex-col gap-[0.9em]">
+                <a href="/" className="inline-flex items-center gap-[0.6em] group w-fit">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 32 32"
+                    fill="none"
+                    aria-hidden="true"
+                    className="h-[1.85em] w-[1.85em] shrink-0"
+                  >
+                    <rect
+                      x="1"
+                      y="1"
+                      width="30"
+                      height="30"
+                      rx="6"
+                      fill="#131518"
+                      stroke="#343940"
+                      strokeWidth="1.5"
+                    />
+                    <path
+                      d="M7.5 21.5L13 12.5L17.5 17.5L24.5 9.5"
+                      stroke="#FFFFFF"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <circle cx="24.5" cy="9.5" r="2.3" fill="#CCFF00" />
+                  </svg>
+                  <span className="text-[1.25em] font-semibold tracking-[-0.03em] text-white group-hover:text-[#CCFF00] transition-colors leading-none">
+                    NTI
+                  </span>
+                </a>
+                <p className="text-[0.875em] leading-[1.45] text-[#89919f] max-w-[20em] m-0">
+                  {brandSubtitle}
+                </p>
+              </div>
 
-            {/* 4-Column Link Directory with ScrambleText on hover */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-[1.5em] gap-y-[2.5em]">
-              {gridColumns.map((column, colIdx) => (
-                <div key={colIdx} className="flex flex-col gap-[2.25em]">
-                  {column.map((group) => (
-                    <div
-                      key={group.heading}
-                      className="flex flex-col gap-[0.85em]"
-                    >
-                      <div className="font-mono text-[0.75em] text-[#89919f]">
-                        {group.heading}
-                      </div>
-                      <ul className="flex flex-col gap-[0.55em] list-none p-0 m-0">
-                        {group.links.map((link) => (
-                          <li key={link.label}>
-                            <a
-                              href={link.href}
-                              target={link.external ? "_blank" : undefined}
-                              rel={
-                                link.external
-                                  ? "noopener noreferrer"
-                                  : undefined
-                              }
-                              className="group inline-flex items-center gap-[0.35em] text-[0.9375em] text-[#e0e2e6] hover:text-[#298dff] transition-colors"
-                            >
-                              <ScrambleText text={link.label} trigger="hover" />
-                              {link.external && (
-                                <ExternalArrowIcon className="w-[0.65em] h-[0.65em] opacity-60 group-hover:opacity-100" />
-                              )}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+              {/* 3 Real Route Columns */}
+              {columns.map((group) => (
+                <div key={group.heading} className="flex flex-col gap-[0.85em]">
+                  <div className="font-mono text-[0.75em] text-[#89919f]">
+                    {group.heading}
+                  </div>
+                  <ul className="flex flex-col gap-[0.55em] list-none p-0 m-0">
+                    {group.links.map((link) => (
+                      <li key={link.label}>
+                        <a
+                          href={link.href}
+                          target={link.external ? "_blank" : undefined}
+                          rel={link.external ? "noopener noreferrer" : undefined}
+                          className="group inline-flex items-center gap-[0.35em] text-[0.9375em] text-[#e0e2e6] hover:text-[#CCFF00] transition-colors"
+                        >
+                          <ScrambleText text={link.label} trigger="hover" />
+                          {link.external && (
+                            <ExternalArrowIcon className="w-[0.65em] h-[0.65em] opacity-60 group-hover:opacity-100" />
+                          )}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
 
-            {/* Social Row + Copyright */}
-            <div className="mt-[4em] pt-[2em] border-t border-dotted border-[#4B515B] flex flex-col sm:flex-row sm:items-center justify-between gap-[1.5em]">
-              <div className="flex items-center gap-[0.65em]">
-                {socials.map((social) => (
-                  <a
-                    key={social.name}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={social.label}
-                    className="w-[2.5em] h-[2.5em] bg-[#131518] border border-[#343940] hover:bg-[#298dff] hover:border-[#298dff] text-white flex items-center justify-center transition-colors"
-                  >
-                    <SocialGlyph name={social.name} />
-                  </a>
-                ))}
+            {/* Minimal Bottom Meta Row */}
+            <div className="mt-[3em] pt-[1.5em] border-t border-dotted border-[#4B515B] flex flex-col sm:flex-row sm:items-center justify-between gap-[1em]">
+              <div className="flex flex-wrap items-center gap-x-[1.5em] gap-y-[0.5em] font-mono text-[0.75em] text-[#89919f]">
+                <div className="inline-flex items-center gap-[0.55em]">
+                  <RobinhoodMark className="h-[1.25em] w-auto opacity-85" />
+                  <span>{networkLabel}</span>
+                </div>
+                <a
+                  href={xUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-[0.45em] text-[#e0e2e6] hover:text-[#CCFF00] transition-colors"
+                >
+                  <XIcon className="w-[0.95em] h-[0.95em]" />
+                  <span>{xHandle}</span>
+                  <ExternalArrowIcon className="w-[0.65em] h-[0.65em] opacity-60 group-hover:opacity-100" />
+                </a>
               </div>
 
               <div className="font-mono text-[0.75em] text-[#89919f]">
@@ -172,11 +176,11 @@ export function SiteFooter() {
         </div>
       </div>
 
-      {/* Scroll-Driven Bottom Blue-to-White Pillar Expander Artwork */}
+      {/* Scroll-Driven Bottom Lime-to-White Pillar Expander Artwork */}
       <div
         ref={expanderRef}
         aria-hidden="true"
-        className="w-full -mt-[8em] md:-mt-[11em] pointer-events-none select-none"
+        className="relative z-0 w-full -mt-[2.5em] md:-mt-[4em] pointer-events-none select-none"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -184,32 +188,32 @@ export function SiteFooter() {
           viewBox="0 0 1481 535"
           fill="none"
           preserveAspectRatio="none"
-          className="w-full h-[14em] md:h-[22em] block"
+          className="w-full h-[11em] md:h-[16em] block"
         >
           <defs>
             <linearGradient
-              id="suiFooterPathGradient"
+              id="ntiFooterPathGradient"
               x1="0%"
               y1="0%"
               x2="0%"
               y2="100%"
             >
-              <stop offset="0%" stopColor="#000000" />
-              <stop offset="70%" stopColor="#298dff" />
-              <stop offset="100%" stopColor="#ffffff" />
+              <stop offset="0%" stopColor="#090B0E" />
+              <stop offset="68%" stopColor="#CCFF00" />
+              <stop offset="100%" stopColor="#FFFFFF" />
             </linearGradient>
             <linearGradient
-              id="suiFooterBlueOverlay"
+              id="ntiFooterLimeOverlay"
               x1="0%"
               y1="0%"
               x2="0%"
               y2="100%"
             >
-              <stop offset="0%" stopColor="#298dff" stopOpacity="0" />
-              <stop offset="100%" stopColor="#298dff" stopOpacity="1" />
+              <stop offset="0%" stopColor="#CCFF00" stopOpacity="0" />
+              <stop offset="100%" stopColor="#CCFF00" stopOpacity="1" />
             </linearGradient>
             <linearGradient
-              id="suiFooterStroke1"
+              id="ntiFooterStroke1"
               x1="0%"
               y1="0%"
               x2="0"
@@ -220,7 +224,7 @@ export function SiteFooter() {
               <stop stopOpacity="1" stopColor="#FFFFFF" offset="100%" />
             </linearGradient>
             <linearGradient
-              id="suiFooterStroke2"
+              id="ntiFooterStroke2"
               x1="0%"
               y1="20%"
               x2="0"
@@ -231,7 +235,7 @@ export function SiteFooter() {
               <stop stopOpacity="1" stopColor="#FFFFFF" offset="100%" />
             </linearGradient>
             <linearGradient
-              id="suiFooterStroke3"
+              id="ntiFooterStroke3"
               x1="0%"
               y1="40%"
               x2="0"
@@ -252,7 +256,7 @@ export function SiteFooter() {
                 }}
                 opacity={col.opacity}
                 d={`M${col.x1} 321.395H${col.x2}V535.131H${col.x1}V321.395Z`}
-                fill="url(#suiFooterPathGradient)"
+                fill="url(#ntiFooterPathGradient)"
               />
             ))}
             {PILLARS.map((col, idx) => (
@@ -262,7 +266,7 @@ export function SiteFooter() {
                   overlayPathRefs.current[idx] = el;
                 }}
                 d={`M${col.x1} 321.395H${col.x2}V535.131H${col.x1}V321.395Z`}
-                fill="url(#suiFooterBlueOverlay)"
+                fill="url(#ntiFooterLimeOverlay)"
                 style={{ mixBlendMode: "color" }}
               />
             ))}

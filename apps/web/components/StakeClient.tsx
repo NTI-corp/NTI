@@ -336,7 +336,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
               Staking &amp; Governance · IVotes Checkpointed
             </span>
             {wrongChain && (
@@ -416,7 +416,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
             type="button"
             disabled={isBusy || rewardWei <= 0n}
             onClick={() => void runAction("claim")}
-            className="mt-0.5 text-[11px] text-[#A5B4FC] hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+            className="mt-0.5 text-[11px] text-[#CCFF00] hover:underline disabled:cursor-not-allowed disabled:opacity-40"
           >
             CLAIM REWARD →
           </button>
@@ -482,7 +482,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                         : formatUnits(stakeWei, 18),
                     )
                   }
-                  className="text-[#A5B4FC] hover:underline tabular-nums"
+                  className="text-[#CCFF00] hover:underline tabular-nums"
                 >
                   MAX:{" "}
                   {tab === "stake"
@@ -496,7 +496,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                 step="10000"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
-                className="mt-1.5 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#6366F1] focus:outline-none"
+                className="mt-1.5 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#CCFF00] focus:outline-none"
               />
               <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[10px]">
                 {["10000", "100000", "1000000", "5000000"].map((v) => (
@@ -531,7 +531,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                     !needsApproval
                   }
                   onClick={() => void runAction("approve")}
-                  className="rounded-md border border-[#24242C] bg-[#19191F] py-2.5 font-mono text-xs font-semibold text-[#F4F4F5] transition-colors hover:border-[#6366F1]/50 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="rounded-md border border-[#24242C] bg-[#19191F] py-2.5 font-mono text-xs font-semibold text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {!needsApproval && hasValidAmount ? "1. APPROVED ✓" : "1. APPROVE"}
                 </button>
@@ -566,7 +566,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                   type="button"
                   disabled={isBusy || !isConnected || !withdrawUnlocked}
                   onClick={() => void runAction("withdraw")}
-                  className="rounded-md border border-[#6366F1]/50 bg-[#6366F1]/15 py-2.5 font-mono text-xs font-semibold text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="rounded-md border border-[#CCFF00]/50 bg-[#CCFF00]/12 py-2.5 font-mono text-xs font-semibold text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   WITHDRAW UNLOCKED
                 </button>
@@ -650,7 +650,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="max-w-2xl">
                       <div className="flex flex-wrap items-center gap-2 font-mono text-[10px]">
-                        <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[#A5B4FC]">
+                        <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[#CCFF00]">
                           {p.category.toUpperCase()}
                         </span>
                         <span

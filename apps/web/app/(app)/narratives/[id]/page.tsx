@@ -59,7 +59,7 @@ export default async function NarrativeDetailPage({
           </Link>
           <Link
             href={matchingBasket ? `/baskets/${matchingBasket.id}` : "/baskets"}
-            className="rounded-md border border-[#6366F1]/40 bg-[#6366F1]/15 px-3 py-2 font-mono text-xs font-medium text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25"
+            className="rounded-md border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-2 font-mono text-xs font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22"
           >
             {matchingBasket ? `OPEN ${matchingBasket.symbol} VAULT →` : "EXPLORE BASKETS →"}
           </Link>

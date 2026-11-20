@@ -215,8 +215,8 @@ export const NAV_ITEMS: NavItem[] = [
             icon: "validators",
           },
           {
-            label: "Disputes & Bonds",
-            href: "/oracle",
+            label: "Deployed Contracts",
+            href: "/#deployed-contracts",
             icon: "security",
           },
           {

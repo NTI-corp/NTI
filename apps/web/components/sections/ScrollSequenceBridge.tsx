@@ -335,6 +335,7 @@ export function ScrollSequenceBridge({
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-[100vw] h-full block"
+        style={{ filter: "contrast(1.12) hue-rotate(-142deg) saturate(1.55) brightness(1.15)" }}
       />
     </div>
   );

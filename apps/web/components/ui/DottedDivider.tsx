@@ -20,8 +20,8 @@ export function DottedDivider({
         className={className}
       >
         <path d="M4.10547 3.73438H1400.3" stroke={color} strokeWidth="2" strokeDasharray="2 10" />
-        <rect x="0.722656" y="0.335938" width="6.79492" height="6.79492" fill="#298DFF" />
-        <rect x="1393.51" y="0.335938" width="6.79492" height="6.79492" fill="#298DFF" />
+        <rect x="0.722656" y="0.335938" width="6.79492" height="6.79492" fill="#CCFF00" />
+        <rect x="1393.51" y="0.335938" width="6.79492" height="6.79492" fill="#CCFF00" />
       </svg>
     );
   }

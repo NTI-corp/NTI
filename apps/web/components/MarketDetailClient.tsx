@@ -135,7 +135,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
               ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
               : liveMarket.status === "locked"
                 ? "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]"
-                : "border-[#6366F1]/40 bg-[#6366F1]/10 text-[#A5B4FC]"
+                : "border-[#CCFF00]/40 bg-[#CCFF00]/10 text-[#CCFF00]"
           }`}
         >
           {liveMarket.status}
@@ -158,7 +158,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
                 <div className="text-[10px] text-[#A1A1AA]">{pctA}% of total</div>
               </div>
               <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
-                <div className="text-[10px] text-[#A5B4FC]">SIDE B POOL</div>
+                <div className="text-[10px] text-[#CCFF00]">SIDE B POOL</div>
                 <div className="mt-1 text-base font-semibold text-[#F4F4F5]">
                   {formatEth(liveMarket.poolBEth, 4)}
                 </div>
@@ -175,7 +175,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
 
             <div className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-[#24242C]">
               <div className="bg-[#22C55E]" style={{ width: `${pctA}%` }} />
-              <div className="bg-[#6366F1]" style={{ width: `${pctB}%` }} />
+              <div className="bg-[#CCFF00]" style={{ width: `${pctB}%` }} />
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[#24242C] pt-3 font-mono text-xs tabular-nums">
@@ -219,7 +219,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
                 </div>
                 <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
                   <div className="text-[10px] text-[#71717A]">SIDE B STAKE</div>
-                  <div className="mt-1 text-sm font-semibold text-[#A5B4FC]">
+                  <div className="mt-1 text-sm font-semibold text-[#CCFF00]">
                     {formatEth(posGross1, 4)}
                   </div>
                 </div>
@@ -253,13 +253,13 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
                 <div className="mt-0.5 text-[#F4F4F5]">
                   {formatBpsPercent(market.baseIB)} → {formatBpsPercent(market.currentIB)}
                 </div>
-                <div className="text-[10px] text-[#A5B4FC]">Ratio {relB.toFixed(4)}</div>
+                <div className="text-[10px] text-[#CCFF00]">Ratio {relB.toFixed(4)}</div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] text-[#71717A]">INDICATIVE Δ</div>
                 <div
                   className={`mt-0.5 text-base font-semibold ${
-                    delta >= 0 ? "text-[#22C55E]" : "text-[#A5B4FC]"
+                    delta >= 0 ? "text-[#22C55E]" : "text-[#CCFF00]"
                   }`}
                 >
                   {delta >= 0 ? "+" : ""}
@@ -285,7 +285,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
                 type="button"
                 disabled={isBusy || settledOnChain}
                 onClick={() => void invoke("settle")}
-                className="rounded-md border border-[#6366F1]/50 bg-[#6366F1]/15 px-4 py-2 font-mono text-xs font-semibold text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25 disabled:cursor-not-allowed disabled:opacity-45"
+                className="rounded-md border border-[#CCFF00]/50 bg-[#CCFF00]/12 px-4 py-2 font-mono text-xs font-semibold text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {settledOnChain ? "ALREADY SETTLED" : `SETTLE MARKET #${market.marketId}`}
               </button>

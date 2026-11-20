@@ -59,7 +59,7 @@ export function ContributorsTable({
                         href={`https://x.com/${cleanHandle}`}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="text-[#F4F4F5] transition-colors hover:text-[#A5B4FC]"
+                        className="text-[#F4F4F5] transition-colors hover:text-[#CCFF00]"
                       >
                         @{cleanHandle} ↗
                       </a>
@@ -71,15 +71,8 @@ export function ContributorsTable({
                       {formatBpsPercent(c.shareBps, 2)}
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <span className="inline-flex items-center gap-1.5 text-[10px]">
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            c.capped ? "bg-[#F59E0B]" : "bg-[#22C55E]"
-                          }`}
-                        />
-                        <span className={c.capped ? "text-[#F59E0B]" : "text-[#22C55E]"}>
-                          {c.capped ? "CAPPED" : "OK"}
-                        </span>
+                      <span className={`text-[10px] font-medium ${c.capped ? "text-[#F59E0B]" : "text-[#22C55E]"}`}>
+                        {c.capped ? "CAPPED" : "OK"}
                       </span>
                     </td>
                   </tr>

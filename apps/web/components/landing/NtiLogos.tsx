@@ -37,7 +37,7 @@ export function NtiBrandMark({ className = "h-8 w-8" }: { className?: string }) 
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="26.5" cy="10" r="2.4" fill="#34D399" />
+      <circle cx="26.5" cy="10" r="2.4" fill="#CCFF00" />
     </svg>
   );
 }
@@ -48,20 +48,12 @@ export function RobinhoodChainBadge({ chainId }: { chainId: number }) {
       className="inline-flex items-center gap-2 rounded-full border border-[#22262F] bg-[#0E1015] px-3 py-1 text-[11px] font-medium text-[#9CA3AF]"
       style={{ fontFamily: "var(--font-ibm-mono), monospace" }}
     >
-      <svg
-        viewBox="0 0 16 16"
-        fill="none"
-        aria-hidden="true"
-        className="h-3.5 w-3.5 text-[#34D399]"
-      >
-        <path
-          d="M12.5 2.5C8.5 3 5 6.2 4 11.5L2.5 13.5L4.8 12.2C7.8 12.5 11.2 9.8 12.5 2.5Z"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span>Robinhood {chainId}</span>
+      <img
+        src="/assets/partners/robinhood.svg"
+        alt="Robinhood"
+        className="h-3 w-auto brightness-0 invert opacity-90 shrink-0"
+      />
+      <span>Chain · {chainId}</span>
     </span>
   );
 }

@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@nti/sdk"],
+  serverExternalPackages: ["viem"],
+  onDemandEntries: {
+    maxInactiveAge: 60 * 60 * 1000,
+    pagesBufferLength: 50,
+  },
   images: {
     unoptimized: true,
   },

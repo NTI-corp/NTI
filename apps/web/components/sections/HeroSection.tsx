@@ -2,7 +2,9 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { HOME_CONTENT } from "@/content/home";
+import { HeroShaderCanvas } from "@/components/sections/HeroShaderCanvas";
 
 function HeroTextStagger({
   text,
@@ -46,8 +48,17 @@ function HeroTextStagger({
   );
 }
 
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const smoothStep = (a: number, b: number, x: number) => {
+  const t = clamp01((x - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
+
 export function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null);
+  const shaderStageRef = useRef<HTMLDivElement>(null);
+  const contentStageRef = useRef<HTMLDivElement>(null);
+  const whiteVeilRef = useRef<HTMLDivElement>(null);
   const introWrapRef = useRef<HTMLDivElement>(null);
   const introLineRef = useRef<HTMLDivElement>(null);
   const headlineRef = useRef<HTMLHeadingElement>(null);
@@ -57,21 +68,15 @@ export function HeroSection() {
   const [cta1Hovered, setCta1Hovered] = useState(false);
   const [cta2Hovered, setCta2Hovered] = useState(false);
 
-  // Smooth lerped radial spotlight state matching __initHeroBlur (lerp 0.2, cubic snap on leave)
-  const spotlightRef = useRef({
-    targetX: 50,
-    targetY: 50,
-    currX: 50,
-    currY: 50,
-    rafId: null as number | null,
-  });
-
   const { hero } = HOME_CONTENT;
 
-  // Quick non-blocking intro counter + curtain wipe matching initIntro
+  // Quick non-blocking intro counter + curtain wipe, plus BELL-inspired camera zoom transition
   useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
     const el = sectionRef.current;
     if (!el) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const counter = { value: 0 };
     const ctx = gsap.context(() => {
@@ -128,189 +133,141 @@ export function HeroSection() {
           0.65
         );
       }
+
+      if (!reducedMotion && shaderStageRef.current && contentStageRef.current && whiteVeilRef.current) {
+        const shaderEl = shaderStageRef.current;
+        const contentEl = contentStageRef.current;
+        const veilEl = whiteVeilRef.current;
+
+        const applyZoomExit = (q: number) => {
+          const rush = q * q;
+          // Camera push through the headline and 3D obsidian surface
+          const contentScale = 1 + rush * 0.78;
+          const contentOpacity = 1 - smoothStep(0.1, 0.64, q);
+          contentEl.style.transform = `scale(${contentScale.toFixed(4)})`;
+          contentEl.style.opacity = contentOpacity.toFixed(4);
+          contentEl.style.pointerEvents = q > 0.35 ? "none" : "auto";
+
+          const bgScale = 1 + rush * 0.42;
+          const bgOpacity = 1 - smoothStep(0.18, 0.85, q) * 0.92;
+          shaderEl.style.transform = `scale(${bgScale.toFixed(4)})`;
+          shaderEl.style.opacity = bgOpacity.toFixed(4);
+
+          // Soft white portal sweep into LogoMarqueeSection
+          const veilOpacity = Math.pow(smoothStep(0.28, 0.94, q), 1.2);
+          veilEl.style.opacity = veilOpacity.toFixed(4);
+        };
+
+        applyZoomExit(0);
+        ScrollTrigger.create({
+          trigger: el,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: true,
+          onUpdate: (self) => applyZoomExit(self.progress),
+        });
+      }
     }, el);
 
     return () => ctx.revert();
   }, []);
 
-  // Lerp loop for spotlight mask (--mouse-x, --mouse-y)
-  useEffect(() => {
-    const step = () => {
-      const s = spotlightRef.current;
-      const el = sectionRef.current;
-      if (!el) return;
-      s.currX += (s.targetX - s.currX) * 0.2;
-      s.currY += (s.targetY - s.currY) * 0.2;
-      el.style.setProperty("--mouse-x", `${s.currX.toFixed(2)}%`);
-      el.style.setProperty("--mouse-y", `${s.currY.toFixed(2)}%`);
-
-      if (Math.abs(s.currX - s.targetX) + Math.abs(s.currY - s.targetY) > 0.15) {
-        s.rafId = requestAnimationFrame(step);
-      } else {
-        s.currX = s.targetX;
-        s.currY = s.targetY;
-        el.style.setProperty("--mouse-x", `${s.targetX.toFixed(2)}%`);
-        el.style.setProperty("--mouse-y", `${s.targetY.toFixed(2)}%`);
-        s.rafId = null;
-      }
-    };
-
-    const el = sectionRef.current;
-    if (!el) return;
-
-    const kickLoop = () => {
-      if (!spotlightRef.current.rafId) {
-        spotlightRef.current.rafId = requestAnimationFrame(step);
-      }
-    };
-
-    const onMove = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      spotlightRef.current.targetX = ((e.clientX - rect.left) / rect.width) * 100;
-      spotlightRef.current.targetY = ((e.clientY - rect.top) / rect.height) * 100;
-      kickLoop();
-    };
-
-    const onLeave = () => {
-      spotlightRef.current.targetX = 50;
-      spotlightRef.current.targetY = 50;
-      kickLoop();
-    };
-
-    const spot = spotlightRef.current;
-    el.addEventListener("mousemove", onMove, { passive: true });
-    el.addEventListener("mouseleave", onLeave, { passive: true });
-    return () => {
-      el.removeEventListener("mousemove", onMove);
-      el.removeEventListener("mouseleave", onLeave);
-      if (spot.rafId) {
-        cancelAnimationFrame(spot.rafId);
-      }
-    };
-  }, []);
-
   return (
     <section
       ref={sectionRef}
-      className="hero-first-section relative min-h-[100svh] w-full bg-black text-white overflow-hidden flex flex-col justify-center"
+      className="hero-first-section relative w-full h-[155svh] bg-[#090B0E] text-white"
     >
-      {/* Non-blocking Intro Loader Curtain */}
-      {!introDone && (
-        <div
-          ref={introWrapRef}
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-30 bg-[#04070c] flex flex-col items-center justify-center gap-[1em] px-[2em]"
-        >
-          <div className="font-mono text-[0.875em] tracking-wider text-white tabular-nums">
-            {introPercent}%
-          </div>
-          <div className="w-[15em] md:w-[25em] h-[2px] bg-white/15 overflow-hidden">
-            <div
-              ref={introLineRef}
-              className="w-full h-full bg-gradient-to-r from-[#298dff] via-white to-[#298dff]"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Desktop Background Video */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        poster={hero.desktopPoster}
-        className="hidden md:block absolute inset-0 w-full h-full object-cover z-[1] pointer-events-none"
-      >
-        <source src={hero.desktopVideoWebm} type="video/webm" />
-        <source src={hero.desktopVideoMp4} type="video/mp4" />
-      </video>
-
-      {/* Mobile Background Video */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        poster={hero.mobilePoster}
-        className="block md:hidden absolute inset-0 w-full h-full object-cover z-[1] pointer-events-none"
-      >
-        <source src={hero.mobileVideoMp4} type="video/mp4" />
-      </video>
-
-      {/* Subtle Vignette */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 z-[2] pointer-events-none bg-gradient-to-b from-black/30 via-black/15 to-black/60"
-      />
-
-      {/* Interactive Cursor-Tracking Radial Blur Spotlight */}
-      <div aria-hidden="true" className="hero-gradient-blur">
-        <div />
-        <div />
-        <div />
-      </div>
-
-      {/* Horizontal Light Divider Accent near vertical center */}
-      <div
-        aria-hidden="true"
-        className="absolute left-0 right-0 top-[54%] -translate-y-1/2 z-[6] pointer-events-none opacity-85"
-      >
-        <img
-          src={hero.dividerImage}
-          alt=""
-          className="w-full h-[2px] md:h-[3px] object-cover block"
-        />
-      </div>
-
-      {/* Foreground Content */}
-      <div className="relative z-[11] sui-padding-global pt-[6em] pb-[3em]">
-        <div className="sui-container-1400 flex flex-col items-center text-center">
-          <h1
-            ref={headlineRef}
-            className="text-[3.25em] sm:text-[4.25em] md:text-[5.625em] font-normal leading-[0.98] tracking-[-0.045em] text-white max-w-[13em]"
-          >
-            {hero.headline}
-          </h1>
-
-          <p className="mt-[1.35em] text-[1.0625em] md:text-[1.25em] leading-[1.4] tracking-[-0.015em] text-[#e0e2e6] max-w-[38em]">
-            {hero.subheadline}
-          </p>
-
+      <div className="sticky top-0 h-[100svh] w-full overflow-hidden flex flex-col justify-center">
+        {/* Non-blocking Intro Loader Curtain */}
+        {!introDone && (
           <div
-            ref={ctaWrapRef}
-            className="mt-[2.25em] flex flex-wrap items-center justify-center gap-[0.75em]"
+            ref={introWrapRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-30 bg-[#050505] flex flex-col items-center justify-center gap-[1em] px-[2em]"
           >
-            <a
-              href={hero.primaryCta.href}
-              aria-label={hero.primaryCta.label}
-              target={hero.primaryCta.external ? "_blank" : undefined}
-              rel={hero.primaryCta.external ? "noopener noreferrer" : undefined}
-              onMouseEnter={() => setCta1Hovered(true)}
-              onMouseLeave={() => setCta1Hovered(false)}
-              className="bg-[#298dff] hover:bg-[#1a7ae6] text-white text-[0.9375em] font-normal px-[1.75em] py-[0.88em] transition-colors rounded-none inline-flex items-center"
-            >
-              <HeroTextStagger
-                text={hero.primaryCta.label}
-                hovered={cta1Hovered}
+            <div className="font-mono text-[0.875em] tracking-wider text-white tabular-nums">
+              {introPercent}%
+            </div>
+            <div className="w-[15em] md:w-[25em] h-[2px] bg-white/15 overflow-hidden">
+              <div
+                ref={introLineRef}
+                className="w-full h-full bg-gradient-to-r from-[#CCFF00] via-white to-[#CCFF00]"
               />
-            </a>
-            <a
-              href={hero.secondaryCta.href}
-              aria-label={hero.secondaryCta.label}
-              target={hero.secondaryCta.external ? "_blank" : undefined}
-              rel={
-                hero.secondaryCta.external ? "noopener noreferrer" : undefined
-              }
-              onMouseEnter={() => setCta2Hovered(true)}
-              onMouseLeave={() => setCta2Hovered(false)}
-              className="bg-white hover:bg-[#e0e2e6] text-black text-[0.9375em] font-normal px-[1.75em] py-[0.88em] transition-colors rounded-none inline-flex items-center"
+            </div>
+          </div>
+        )}
+
+        {/* Zoom-responsive WebGL Shader Backdrop */}
+        <div
+          ref={shaderStageRef}
+          className="absolute inset-0 will-change-transform origin-center"
+        >
+          <HeroShaderCanvas />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 z-[2] pointer-events-none bg-gradient-to-b from-black/25 via-transparent to-black/50"
+          />
+        </div>
+
+        {/* White exit curtain so Hero dissolves seamlessly into white marquee */}
+        <div
+          ref={whiteVeilRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-[8] bg-white opacity-0"
+        />
+
+        {/* Foreground Content zooming forward as scroll leaves the Hero */}
+        <div
+          ref={contentStageRef}
+          className="relative z-[11] sui-padding-global pt-[6em] pb-[3em] will-change-transform origin-[50%_44%]"
+        >
+          <div className="sui-container-1400 flex flex-col items-center text-center">
+            <h1
+              ref={headlineRef}
+              className="text-[3.25em] sm:text-[4.25em] md:text-[5.625em] font-normal leading-[0.98] tracking-[-0.045em] text-white max-w-[13em]"
             >
-              <HeroTextStagger
-                text={hero.secondaryCta.label}
-                hovered={cta2Hovered}
-              />
-            </a>
+              {hero.headline}
+            </h1>
+
+            <p className="mt-[1.35em] text-[1.0625em] md:text-[1.25em] leading-[1.4] tracking-[-0.015em] text-[#e0e2e6] max-w-[38em]">
+              {hero.subheadline}
+            </p>
+
+            <div
+              ref={ctaWrapRef}
+              className="mt-[2.25em] grid grid-cols-2 gap-0 min-h-[3em] items-stretch justify-center mx-auto"
+            >
+              <a
+                href={hero.primaryCta.href}
+                aria-label={hero.primaryCta.label}
+                target={hero.primaryCta.external ? "_blank" : undefined}
+                rel={hero.primaryCta.external ? "noopener noreferrer" : undefined}
+                onMouseEnter={() => setCta1Hovered(true)}
+                onMouseLeave={() => setCta1Hovered(false)}
+                className="bg-[#CCFF00] hover:bg-[#B8E600] text-black text-[0.875em] font-medium tracking-[-0.005em] leading-none px-[1.875em] py-[1em] transition-colors rounded-none flex items-center justify-center whitespace-nowrap"
+              >
+                <HeroTextStagger
+                  text={hero.primaryCta.label}
+                  hovered={cta1Hovered}
+                />
+              </a>
+              <a
+                href={hero.secondaryCta.href}
+                aria-label={hero.secondaryCta.label}
+                target={hero.secondaryCta.external ? "_blank" : undefined}
+                rel={
+                  hero.secondaryCta.external ? "noopener noreferrer" : undefined
+                }
+                onMouseEnter={() => setCta2Hovered(true)}
+                onMouseLeave={() => setCta2Hovered(false)}
+                className="bg-white hover:bg-[#e0e2e6] text-black text-[0.875em] font-normal tracking-[-0.005em] leading-[0.95] px-[1.875em] py-[1em] transition-colors rounded-none flex items-center justify-center whitespace-nowrap"
+              >
+                <HeroTextStagger
+                  text={hero.secondaryCta.label}
+                  hovered={cta2Hovered}
+                />
+              </a>
+            </div>
           </div>
         </div>
       </div>

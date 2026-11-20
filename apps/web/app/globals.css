@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --bg-canvas: #0b0b0e;
-  --bg-surface: #131317;
-  --bg-panel: #19191f;
-  --border-hairline: #24242c;
-  --border-active: #343440;
+  --bg-canvas: #090b0e;
+  --bg-surface: #131518;
+  --bg-panel: #1b1e23;
+  --border-hairline: #242830;
+  --border-active: #343940;
   --ink-primary: #f4f4f5;
   --ink-secondary: #a1a1aa;
   --ink-muted: #71717a;
-  --signal-lime: #34d399;
-  --signal-teal: #38bdf8;
+  --signal-lime: #ccff00;
+  --signal-teal: #22c55e;
   --signal-up: #22c55e;
   --signal-down: #ef4444;
   --signal-warn: #f59e0b;
-  --signal-cyan: #6366f1;
+  --signal-cyan: #ccff00;
 }
 
 @theme inline {

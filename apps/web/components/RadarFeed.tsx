@@ -55,7 +55,7 @@ export function RadarFeed({
                   className={`rounded border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider ${
                     alert.kind === "velocity"
                       ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
-                      : "border-[#6366F1]/40 bg-[#6366F1]/15 text-[#A5B4FC]"
+                      : "border-[#CCFF00]/40 bg-[#CCFF00]/12 text-[#CCFF00]"
                   }`}
                 >
                   {alert.kind === "velocity" ? "VELOCITY SPIKE" : "NEW TOKEN"}
@@ -63,7 +63,7 @@ export function RadarFeed({
 
                 <Link
                   href={`/narratives/${alert.narrativeId}`}
-                  className="text-xs font-semibold text-[#F4F4F5] transition-colors hover:text-[#A5B4FC]"
+                  className="text-xs font-semibold text-[#F4F4F5] transition-colors hover:text-[#CCFF00]"
                 >
                   {alert.narrativeLabel}
                 </Link>

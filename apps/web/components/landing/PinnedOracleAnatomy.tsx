@@ -391,9 +391,6 @@ export function PinnedOracleAnatomy() {
                       >
                         {stage.label}
                       </span>
-                      {isActive && (
-                        <span className="h-2 w-2 rounded-full bg-[#34D399]" />
-                      )}
                     </div>
                     <p className="mt-1 text-xs leading-relaxed text-[#9CA3AF]">
                       {stage.headline}

@@ -9,7 +9,7 @@ export default async function MethodologyPage() {
   return (
     <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-6 lg:px-6">
       <div className="border-b border-[#24242C] pb-4">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
           Deterministic Specification · Config V{config.version}
         </span>
         <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
@@ -26,7 +26,7 @@ export default async function MethodologyPage() {
           <h2 className="text-sm font-semibold text-[#F4F4F5]">
             1. Post Score (P_i) &amp; KOL Authority (A_k)
           </h2>
-          <pre className="overflow-x-auto rounded-md border border-[#24242C] bg-[#0B0B0E] p-3 font-mono text-xs text-[#A5B4FC]">
+          <pre className="overflow-x-auto rounded-md border border-[#24242C] bg-[#0B0B0E] p-3 font-mono text-xs text-[#CCFF00]">
 {`A_k = min( ln(1 + F_k) · R_k · H_k,  A_max )
 E_i = ln(1 + likes + 2·reposts + 3·quotes + replies)
 P_i = A_k · E_i · exp( -λ · Δt_i ),   λ = ln(2) / half_life_hours`}
@@ -102,7 +102,7 @@ V_n = NULL if:
             <p className="font-mono text-[11px] text-[#A1A1AA]">Hash: {config.configHash}</p>
           </div>
           <div className="flex flex-wrap gap-2 font-mono text-[11px]">
-            <span className="rounded border border-[#24242C] bg-[#19191F] px-2.5 py-1 text-[#A5B4FC]">
+            <span className="rounded border border-[#24242C] bg-[#19191F] px-2.5 py-1 text-[#CCFF00]">
               MODEL: {config.modelVersion}
             </span>
             <span className="rounded border border-[#24242C] bg-[#19191F] px-2.5 py-1 text-[#22C55E]">
@@ -145,25 +145,25 @@ V_n = NULL if:
 
         <ol className="mt-3 space-y-2.5 font-mono text-xs text-[#F4F4F5]">
           <li className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
-            <span className="text-[#A5B4FC]">STEP 1 · DOWNLOAD SNAPSHOT</span>
+            <span className="text-[#CCFF00]">STEP 1 · DOWNLOAD SNAPSHOT</span>
             <p className="mt-1 font-sans text-[#A1A1AA]">
               Fetch the canonical JSONL dataset from the <code className="font-mono text-[#F4F4F5]">arweaveTx</code> listed on <code className="font-mono text-[#F4F4F5]">/oracle</code> and verify <code className="font-mono text-[#F4F4F5]">keccak256(bytes) == datasetHash</code> stored in <code className="font-mono text-[#F4F4F5]">OracleCommit</code>.
             </p>
           </li>
           <li className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
-            <span className="text-[#A5B4FC]">STEP 2 · VERIFY CONFIG HASH</span>
+            <span className="text-[#CCFF00]">STEP 2 · VERIFY CONFIG HASH</span>
             <p className="mt-1 font-sans text-[#A1A1AA]">
               Confirm <code className="font-mono text-[#F4F4F5]">config/nti.v1.json</code> matches <code className="font-mono text-[#F4F4F5]">ConfigRegistry.active(epochId)</code>.
             </p>
           </li>
           <li className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
-            <span className="text-[#A5B4FC]">STEP 3 · REPLAY PURE ENGINE</span>
+            <span className="text-[#CCFF00]">STEP 3 · REPLAY PURE ENGINE</span>
             <p className="mt-1 font-sans text-[#A1A1AA]">
               Run the deterministic Python Decimal engine (<code className="font-mono text-[#F4F4F5]">services/engine</code>) locally — zero network calls, zero clocks, zero randomness — and compare output vectors <code className="font-mono text-[#F4F4F5]">(i_bps, v_bps)</code> against on-chain <code className="font-mono text-[#F4F4F5]">OracleCommit</code>.
             </p>
           </li>
           <li className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
-            <span className="text-[#A5B4FC]">STEP 4 · OMISSION AUDIT &amp; DISPUTE</span>
+            <span className="text-[#CCFF00]">STEP 4 · OMISSION AUDIT &amp; DISPUTE</span>
             <p className="mt-1 font-sans text-[#A1A1AA]">
               Optionally audit 10% omission sample via <code className="font-mono text-[#F4F4F5]">seed = keccak256(prevCommitHash, epochId)</code>. If any narrative deviates &gt;100 bps or post-ID overlap falls below 95%, call <code className="font-mono text-[#F4F4F5]">Dispute.openDispute()</code> within the 2-hour window.
             </p>

@@ -1,10 +1,13 @@
-export interface PartnerLogo {
-  name: string;
-  src: string;
-  variant?: "invert" | "opacity-50" | "default";
+export interface SectorTickerItem {
+  narrativeId: number;
+  slug: string;
+  label: string;
+  iBps: number;
+  vBps: number | null;
 }
 
 export interface SuiIsCapability {
+  tag: string;
   title: string;
   kind: "svg" | "lottie";
   lottieSrc?: string;
@@ -15,9 +18,7 @@ export interface StackTimelineCard {
   title: string;
   protocol: string;
   column: "left" | "right";
-  iconKey: "sui" | "walrus" | "seal" | "nautilus" | "deepbook" | "suins";
-  riveSrc: string;
-  riveFit: "cover" | "contain";
+  iconKey: "engine" | "archive" | "oracle" | "guard" | "market" | "twap";
   rivePadClass?: string;
 }
 
@@ -29,7 +30,7 @@ export interface IndustryCard {
   bullets: string[];
   iconKind: "svg-ai" | "lottie";
   lottieSrc?: string;
-  protocolMarks: ("sui" | "walrus" | "seal" | "nautilus" | "deepbook" | "suins")[];
+  protocolMarks: ("engine" | "archive" | "oracle" | "guard" | "market" | "twap")[];
 }
 
 export interface GetStartedRow {
@@ -41,26 +42,35 @@ export interface GetStartedRow {
   mobileIconKey: "building" | "coding" | "earning" | "connecting";
 }
 
-export interface FeaturedItem {
-  title: string;
-  href: string;
-  thumbnail: string;
-  external?: boolean;
-}
-
-export interface VideoRecapItem {
-  title: string;
-  ctaLabel: string;
-  href: string;
-  videoSrc: string;
-  posterSrc: string;
+export interface DeployedContractMeta {
+  key:
+    | "registry"
+    | "ntiToken"
+    | "staking"
+    | "configRegistry"
+    | "oracleCommit"
+    | "dispute"
+    | "narrativeMarket"
+    | "basketFactory"
+    | "buybackAdapterV3"
+    | "feeRouter"
+    | "grants"
+    | "governor"
+    | "timelock"
+    | "insuranceFund"
+    | "kolRegistry";
+  number: string;
+  name: string;
+  category: "CORE" | "ORACLE" | "MARKETS" | "VAULTS" | "GOVERNANCE";
+  column: "left" | "right";
+  description: string;
 }
 
 export const HOME_CONTENT = {
   hero: {
     headline: "Track & trade crypto mindshare",
     subheadline:
-      "Narrative Token Index (NTI) scores real-time sector attention across X every 4 hours — powering relative pair markets, TWAP vaults, and native ETH yield on Robinhood Chain.",
+      "Narrative Token Index (NTI) scores real-time sector attention across X every 4 hours, powering relative pair markets, TWAP vaults, and native ETH yield on Robinhood Chain.",
     primaryCta: {
       label: "Open terminal",
       href: "/terminal",
@@ -79,101 +89,52 @@ export const HOME_CONTENT = {
     dividerImage: "/assets/images/hero-divider-gradient-rule.avif",
   },
   marquee: {
-    heading: "The most innovative companies build on Sui",
-    logos: [
-      { name: "Google", src: "/assets/logos/google-logo.svg", variant: "invert" },
-      {
-        name: "Sui Group Holdings",
-        src: "/assets/logos/sui-group-holdings-logo.svg",
-        variant: "invert",
-      },
-      {
-        name: "NAVI Protocol",
-        src: "/assets/logos/navi-protocol-logo.svg",
-        variant: "invert",
-      },
-      {
-        name: "EVE Frontier",
-        src: "/assets/logos/eve-frontier-logo.png",
-        variant: "invert",
-      },
-      {
-        name: "Franklin Templeton",
-        src: "/assets/logos/franklin-templeton-logo.png",
-        variant: "default",
-      },
-      { name: "OKX", src: "/assets/logos/okx-logo.svg", variant: "invert" },
-      {
-        name: "Fireblocks",
-        src: "/assets/logos/fireblocks-logo.svg",
-        variant: "invert",
-      },
-      {
-        name: "Claynosaurz",
-        src: "/assets/logos/claynosaurz-logo.svg",
-        variant: "invert",
-      },
-      {
-        name: "Ethena",
-        src: "/assets/logos/ethena-logo.svg",
-        variant: "opacity-50",
-      },
-      {
-        name: "Bluefin",
-        src: "/assets/logos/bluefin-logo.svg",
-        variant: "invert",
-      },
-      { name: "Beep", src: "/assets/logos/beep-logo.svg", variant: "invert" },
-      { name: "One", src: "/assets/logos/one-logo.svg", variant: "invert" },
-      {
-        name: "Grayscale",
-        src: "/assets/logos/grayscale-logo.svg",
-        variant: "invert",
-      },
-      {
-        name: "21Shares",
-        src: "/assets/logos/21shares-logo.svg",
-        variant: "invert",
-      },
-      {
-        name: "Hudi",
-        src: "/assets/logos/hudi-logo.svg",
-        variant: "opacity-50",
-      },
-      {
-        name: "Canary Capital",
-        src: "/assets/logos/canary-capital-logo.svg",
-        variant: "invert",
-      },
-    ] as PartnerLogo[],
+    heading: "Tracking 10 crypto narratives every 4 hours",
+    apiUrl: "/api/indexes",
+    sectors: [
+      { narrativeId: 1, slug: "privacy", label: "Privacy / ZK", iBps: 1120, vBps: 85 },
+      { narrativeId: 2, slug: "ai_agents", label: "AI Agents", iBps: 1840, vBps: 210 },
+      { narrativeId: 3, slug: "rwa", label: "RWA", iBps: 1290, vBps: 95 },
+      { narrativeId: 4, slug: "stablecoins", label: "Stablecoins", iBps: 940, vBps: -40 },
+      { narrativeId: 5, slug: "depin", label: "DePIN", iBps: 1080, vBps: 60 },
+      { narrativeId: 6, slug: "prediction_markets", label: "Prediction Markets", iBps: 980, vBps: 125 },
+      { narrativeId: 7, slug: "perp_dex", label: "Perp DEX", iBps: 1050, vBps: 45 },
+      { narrativeId: 8, slug: "defi", label: "DeFi", iBps: 760, vBps: -90 },
+      { narrativeId: 9, slug: "memecoin", label: "Memecoin", iBps: 560, vBps: -180 },
+      { narrativeId: 10, slug: "gaming", label: "Gaming", iBps: 380, vBps: -110 },
+    ] as SectorTickerItem[],
   },
   manifesto: {
-    badge: "The economy, rebuilt for autonomous participants",
+    badge: "Crypto attention, priced with deterministic precision",
     statement:
-      "Money and work are being handed to agents. When you can't watch every action, the rules have to. On Sui, the rules travel with the money and hold at machine speed — for people and agents alike. Don't trust the agent. Trust the rules.",
+      "Capital rotates around narratives long before price catches up. NTI scores X sector mindshare every 4 hours with EMA smoothing and Hamilton bps weighting, verified by 2-of-3 EIP-712 validators before settling pair markets and TWAP baskets on Robinhood Chain.",
   },
   suiIs: {
     prefix: "[ → ]",
-    badge: "Sui is",
+    badge: "NTI is",
     items: [
-      { title: "Policy-enforced assets", kind: "svg" },
+      { tag: "4H CADENCE", title: "4-hour mindshare scoring", kind: "svg" },
       {
-        title: "All-or-nothing settlement",
+        tag: "10,000 BPS",
+        title: "Hamilton bps index weights",
         kind: "lottie",
         lottieSrc: "/assets/lottie/onchain-validation.json",
       },
       {
-        title: "Controlled visibility",
+        tag: "QUORUM 2/3",
+        title: "2-of-3 EIP-712 oracle roots",
         kind: "lottie",
         lottieSrc: "/assets/lottie/research.json",
       },
       {
-        title: "Always-on security",
+        tag: "2H GUARD",
+        title: "2-hour dispute protection",
         kind: "lottie",
         lottieSrc: "/assets/lottie/shield-security.json",
       },
       {
-        title: "Performance without compromise",
+        tag: "ETH YIELD",
+        title: "Native ETH fee yield",
         kind: "lottie",
         lottieSrc: "/assets/lottie/performance.json",
       },
@@ -185,66 +146,54 @@ export const HOME_CONTENT = {
     frameExt: ".webp",
   },
   stackTimeline: {
-    heading: "The stack autonomous systems run on",
+    heading: "The stack mindshare markets run on",
     cards: [
       {
         number: "01",
-        title: "Policy-enforced execution",
-        protocol: "Sui",
+        title: "Deterministic mindshare scoring",
+        protocol: "NTI Engine",
         column: "right",
-        iconKey: "sui",
-        riveSrc: "/assets/rive/sui-execution.riv",
-        riveFit: "cover",
+        iconKey: "engine",
         rivePadClass: "",
       },
       {
         number: "02",
-        title: "Persistent data",
-        protocol: "Walrus",
+        title: "Raw tweet snapshot hashing",
+        protocol: "IPFS & Archive",
         column: "left",
-        iconKey: "walrus",
-        riveSrc: "/assets/rive/walrus-storage.riv",
-        riveFit: "cover",
-        rivePadClass: "pr-[2em]",
+        iconKey: "archive",
+        rivePadClass: "",
       },
       {
         number: "03",
-        title: "Controlled access to encrypted data",
-        protocol: "Seal",
+        title: "2-of-3 EIP-712 attestations",
+        protocol: "NarrativeOracle",
         column: "right",
-        iconKey: "seal",
-        riveSrc: "/assets/rive/seal-security.riv",
-        riveFit: "contain",
-        rivePadClass: "px-[1em]",
+        iconKey: "oracle",
+        rivePadClass: "",
       },
       {
         number: "04",
-        title: "Protected compute, verified onchain",
-        protocol: "Nautilus",
+        title: "2-hour challenge bonds",
+        protocol: "Dispute Guard",
         column: "left",
-        iconKey: "nautilus",
-        riveSrc: "/assets/rive/nautilus-compute.riv",
-        riveFit: "contain",
-        rivePadClass: "px-[2em]",
+        iconKey: "guard",
+        rivePadClass: "",
       },
       {
         number: "05",
-        title: "Programmable liquidity",
-        protocol: "DeepBook",
+        title: "Parimutuel pair liquidity",
+        protocol: "RelativePairMarket",
         column: "right",
-        iconKey: "deepbook",
-        riveSrc: "/assets/rive/deepbook-liquidity.riv",
-        riveFit: "cover",
-        rivePadClass: "py-[0.5em]",
+        iconKey: "market",
+        rivePadClass: "",
       },
       {
         number: "06",
-        title: "Verifiable agent identity",
-        protocol: "SuiNS",
+        title: "Automated TWAP basket execution",
+        protocol: "Uniswap V3 Vaults",
         column: "left",
-        iconKey: "suins",
-        riveSrc: "/assets/rive/suins-identity.riv",
-        riveFit: "cover",
+        iconKey: "twap",
         rivePadClass: "",
       },
     ] as StackTimelineCard[],
@@ -259,171 +208,239 @@ export const HOME_CONTENT = {
   ],
   benefits: {
     leftColumn: {
-      heading: "For businesses",
+      heading: "For traders",
       items: [
-        "Settle multi-step transactions without manual reconciliation.",
-        "Attach policy to assets so rules hold wherever value moves.",
-        "Move capital directly from settlement into liquidity and yield.",
-        "Coordinate treasury, collateral, and compliance on shared infrastructure.",
+        "Compare sector velocity across 10 crypto narratives in real time.",
+        "Trade relative mindshare spreads without picking single-token tops.",
+        "Allocate ETH into whitelisted Uniswap V3 TWAP narrative baskets.",
+        "Audit every epoch dataset hash and validator signature onchain.",
       ],
     },
     rightColumn: {
-      heading: "For autonomous systems",
+      heading: "For stakers & builders",
       items: [
-        "Operate autonomously, constrained by rules.",
-        "Act only within the policy attached to each asset.",
-        "Settle complete workflows, never partial ones.",
-        "See only the data they're authorized to access.",
+        "Stake $NTI with 7-day cooldowns to earn native ETH fee distributions.",
+        "Unlock live Emerging Radar spikes and Builder Heatmap saturation metrics.",
+        "Vote on ecosystem grants via Snapshot IVotes and NTIGovernor.",
+        "Spot crowded narratives early before launching new protocols.",
       ],
     },
     cta: {
-      label: "Discover the Sui Stack",
-      href: "https://www.sui.io/intro-to-sui",
+      label: "Explore NTI Terminal",
+      href: "/terminal",
     },
   },
   industry: {
-    headingWords: ["Industry", "transformation", "powered", "by", "Sui"],
+    headingWords: ["Narrative", "markets", "powered", "by", "NTI"],
     cards: [
       {
-        title: "AI and agents",
-        subtitle: "Agents transact under policy, not supervision",
-        href: "https://www.sui.io/ai",
-        ctaLabel: "Explore Sui Stack for AI",
+        title: "Mindshare Analytics",
+        subtitle: "See capital rotation across 10 crypto sectors",
+        href: "/terminal",
+        ctaLabel: "Open Mindshare Terminal",
         bullets: [
-          "Coordinate financial workflows autonomously",
-          "Settle in full, never in part",
-          "Access only authorized information",
+          "4-hour EMA smoothed attention scores",
+          "Deterministic Hamilton bps ranking",
+          "KOL velocity & sector heatmaps",
         ],
         iconKind: "svg-ai",
-        protocolMarks: ["sui", "walrus", "seal"],
+        protocolMarks: ["engine", "archive", "oracle"],
       },
       {
-        title: "Capital Markets",
-        subtitle: "Control from issuance through settlement",
-        href: "https://www.sui.io/institutions-capital-markets",
-        ctaLabel: "Explore Sui Stack for Capital Markets",
+        title: "Relative Pair Markets",
+        subtitle: "Trade which narrative wins the 4-hour epoch",
+        href: "/markets",
+        ctaLabel: "Trade Pair Markets",
         bullets: [
-          "Run treasury and collateral on shared infrastructure",
-          "Settle assets and payments together",
-          "Set visibility by participant and role",
+          "Parimutuel ETH pools settled by oracle roots",
+          "Zero external price-feed oracle risk",
+          "2-hour dispute window before payout claims",
         ],
         iconKind: "lottie",
         lottieSrc: "/assets/lottie/capital-markets.json",
-        protocolMarks: ["sui", "deepbook", "nautilus"],
+        protocolMarks: ["engine", "market", "guard"],
       },
       {
-        title: "Decentralized Finance (DeFi)",
-        subtitle: "Financial strategies that execute atomically",
-        href: "https://www.sui.io/defi",
-        ctaLabel: "Explore Sui Stack for DeFi",
+        title: "TWAP Baskets & Yield",
+        subtitle: "Automated execution meets native ETH fees",
+        href: "/baskets",
+        ctaLabel: "Explore TWAP Baskets",
         bullets: [
-          "Access programmable liquidity",
-          "Compose strategies across protocols",
-          "Connect assets and liquidity across platforms",
+          "Whitelisted Uniswap V3 narrative baskets",
+          "ETH-denominated fee yield for $NTI stakers",
+          "Governor-controlled grants and parameters",
         ],
         iconKind: "lottie",
         lottieSrc: "/assets/lottie/defi.json",
-        protocolMarks: ["deepbook", "hashi", "sui"] as unknown as IndustryCard["protocolMarks"],
+        protocolMarks: ["market", "twap", "oracle"],
       },
     ] as IndustryCard[],
     getStartedHeading: "Get started",
     getStartedRows: [
       {
-        title: "Start building",
+        title: "Inspect live terminal",
         description:
-          "Build, launch, and scale your product with the right resources and support.",
-        ctaLabel: "Read launch playbook",
-        href: "https://www.sui.io/launch-on-sui",
+          "Track all 10 crypto sectors scored in Hamilton bps across 4-hour epochs.",
+        ctaLabel: "Open Terminal",
+        href: "/terminal",
         lottieSrc: "/assets/lottie/intro-sui-stack.json",
         mobileIconKey: "building",
       },
       {
-        title: "Start coding",
+        title: "Trade pair markets",
         description:
-          "Get started with Move, the most powerful smart contract programming language.",
-        ctaLabel: "Go to docs",
-        href: "https://docs.sui.io/",
+          "Take positions on relative mindshare spreads settled by 2-of-3 oracle roots.",
+        ctaLabel: "View Markets",
+        href: "/markets",
         lottieSrc: "/assets/lottie/developer.json",
         mobileIconKey: "coding",
       },
       {
-        title: "Start earning",
-        description: "Get a wallet, claim SUI, and explore top apps.",
-        ctaLabel: "Get a wallet",
-        href: "https://www.sui.io/get-started",
+        title: "Stake & earn yield",
+        description:
+          "Stake $NTI to unlock Emerging Radar signals and claim native ETH fee yield.",
+        ctaLabel: "Go to Staking",
+        href: "/stake",
         lottieSrc: "/assets/lottie/assets-fiscal.json",
         mobileIconKey: "earning",
       },
       {
-        title: "Start connecting",
-        description: "Join a global community of builders and collaborators.",
-        ctaLabel: "Join the community",
-        href: "https://www.sui.io/community",
+        title: "Verify methodology",
+        description:
+          "Inspect formula docs, EIP-712 dataset hashes, and validator quorum rules.",
+        ctaLabel: "Read Methodology",
+        href: "/methodology",
         lottieSrc: "/assets/lottie/community-people.json",
         mobileIconKey: "connecting",
       },
     ] as GetStartedRow[],
   },
-  stayInLoop: {
-    headingPrefix: "Stay in the",
-    headingSuffix: "loop",
+  deployedContracts: {
+    headingPrefix: "Deployed",
+    headingSuffix: "contracts",
     subtitle:
-      "Events, blogs, press, videos, podcasts, and livestreams—all in one place",
-    featuredHeading: "Featured",
-    featuredItems: [
+      "15 protocol contracts live on Robinhood Chain Testnet (Chain ID 46630)",
+    cards: [
       {
-        title: "Sui explainer video: The full stack, built on Sui",
-        href: "https://youtube.com/playlist?list=PL9t2y-BKvZBTbRfsl-7zxGb2Yhrwl2bQ4&si=bnEYQl7pyxgJGMcI",
-        thumbnail: "/assets/images/sui-explainer-video-thumbnail.avif",
-        external: true,
+        key: "registry",
+        number: "01",
+        name: "NTIRegistry",
+        category: "CORE",
+        column: "left",
+        description: "Canonical module directory resolving all protocol contracts.",
       },
       {
-        title: "Unlock Sui with the Right Wallet",
-        href: "https://www.sui.io/blog/unlock-sui-with-the-right-wallet/",
-        thumbnail: "/assets/images/unlock-sui-right-wallet-thumbnail.avif",
-        external: true,
+        key: "ntiToken",
+        number: "02",
+        name: "NTIToken ($NTI)",
+        category: "CORE",
+        column: "right",
+        description: "ERC-20 protocol asset with ERC20Votes governance snapshots.",
       },
       {
-        title: "Reimagining Bitcoin’s Role in Sui DeFi",
-        href: "https://www.sui.io/blog/reimagining-bitcoins-role-in-sui-defi/",
-        thumbnail: "/assets/images/bitcoin-role-sui-defi-thumbnail.avif",
-        external: true,
-      },
-    ] as FeaturedItem[],
-    videoRecaps: [
-      {
-        title: "SuiFest Singapore",
-        ctaLabel: "Watch recap",
-        href: "https://www.sui.io/blog/suifest-singapore-event-2025/",
-        videoSrc: "/assets/videos/suifest-recap.mp4",
-        posterSrc: "/assets/images/suifest-poster.avif",
+        key: "staking",
+        number: "03",
+        name: "NTIStaking",
+        category: "CORE",
+        column: "left",
+        description: "7-day cooldown staking vault streaming native ETH fee yield.",
       },
       {
-        title: "KBW",
-        ctaLabel: "Watch recap",
-        href: "https://youtube.com/playlist?list=PL9t2y-BKvZBSoBBosd9OtTuFZSsmPhbL_&si=wuqhYwoL3UKfGJau",
-        videoSrc: "/assets/videos/kbw-recap.mp4",
-        posterSrc: "/assets/images/kbw-poster.avif",
-      },
-    ] as VideoRecapItem[],
-    tvl: {
-      caption: "(Total value locked)",
-      label: "TVL",
-      fallbackFormatted: "$380,000,000",
-      fallbackNumeric: 380_000_000,
-      apiUrl: "https://api.llama.fi/v2/chains",
-    },
-    socialTiles: [
-      {
-        name: "Discord",
-        href: "https://discord.com/invite/sui",
-        kind: "discord" as const,
+        key: "oracleCommit",
+        number: "04",
+        name: "OracleCommit",
+        category: "ORACLE",
+        column: "right",
+        description: "Publishes 4-hour scoring roots attested by 2-of-3 EIP-712 validators.",
       },
       {
-        name: "X",
-        href: "https://x.com/SuiNetwork",
-        kind: "x" as const,
+        key: "dispute",
+        number: "05",
+        name: "DisputeGuard",
+        category: "ORACLE",
+        column: "left",
+        description: "Enforces the 2-hour challenge window and validator slash bonds.",
       },
-    ],
+      {
+        key: "narrativeMarket",
+        number: "06",
+        name: "RelativePairMarket",
+        category: "MARKETS",
+        column: "right",
+        description: "Parimutuel ETH spread pools settled against finalized oracle weights.",
+      },
+      {
+        key: "basketFactory",
+        number: "07",
+        name: "NarrativeBasketFactory",
+        category: "VAULTS",
+        column: "left",
+        description: "Deploys whitelisted Uniswap V3 TWAP narrative basket vaults.",
+      },
+      {
+        key: "buybackAdapterV3",
+        number: "08",
+        name: "BuybackAdapterV3",
+        category: "VAULTS",
+        column: "right",
+        description: "Routes protocol ETH fees into automated Uniswap V3 $NTI buybacks.",
+      },
+      {
+        key: "feeRouter",
+        number: "09",
+        name: "FeeRouter",
+        category: "CORE",
+        column: "left",
+        description: "Splits market & basket fees across stakers, buybacks, and treasury.",
+      },
+      {
+        key: "grants",
+        number: "10",
+        name: "NTIGrants",
+        category: "GOVERNANCE",
+        column: "right",
+        description: "Snapshot IVotes grant rounds funded with native ETH allocations.",
+      },
+      {
+        key: "governor",
+        number: "11",
+        name: "NTIGovernor",
+        category: "GOVERNANCE",
+        column: "left",
+        description: "Onchain voting contract governing protocol caps and basket whitelists.",
+      },
+      {
+        key: "timelock",
+        number: "12",
+        name: "NTITimelock",
+        category: "GOVERNANCE",
+        column: "right",
+        description: "Queued execution delay protecting governor parameter changes.",
+      },
+      {
+        key: "configRegistry",
+        number: "13",
+        name: "ConfigRegistry",
+        category: "ORACLE",
+        column: "left",
+        description: "Immutable hash anchor for EMA alpha and sector taxonomy specs.",
+      },
+      {
+        key: "insuranceFund",
+        number: "14",
+        name: "InsuranceFund",
+        category: "MARKETS",
+        column: "right",
+        description: "Protocol reserve backstopping market settlement edge cases.",
+      },
+      {
+        key: "kolRegistry",
+        number: "15",
+        name: "KOLRegistry",
+        category: "ORACLE",
+        column: "left",
+        description: "Verified X contributor weights backing deterministic epoch scoring.",
+      },
+    ] as DeployedContractMeta[],
   },
 };

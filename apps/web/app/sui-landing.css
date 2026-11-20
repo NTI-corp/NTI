@@ -61,7 +61,7 @@
 
   --color-black: #000000;
   --color-white: #ffffff;
-  --color-primary-blue: #298dff;
+  --color-primary-blue: #ccff00;
   --color-grey-50: #f4f5f7;
   --color-grey-100: #e0e2e6;
   --color-grey-200: #c2c6cd;
@@ -280,8 +280,8 @@
 
 .sui-featured-item:hover .sui-featured-arrow,
 .sui-fest-btn:hover .sui-fest-text {
-  background-color: #298dff;
-  color: #ffffff;
+  background-color: #ccff00;
+  color: #000000;
 }
 
 @media (min-width: 768px) {
@@ -308,15 +308,15 @@
 }
 
 .sui-checkbox[type="checkbox"]:checked {
-  background-color: #298dff;
-  border-color: #298dff;
+  background-color: #ccff00;
+  border-color: #ccff00;
 }
 
 .sui-checkbox[type="checkbox"]:checked::after {
   content: "";
   width: 10px;
   height: 9px;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="7" viewBox="0 0 8 7" fill="none"><path d="M2.53815 6.76923H1.53845L0 4.06147H0.999768L2.53815 6.76923ZM7.38461 0.000661058L3.53863 6.76923H2.5388L6.38524 0H7.38351L7.38461 0.000661058Z" fill="white"/></svg>');
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="7" viewBox="0 0 8 7" fill="none"><path d="M2.53815 6.76923H1.53845L0 4.06147H0.999768L2.53815 6.76923ZM7.38461 0.000661058L3.53863 6.76923H2.5388L6.38524 0H7.38351L7.38461 0.000661058Z" fill="black"/></svg>');
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;

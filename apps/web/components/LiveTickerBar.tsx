@@ -22,8 +22,7 @@ export function LiveTickerBar({
   return (
     <div className="border-t border-[#24242C] bg-[#0B0B0E] font-mono text-[11px] tabular-nums">
       <div className="mx-auto flex max-w-[1440px] items-center">
-        <div className="flex shrink-0 items-center gap-2 border-r border-[#24242C] bg-[#131317] px-3 py-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
+        <div className="flex shrink-0 items-center border-r border-[#24242C] bg-[#131317] px-3 py-2">
           <span className="text-[10px] uppercase tracking-[0.18em] text-[#A1A1AA]">
             {epochId ? `EPOCH #${epochId}` : "INDEX STREAM"}
           </span>

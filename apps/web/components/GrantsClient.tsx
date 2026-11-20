@@ -266,7 +266,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
               Public Goods Allocation
             </span>
             {awaitingDeployment && (
@@ -312,7 +312,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
             type="button"
             disabled={isBusy || round.status === "finalized"}
             onClick={() => void invokeRoundAction("finalizeRound")}
-            className="rounded-md border border-[#6366F1]/40 bg-[#6366F1]/15 px-3 py-1.5 font-mono text-[11px] font-medium text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25 disabled:cursor-not-allowed disabled:opacity-45"
+            className="rounded-md border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-1.5 font-mono text-[11px] font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-45"
           >
             {round.status === "finalized" ? "ROUND FINALIZED" : `FINALIZE ROUND #${round.roundId}`}
           </button>
@@ -369,7 +369,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Your Snapshot Power
           </div>
-          <div className="mt-1 font-mono text-lg font-semibold text-[#A5B4FC] tabular-nums">
+          <div className="mt-1 font-mono text-lg font-semibold text-[#CCFF00] tabular-nums">
             {isConnected ? `${formatCompactNumber(Math.round(votingPowerNti))} $NTI` : "—"}
           </div>
           <div className="mt-0.5 text-[11px] text-[#A1A1AA]">
@@ -418,7 +418,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                       <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-[#A1A1AA]">
                         <span className="text-[#F4F4F5]">PROP #{p.proposalId}</span>
                         {nar && (
-                          <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[10px] text-[#A5B4FC]">
+                          <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[10px] text-[#CCFF00]">
                             {nar.label}
                           </span>
                         )}
@@ -459,7 +459,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                             [p.proposalId]: Number(e.target.value),
                           }))
                         }
-                        className="h-1.5 flex-1 accent-[#6366F1] disabled:opacity-40"
+                        className="h-1.5 flex-1 accent-[#CCFF00] disabled:opacity-40"
                       />
                       <span className="w-10 text-right font-mono text-xs font-semibold text-[#F4F4F5] tabular-nums">
                         {myW}%
@@ -470,7 +470,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                       type="button"
                       disabled={isBusy || p.claimed || round.status !== "finalized"}
                       onClick={() => void invokeRoundAction("claim", p.proposalId)}
-                      className="rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1 font-mono text-[11px] text-[#F4F4F5] transition-colors hover:border-[#6366F1]/50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1 font-mono text-[11px] text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {p.claimed ? "CLAIMED" : "CLAIM GRANT"}
                     </button>
@@ -495,7 +495,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                 round.proposals.length === 0
               }
               onClick={() => void submitVote()}
-              className="rounded-md bg-[#6366F1] px-4 py-2 font-mono text-xs font-semibold text-white transition-colors hover:bg-[#5558E6] disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-md bg-[#CCFF00] px-4 py-2 font-mono text-xs font-semibold text-black transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {hasVoted ? "ALREADY VOTED" : `CAST SPLIT VOTE (${totalWeight}%)`}
             </button>
@@ -540,7 +540,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                 placeholder="e.g. Open-source Robinhood Chain Validator Kit"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#6366F1] focus:outline-none"
+                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
               />
             </div>
 
@@ -556,7 +556,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                 className={`mt-1 w-full rounded-md border bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:outline-none ${
                   recipientInvalid
                     ? "border-[#EF4444]/60 focus:border-[#EF4444]"
-                    : "border-[#24242C] focus:border-[#6366F1]"
+                    : "border-[#24242C] focus:border-[#CCFF00]"
                 }`}
               />
               {recipientInvalid && (
@@ -570,7 +570,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
               type="button"
               disabled={isBusy || !isConnected || !meetsProposalStake}
               onClick={() => void submitProposal()}
-              className="w-full rounded-md border border-[#6366F1]/50 bg-[#6366F1]/15 py-2.5 font-mono text-xs font-semibold text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25 disabled:cursor-not-allowed disabled:opacity-45"
+              className="w-full rounded-md border border-[#CCFF00]/50 bg-[#CCFF00]/12 py-2.5 font-mono text-xs font-semibold text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {!isConnected
                 ? "CONNECT WALLET TO SUBMIT"

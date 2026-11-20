@@ -122,7 +122,7 @@ export function MarketsListClient({
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
-          <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
             Narrative Markets · Fixed-Horizon Parimutuel
           </span>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
@@ -157,7 +157,7 @@ export function MarketsListClient({
               setCreateOpen((v) => !v);
               setCreateErr(null);
             }}
-            className="rounded-md border border-[#6366F1]/50 bg-[#6366F1]/15 px-3 py-1.5 font-semibold text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25"
+            className="rounded-md border border-[#CCFF00]/50 bg-[#CCFF00]/12 px-3 py-1.5 font-semibold text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22"
           >
             {createOpen ? "CLOSE CREATOR" : "+ CREATE MARKET"}
           </button>
@@ -174,7 +174,7 @@ export function MarketsListClient({
           onClick={() => setNarrativeFilter(null)}
           className={`rounded-md border px-2.5 py-1 transition-colors ${
             narrativeFilter === null
-              ? "border-[#6366F1]/60 bg-[#6366F1]/15 text-[#F4F4F5]"
+              ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
               : "border-[#24242C] bg-[#131317] text-[#A1A1AA] hover:text-[#F4F4F5]"
           }`}
         >
@@ -189,7 +189,7 @@ export function MarketsListClient({
               onClick={() => setNarrativeFilter(active ? null : n.id)}
               className={`rounded-md border px-2.5 py-1 transition-colors ${
                 active
-                  ? "border-[#6366F1]/60 bg-[#6366F1]/15 text-[#F4F4F5]"
+                  ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
                   : "border-[#24242C] bg-[#131317] text-[#71717A] hover:border-[#32323D] hover:text-[#F4F4F5]"
               }`}
             >
@@ -221,7 +221,7 @@ export function MarketsListClient({
               <select
                 value={newNarA}
                 onChange={(e) => setNewNarA(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
+                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
               >
                 {NARRATIVES.map((n) => (
                   <option key={n.id} value={n.id}>
@@ -238,7 +238,7 @@ export function MarketsListClient({
               <select
                 value={newNarB}
                 onChange={(e) => setNewNarB(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
+                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
               >
                 <option value={0}>0 Market Average</option>
                 {NARRATIVES.map((n) => (
@@ -256,7 +256,7 @@ export function MarketsListClient({
               <select
                 value={horizonEpochs}
                 onChange={(e) => setHorizonEpochs(Number(e.target.value) === 42 ? 42 : 6)}
-                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
+                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
               >
                 <option value={6}>24H (6 epochs · E{liveFinalEpoch + 6})</option>
                 <option value={42}>7D (42 epochs · E{liveFinalEpoch + 42})</option>
@@ -268,7 +268,7 @@ export function MarketsListClient({
                 type="button"
                 disabled={isBusy || !isConnected || liveFinalEpoch <= 0}
                 onClick={() => void handleCreateMarket()}
-                className="w-full rounded-md bg-[#6366F1] py-2 font-mono text-xs font-semibold text-white transition-colors hover:bg-[#5558E6] disabled:cursor-not-allowed disabled:opacity-45"
+                className="w-full rounded-md bg-[#CCFF00] py-2 font-mono text-xs font-semibold text-black transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {!isConnected ? "CONNECT WALLET" : "DEPLOY MARKET"}
               </button>
@@ -301,7 +301,7 @@ export function MarketsListClient({
               setFilter("all");
               setNarrativeFilter(null);
             }}
-            className="mt-3 rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] hover:border-[#6366F1]/50"
+            className="mt-3 rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] hover:border-[#CCFF00]/50"
           >
             RESET FILTERS
           </button>
@@ -335,7 +335,7 @@ export function MarketsListClient({
                           ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
                           : m.status === "locked"
                             ? "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]"
-                            : "border-[#6366F1]/40 bg-[#6366F1]/10 text-[#A5B4FC]"
+                            : "border-[#CCFF00]/40 bg-[#CCFF00]/10 text-[#CCFF00]"
                       }`}
                     >
                       {m.status}
@@ -344,7 +344,7 @@ export function MarketsListClient({
 
                   <Link
                     href={`/markets/${m.marketId}`}
-                    className="mt-2.5 block text-lg font-semibold text-[#F4F4F5] transition-colors hover:text-[#A5B4FC]"
+                    className="mt-2.5 block text-lg font-semibold text-[#F4F4F5] transition-colors hover:text-[#CCFF00]"
                   >
                     {m.narrativeALabel}{" "}
                     <span className="font-mono text-xs font-normal text-[#71717A]">vs</span>{" "}
@@ -376,7 +376,7 @@ export function MarketsListClient({
                           delta > 0
                             ? "font-semibold text-[#22C55E]"
                             : delta < 0
-                              ? "font-semibold text-[#A5B4FC]"
+                              ? "font-semibold text-[#CCFF00]"
                               : "text-[#A1A1AA]"
                         }
                       >
@@ -395,13 +395,13 @@ export function MarketsListClient({
                       <span className="text-[#71717A]">
                         TOTAL {formatEth(totalPool, 3)} / {m.maxPoolEth} ETH CAP
                       </span>
-                      <span className="text-[#A5B4FC]">
+                      <span className="text-[#CCFF00]">
                         B: {formatEth(m.poolBEth, 3)} ({pctB}%)
                       </span>
                     </div>
                     <div className="flex h-2 w-full overflow-hidden rounded-full bg-[#24242C]">
                       <div className="bg-[#22C55E]" style={{ width: `${pctA}%` }} />
-                      <div className="bg-[#6366F1]" style={{ width: `${pctB}%` }} />
+                      <div className="bg-[#CCFF00]" style={{ width: `${pctB}%` }} />
                     </div>
                   </div>
                 </div>
@@ -426,7 +426,7 @@ export function MarketsListClient({
                     )}
                     <Link
                       href={`/markets/${m.marketId}`}
-                      className="rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 text-[11px] text-[#F4F4F5] transition-colors hover:border-[#6366F1]/50"
+                      className="rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 text-[11px] text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50"
                     >
                       DETAIL →
                     </Link>

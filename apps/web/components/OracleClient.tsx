@@ -241,7 +241,7 @@ export function OracleClient({ initial }: OracleClientProps) {
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
               Optimistic Attestation &amp; Provenance
             </span>
             {detail.dataSource === "preview" && (
@@ -279,7 +279,7 @@ export function OracleClient({ initial }: OracleClientProps) {
             type="button"
             disabled={isBusy || !canFinalize}
             onClick={() => void handleFinalize()}
-            className="rounded-md border border-[#6366F1]/40 bg-[#6366F1]/15 px-3 py-1.5 font-medium text-[#A5B4FC] transition-colors hover:bg-[#6366F1]/25 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-1.5 font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-40"
           >
             FINALIZE EPOCH
           </button>
@@ -301,7 +301,7 @@ export function OracleClient({ initial }: OracleClientProps) {
               onClick={() => void loadEpoch(ep.epochId)}
               className={`rounded-md border px-2.5 py-1 transition-colors tabular-nums ${
                 active
-                  ? "border-[#6366F1]/60 bg-[#6366F1]/15 text-[#F4F4F5]"
+                  ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
                   : "border-[#24242C] bg-[#131317] text-[#A1A1AA] hover:border-[#32323D] hover:text-[#F4F4F5]"
               }`}
             >
@@ -338,7 +338,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                     ? "text-[#F87171]"
                     : detail.epoch.status === "incomplete"
                       ? "text-[#F59E0B]"
-                      : "text-[#A5B4FC]"
+                      : "text-[#CCFF00]"
               }
             >
               {detail.epoch.status.toUpperCase()}
@@ -356,7 +356,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                 key={step.key}
                 className={`rounded-md border p-3 font-mono ${
                   current
-                    ? "border-[#6366F1]/60 bg-[#6366F1]/12"
+                    ? "border-[#CCFF00]/60 bg-[#CCFF00]/10"
                     : reached
                       ? "border-[#22C55E]/35 bg-[#22C55E]/8"
                       : "border-[#24242C] bg-[#19191F]"
@@ -365,14 +365,16 @@ export function OracleClient({ initial }: OracleClientProps) {
                 <div className="flex items-center justify-between text-[10px]">
                   <span className="text-[#71717A]">{step.offset}</span>
                   <span
-                    className={`h-1.5 w-1.5 rounded-full ${
+                    className={
                       current
-                        ? "bg-[#6366F1] animate-pulse"
+                        ? "text-[#CCFF00]"
                         : reached
-                          ? "bg-[#22C55E]"
-                          : "bg-[#32323D]"
-                    }`}
-                  />
+                          ? "text-[#22C55E]"
+                          : "text-[#52525B]"
+                    }
+                  >
+                    {current ? "ACTIVE" : reached ? "DONE" : "QUEUED"}
+                  </span>
                 </div>
                 <div className="mt-1.5 font-sans text-xs font-semibold text-[#F4F4F5]">
                   {step.title}
@@ -404,7 +406,7 @@ export function OracleClient({ initial }: OracleClientProps) {
             <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
               Arweave Permanent Snapshot
             </div>
-            <div className="mt-1 truncate text-[11px] text-[#A5B4FC]">
+            <div className="mt-1 truncate text-[11px] text-[#CCFF00]">
               {detail.epoch.arweaveTx ? (
                 <a
                   href={`https://arweave.net/${detail.epoch.arweaveTx}`}
@@ -594,7 +596,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                 <select
                   value={disputeNarrativeId}
                   onChange={(e) => setDisputeNarrativeId(Number(e.target.value))}
-                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
                 >
                   {NARRATIVES.map((n) => (
                     <option key={n.id} value={n.id}>
@@ -613,7 +615,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                   max="10000"
                   value={claimedIBps}
                   onChange={(e) => setClaimedIBps(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#6366F1] focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
                 />
               </div>
               <div>
@@ -625,7 +627,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                   placeholder="0x... or Arweave replay URI"
                   value={evidenceNote}
                   onChange={(e) => setEvidenceNote(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#6366F1] focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
                 />
               </div>
 
@@ -642,7 +644,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                   type="button"
                   disabled={isBusy || !isConnected || !hasEnoughBalance}
                   onClick={() => void handleApproveBond()}
-                  className="w-full rounded-md bg-[#6366F1] py-2.5 font-mono text-xs font-semibold text-white transition-colors hover:bg-[#5558E6] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="w-full rounded-md bg-[#CCFF00] py-2.5 font-mono text-xs font-semibold text-black transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {!isConnected
                     ? "CONNECT WALLET TO APPROVE"

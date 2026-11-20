@@ -161,7 +161,7 @@ export function IndustrySection() {
                   <div>
                     {/* Card Header */}
                     <div className="flex items-start justify-between gap-[1em]">
-                      <div className="w-[3em] h-[3em] bg-[#222529] text-[#298dff] flex items-center justify-center shrink-0">
+                      <div className="w-[3em] h-[3em] bg-[#222529] text-[#CCFF00] flex items-center justify-center shrink-0">
                         {card.iconKind === "svg-ai" ? (
                           <AiSparkIcon className="w-[1.6em] h-[1.6em]" />
                         ) : (
@@ -178,18 +178,28 @@ export function IndustrySection() {
 
                       {/* Protocol Marks */}
                       <div className="flex items-center gap-[0.55em] text-[#a1a7b2]">
-                        {card.protocolMarks.map((mark) => (
-                          <span
-                            key={mark}
-                            title={mark}
-                            className="w-[1.75em] h-[1.75em] bg-[#222529] border border-[#343940] flex items-center justify-center text-white"
-                          >
-                            <ProtocolIcon
-                              name={mark}
-                              className="w-[0.95em] h-[0.95em]"
-                            />
-                          </span>
-                        ))}
+                        {card.protocolMarks.map((mark) => {
+                          const labelMap: Record<string, string> = {
+                            engine: "NTI Engine",
+                            archive: "IPFS & Archive",
+                            oracle: "NarrativeOracle",
+                            guard: "Dispute Guard",
+                            market: "RelativePairMarket",
+                            twap: "Uniswap V3 Vaults",
+                          };
+                          return (
+                            <span
+                              key={mark}
+                              title={labelMap[mark] ?? mark}
+                              className="w-[1.75em] h-[1.75em] bg-[#222529] border border-[#343940] flex items-center justify-center text-white"
+                            >
+                              <ProtocolIcon
+                                name={mark}
+                                className="w-[0.95em] h-[0.95em]"
+                              />
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -214,7 +224,7 @@ export function IndustrySection() {
                           key={bullet}
                           className="flex items-start gap-[0.65em] text-[0.9375em] leading-[1.4] text-[#c2c6cd]"
                         >
-                          <TreeBranchIcon className="w-[0.95em] h-[0.95em] text-[#298dff] shrink-0 mt-[0.25em]" />
+                          <TreeBranchIcon className="w-[0.95em] h-[0.95em] text-[#CCFF00] shrink-0 mt-[0.25em]" />
                           <span>{bullet}</span>
                         </li>
                       ))}
@@ -229,22 +239,24 @@ export function IndustrySection() {
                       <DottedDivider color="#4b515b" />
                     </div>
 
-                    {/* Expanding #298dff .industryhover bar (3em -> 100%, expo.out) + ArrowRevealLabel */}
+                    {/* Expanding #CCFF00 .industryhover bar (3em -> 100%, expo.out) + ArrowRevealLabel */}
                     <a
                       href={card.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       className="sui-arrow-trigger relative w-full h-[3em] flex items-center bg-[#222529] text-white text-[0.9375em] font-normal overflow-hidden"
                     >
                       <span
                         aria-hidden="true"
-                        className="absolute top-0 left-0 bottom-0 bg-[#298dff] transition-[width] duration-[350ms] ease-out pointer-events-none"
+                        className="absolute top-0 left-0 bottom-0 bg-[#CCFF00] transition-[width] duration-[350ms] ease-out pointer-events-none"
                         style={{ width: isHovered ? "100%" : "3em" }}
                       />
-                      <span className="relative z-10 w-[3em] h-[3em] flex items-center justify-center shrink-0">
+                      <span className="relative z-10 w-[3em] h-[3em] text-black flex items-center justify-center shrink-0">
                         <SlideArrow className="w-[0.85em] h-[0.75em]" />
                       </span>
-                      <span className="relative z-10 px-[1em] flex items-center">
+                      <span
+                        className={`relative z-10 px-[1em] flex items-center transition-colors duration-200 ${
+                          isHovered ? "text-black" : "text-white"
+                        }`}
+                      >
                         <ArrowRevealLabel
                           text={card.ctaLabel}
                           hovered={isHovered}
@@ -278,8 +290,6 @@ export function IndustrySection() {
                 <React.Fragment key={row.title}>
                   <a
                     href={row.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     onMouseEnter={() => setHoveredRow(idx)}
                     onMouseLeave={() => setHoveredRow(null)}
                     className="sui-arrow-trigger group relative block py-[2em] md:py-[2.5em] overflow-hidden"
@@ -296,9 +306,9 @@ export function IndustrySection() {
 
                     <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-[1.25em] md:gap-[2em] px-[0.5em]">
                       <div className="flex items-center gap-[1.25em] md:gap-0 min-w-0 flex-1">
-                        {/* Desktop blinkReveal icon box: 0x0 at rest -> 5.625em `#298dff` blue Lottie on hover */}
+                        {/* Desktop blinkReveal icon box: 0x0 at rest -> 5.625em `#CCFF00` Lottie on hover */}
                         <div
-                          className={`hidden md:flex items-center justify-center shrink-0 bg-[#298dff] overflow-hidden transition-all duration-350 ease-out ${
+                          className={`hidden md:flex items-center justify-center shrink-0 bg-[#CCFF00] text-black overflow-hidden transition-all duration-350 ease-out ${
                             isHovered
                               ? "w-[5.625em] h-[5.625em] p-[0.513em] mr-[1.75em] opacity-100"
                               : "w-0 h-0 p-0 mr-0 opacity-0"
@@ -308,12 +318,12 @@ export function IndustrySection() {
                             src={row.lottieSrc}
                             playOnScroll={false}
                             isHovered={isHovered}
-                            className="w-[3.25em] h-[3.25em]"
+                            className="w-[3.25em] h-[3.25em] brightness-0"
                           />
                         </div>
 
                         {/* Mobile static icon */}
-                        <div className="md:hidden w-[3.25em] h-[3.25em] bg-[#298dff] text-white flex items-center justify-center shrink-0">
+                        <div className="md:hidden w-[3.25em] h-[3.25em] bg-[#CCFF00] text-black flex items-center justify-center shrink-0">
                           <NavMenuIcon
                             icon={row.mobileIconKey}
                             className="w-[1.5em] h-[1.5em]"
@@ -337,7 +347,7 @@ export function IndustrySection() {
                         </p>
 
                         <div
-                          className="sui-getstarted-cta inline-flex items-center gap-[0.65em] bg-[#298dff] text-white px-[1.15em] py-[0.8em] text-[0.875em] font-normal self-start md:self-auto whitespace-nowrap transition-[clip-path] duration-300 ease-out"
+                          className="sui-getstarted-cta inline-flex items-center gap-[0.65em] bg-[#CCFF00] text-black px-[1.15em] py-[0.8em] text-[0.875em] font-medium self-start md:self-auto whitespace-nowrap transition-[clip-path] duration-300 ease-out"
                           style={
                             {
                               "--cta-clip": isHovered

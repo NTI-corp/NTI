@@ -27,6 +27,7 @@ import { WalletButton } from "./WalletButton";
 import { getActiveChainId, getChain } from "@/lib/contracts";
 import type { EpochStatus, IndexesSnapshot } from "@/lib/types";
 import { NtiBrandMark } from "@/components/landing/NtiLogos";
+import { RobinhoodMark, XIcon } from "@/components/ui/Icons";
 
 interface NavItem {
   href: string;
@@ -173,9 +174,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [topSearch]);
 
   return (
-    <div className="min-h-screen bg-[#0B0B0E] text-[#F4F4F5]">
-      {/* Global Blockworks-Inspired Top Bar */}
-      <header className="sticky top-0 z-40 border-b border-[#222229] bg-[#0B0B0D]/95 backdrop-blur-md">
+    <div className="min-h-screen bg-[#090B0E] text-[#F4F4F5]">
+      {/* Global Top Bar */}
+      <header className="sticky top-0 z-40 border-b border-[#242830] bg-[#090B0E]/95 backdrop-blur-md">
         <div className="flex h-13 items-center justify-between gap-3 px-4 lg:px-5">
           {/* Left: Brand + Horizontal Category Tabs */}
           <div className="flex items-center gap-4">
@@ -198,8 +199,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     href={tab.href}
                     className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                       active
-                        ? "bg-[#22222A] text-white"
-                        : "text-[#A1A1AA] hover:bg-[#16161B] hover:text-white"
+                        ? "border border-[#CCFF00]/35 bg-[#CCFF00]/12 text-[#CCFF00]"
+                        : "border border-transparent text-[#A1A1AA] hover:bg-[#16191E] hover:text-white"
                     }`}
                   >
                     {tab.label}
@@ -212,7 +213,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Right: Global Search (/) + Epoch Status + Wallet */}
           <div className="flex items-center gap-2.5">
             <div className="relative hidden md:block">
-              <div className="flex items-center gap-2 rounded-lg border border-[#24242C] bg-[#141418] px-2.5 py-1.5 text-xs focus-within:border-[#6366F1]">
+              <div className="flex items-center gap-2 rounded-lg border border-[#242830] bg-[#131518] px-2.5 py-1.5 text-xs focus-within:border-[#CCFF00]">
                 <Search className="h-3.5 w-3.5 text-[#71717A]" />
                 <input
                   ref={searchInputRef}
@@ -258,6 +259,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <EpochBadge epochId={epochMeta.epochId} status={epochMeta.status} compact />
             </div>
 
+            <a
+              href="https://x.com/NTI_Index"
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label="NTI on X"
+              title="NTI on X (@NTI_Index)"
+              className="hidden sm:inline-flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-[#24242C] bg-[#141418] text-[#A1A1AA] transition-colors hover:border-[#3F3F4C] hover:text-white"
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </a>
+
             <WalletButton />
 
             <button
@@ -290,8 +302,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     onClick={() => setMobileMenuOpen(false)}
                     className={`rounded-lg border px-2.5 py-2 text-center text-[11px] font-medium ${
                       active
-                        ? "border-[#6366F1]/50 bg-[#1D1D24] text-white"
-                        : "border-[#222229] text-[#A1A1AA]"
+                        ? "border-[#CCFF00]/50 bg-[#16191E] text-[#CCFF00]"
+                        : "border-[#242830] text-[#A1A1AA]"
                     }`}
                   >
                     {item.label}
@@ -304,10 +316,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <div className="flex min-h-[calc(100vh-52px)]">
-        {/* Blockworks-Style Left Collapsible Dashboard Rail */}
+        {/* Left Collapsible Dashboard Rail */}
         <aside
           aria-label="Dashboard navigation"
-          className={`sticky top-13 hidden h-[calc(100vh-52px)] shrink-0 flex-col justify-between border-r border-[#222229] bg-[#0A0A0D] transition-all lg:flex ${
+          className={`sticky top-13 hidden h-[calc(100vh-52px)] shrink-0 flex-col justify-between border-r border-[#242830] bg-[#0B0D11] transition-all lg:flex ${
             sidebarCollapsed ? "w-14" : "w-56"
           }`}
         >
@@ -365,13 +377,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           aria-current={active ? "page" : undefined}
                           className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors ${
                             active
-                              ? "border border-[#2B2B36] bg-[#1A1A21] text-white"
-                              : "border border-transparent text-[#A1A1AA] hover:bg-[#141419] hover:text-white"
+                              ? "border border-[#CCFF00]/35 bg-[#16191E] text-white"
+                              : "border border-transparent text-[#A1A1AA] hover:bg-[#131518] hover:text-white"
                           }`}
                         >
                           <Icon
                             className={`h-4 w-4 shrink-0 ${
-                              active ? "text-[#34D399]" : "text-[#71717A]"
+                              active ? "text-[#CCFF00]" : "text-[#71717A]"
                             }`}
                           />
                           {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
@@ -387,9 +399,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {!sidebarCollapsed && (
             <div className="border-t border-[#222229] p-3.5 text-[11px]">
               <div className="flex items-center justify-between text-[#71717A]">
-                <span>Robinhood Chain</span>
-                <span className="inline-flex items-center gap-1 font-medium text-[#10B981]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
+                <span className="inline-flex items-center gap-1.5">
+                  <RobinhoodMark className="h-3.5 w-auto opacity-85" />
+                  <span>Chain</span>
+                </span>
+                <span className="font-medium text-[#10B981]">
                   {chainId}
                 </span>
               </div>
@@ -402,6 +416,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <span>Explorer</span>
                   <ExternalLink className="h-3 w-3" />
+                </a>
+                <a
+                  href="https://x.com/NTI_Index"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 hover:text-white"
+                >
+                  <XIcon className="h-2.5 w-2.5" />
+                  <span>@NTI_Index</span>
                 </a>
                 <Link href="/" className="hover:text-white">
                   Landing

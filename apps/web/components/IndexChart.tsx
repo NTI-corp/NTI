@@ -29,7 +29,7 @@ interface IndexChartProps {
 
 export const NARRATIVE_CHART_COLORS = [
   "#22C55E",
-  "#6366F1",
+  "#CCFF00",
   "#F59E0B",
   "#A78BFA",
   "#EF4444",
@@ -299,7 +299,7 @@ export function IndexChart({
                   x2={cx}
                   y1={padTop}
                   y2={padTop + indexPlotH}
-                  stroke="#6366F1"
+                  stroke="#CCFF00"
                   strokeDasharray="3 3"
                   strokeWidth="1.25"
                 />
@@ -309,15 +309,15 @@ export function IndexChart({
                   width="68"
                   height="14"
                   rx="2"
-                  fill="#131317"
-                  stroke="#6366F1"
+                  fill="#131518"
+                  stroke="#CCFF00"
                   strokeOpacity="0.6"
                 />
                 <text
                   x={cx}
                   y={padTop - 6}
                   textAnchor="middle"
-                  fill="#A5B4FC"
+                  fill="#CCFF00"
                   fontSize="8.5"
                   fontFamily="var(--font-ibm-plex-mono), monospace"
                 >

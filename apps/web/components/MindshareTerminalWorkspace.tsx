@@ -152,9 +152,9 @@ export function MindshareTerminalWorkspace({
   const renderSortIcon = (col: SortColumn) => {
     if (sortCol !== col) return null;
     return sortAsc ? (
-      <ArrowUp className="inline h-3 w-3 text-[#818CF8]" />
+      <ArrowUp className="inline h-3 w-3 text-[#CCFF00]" />
     ) : (
-      <ArrowDown className="inline h-3 w-3 text-[#818CF8]" />
+      <ArrowDown className="inline h-3 w-3 text-[#CCFF00]" />
     );
   };
 
@@ -337,7 +337,7 @@ export function MindshareTerminalWorkspace({
                       <th className="px-3 py-3">Narrative</th>
                       <th
                         className={`px-3 py-3 text-right whitespace-nowrap ${
-                          sortCol === "iBps" ? "border-t-2 border-t-[#6366F1] text-white" : ""
+                          sortCol === "iBps" ? "border-t-2 border-t-[#CCFF00] text-white" : ""
                         }`}
                       >
                         <button
@@ -350,7 +350,7 @@ export function MindshareTerminalWorkspace({
                       </th>
                       <th
                         className={`px-3 py-3 text-right whitespace-nowrap ${
-                          sortCol === "vBps" ? "border-t-2 border-t-[#6366F1] text-white" : ""
+                          sortCol === "vBps" ? "border-t-2 border-t-[#CCFF00] text-white" : ""
                         }`}
                       >
                         <button
@@ -363,7 +363,7 @@ export function MindshareTerminalWorkspace({
                       </th>
                       <th
                         className={`hidden px-3 py-3 text-right whitespace-nowrap sm:table-cell ${
-                          sortCol === "mBps" ? "border-t-2 border-t-[#6366F1] text-white" : ""
+                          sortCol === "mBps" ? "border-t-2 border-t-[#CCFF00] text-white" : ""
                         }`}
                       >
                         <button
@@ -376,7 +376,7 @@ export function MindshareTerminalWorkspace({
                       </th>
                       <th
                         className={`hidden px-3 py-3 text-right whitespace-nowrap md:table-cell ${
-                          sortCol === "sN" ? "border-t-2 border-t-[#6366F1] text-white" : ""
+                          sortCol === "sN" ? "border-t-2 border-t-[#CCFF00] text-white" : ""
                         }`}
                       >
                         <button
@@ -418,7 +418,7 @@ export function MindshareTerminalWorkspace({
                                   <SectorIcon slug={n.slug} className="h-3.5 w-3.5" />
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="truncate font-semibold text-[#F4F4F5] group-hover:text-[#818CF8]">
+                                  <div className="truncate font-semibold text-[#F4F4F5] group-hover:text-[#CCFF00]">
                                     {n.label}
                                   </div>
                                   <div className="hidden max-w-[190px] truncate text-[11px] text-[#71717A] 2xl:block">
@@ -454,7 +454,7 @@ export function MindshareTerminalWorkspace({
                             <td className="px-3 py-3 text-right whitespace-nowrap">
                               <Link
                                 href={`/narratives/${n.narrativeId}`}
-                                className="inline-flex items-center gap-1 rounded-md border border-[#26262F] bg-[#16161C] px-2.5 py-1 text-[11px] font-medium text-[#D4D4D8] hover:border-[#6366F1] hover:text-white"
+                                className="inline-flex items-center gap-1 rounded-md border border-[#262A32] bg-[#16191E] px-2.5 py-1 text-[11px] font-medium text-[#D4D4D8] hover:border-[#CCFF00] hover:text-[#CCFF00]"
                               >
                                 <span>Open</span>
                                 <ArrowUpRight className="h-3 w-3" />
@@ -545,7 +545,7 @@ export function MindshareTerminalWorkspace({
               </div>
               <Link
                 href="/radar"
-                className="text-[11px] font-medium text-[#818CF8] hover:underline"
+                className="text-[11px] font-medium text-[#CCFF00] hover:underline"
               >
                 View all
               </Link>
@@ -561,8 +561,8 @@ export function MindshareTerminalWorkspace({
                 />
 
                 {!radar.realtimeUnlocked && (
-                  <div className="rounded-xl border border-[#2D2D3B] bg-gradient-to-b from-[#171722] to-[#111116] p-5 text-center">
-                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-[#2F2F3D] bg-[#0B0B0F] text-[#818CF8]">
+                  <div className="rounded-xl border border-[#2A2F38] bg-gradient-to-b from-[#16191E] to-[#101216] p-5 text-center">
+                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-[#343940] bg-[#0B0D11] text-[#CCFF00]">
                       <Radar className="h-4 w-4" />
                     </div>
                     <h3 className="mt-3 font-display text-sm font-bold text-white">
@@ -574,7 +574,7 @@ export function MindshareTerminalWorkspace({
                     </p>
                     <Link
                       href="/stake"
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-[#6366F1] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#818CF8]"
+                      className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-[#CCFF00] px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-[#B8E600]"
                     >
                       Stake $NTI to Unlock
                     </Link>
@@ -620,10 +620,10 @@ export function MindshareTerminalWorkspace({
                     <Link
                       key={act.href}
                       href={act.href}
-                      className="flex items-center justify-between rounded-lg border border-[#22222A] bg-[#0E0E12] px-3.5 py-3 transition-colors hover:border-[#6366F1]/60 hover:bg-[#16161D]"
+                      className="flex items-center justify-between rounded-lg border border-[#242830] bg-[#0E1014] px-3.5 py-3 transition-colors hover:border-[#CCFF00]/60 hover:bg-[#16191E]"
                     >
                       <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 text-[#818CF8]" />
+                        <Icon className="h-4 w-4 text-[#CCFF00]" />
                         <div>
                           <div className="text-xs font-semibold text-white">{act.title}</div>
                           <div className="text-[11px] text-[#71717A]">{act.sub}</div>

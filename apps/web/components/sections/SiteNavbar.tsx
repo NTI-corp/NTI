@@ -12,6 +12,7 @@ import {
   CloseXIcon,
   ExternalArrowIcon,
   NavMenuIcon,
+  XIcon,
 } from "@/components/ui/Icons";
 import { LottieIcon } from "@/components/ui/LottieIcon";
 
@@ -20,7 +21,7 @@ const NAV_SHUFFLE_GLYPHS = [
   "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
   "!", "@", "#", "$", "%", "^", "&", "*", "-", "_", "+", "=", ";", ":", ",",
 ];
-const NAV_SHUFFLE_COLORS = ["#298DFF", "#6C7584"];
+const NAV_SHUFFLE_COLORS = ["#CCFF00", "#6C7584"];
 
 /** Exact replica of sui.io `_setupHoverShuffle` + `gsap.effects.shuffle` */
 function NavShuffleLabel({
@@ -388,7 +389,7 @@ export function SiteNavbar() {
     >
       {/* Optional Announcement Banner (.pencil_layout) */}
       {bannerVisible && (
-        <div className="pointer-events-auto relative bg-[#298dff]/95 backdrop-blur-[12px] text-white text-[0.75em] leading-[1.2] tracking-[0.03em] py-[0.5em] px-[2.5em] flex items-center justify-center">
+        <div className="pointer-events-auto relative bg-[#CCFF00]/95 backdrop-blur-[12px] text-black text-[0.75em] leading-[1.2] tracking-[0.03em] py-[0.5em] px-[2.5em] flex items-center justify-center">
           <a
             href={ANNOUNCEMENT_BANNER.href}
             target="_blank"
@@ -401,7 +402,7 @@ export function SiteNavbar() {
             type="button"
             aria-label="Close announcement banner"
             onClick={() => setBannerVisible(false)}
-            className="absolute right-[1em] top-1/2 -translate-y-1/2 p-[0.25em] text-white/90 hover:text-white cursor-pointer"
+            className="absolute right-[1em] top-1/2 -translate-y-1/2 p-[0.25em] text-black/75 hover:text-black cursor-pointer"
           >
             <CloseXIcon className="w-[0.75em] h-[0.75em]" />
           </button>
@@ -450,7 +451,7 @@ export function SiteNavbar() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-                <circle cx="24.5" cy="9.5" r="2.3" fill="#298DFF" />
+                <circle cx="24.5" cy="9.5" r="2.3" fill="#CCFF00" />
               </svg>
               <span className="text-[1.15em] font-semibold tracking-[-0.03em] text-white leading-none">
                 NTI
@@ -483,7 +484,7 @@ export function SiteNavbar() {
                           triggerTick={shuffleTicks[item.id] ?? 0}
                         />
                       </span>
-                      <span className="w-[1.625em] h-[1.625em] px-[0.25em] py-[0.375em] bg-[#343940] group-hover:bg-[#298dff] text-white flex items-center justify-center shrink-0 transition-colors duration-100 ease-out">
+                      <span className="w-[1.625em] h-[1.625em] px-[0.25em] py-[0.375em] bg-[#343940] group-hover:bg-[#CCFF00] text-white group-hover:text-black flex items-center justify-center shrink-0 transition-colors duration-100 ease-out">
                         {item.iconKind === "docs" ? (
                           <NavDocsBookSvg className="w-full h-full" />
                         ) : (
@@ -526,8 +527,8 @@ export function SiteNavbar() {
                       <span
                         className={`w-[1.625em] h-[1.625em] p-[0.5em] flex items-center justify-center shrink-0 transition-colors duration-150 ${
                           isOpen
-                            ? "bg-[#298dff] text-white"
-                            : "bg-[#343940] group-hover:bg-[#298dff] text-white"
+                            ? "bg-[#CCFF00] text-black"
+                            : "bg-[#343940] group-hover:bg-[#CCFF00] text-white group-hover:text-black"
                         }`}
                       >
                         <NavPlusSvg className="w-full h-full" rotated={isOpen} />
@@ -545,8 +546,18 @@ export function SiteNavbar() {
               })}
             </nav>
 
-            {/* Desktop Right CTA (`textStagger`) + Mobile Toggle */}
-            <div className="flex items-center gap-[0.75em]">
+            {/* Desktop Right CTA (`textStagger`) + X + Mobile Toggle */}
+            <div className="flex items-center gap-[0.65em]">
+              <a
+                href="https://x.com/NTI_Index"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="NTI on X"
+                title="NTI on X (@NTI_Index)"
+                className="hidden md:flex items-center justify-center w-[2.375em] h-[2.375em] bg-[#222529] border border-[#343940] hover:bg-[#CCFF00] hover:border-[#CCFF00] text-white hover:text-black transition-colors shrink-0"
+              >
+                <XIcon className="w-[0.95em] h-[0.95em]" />
+              </a>
               <div
                 className="relative hidden md:block"
                 onMouseEnter={() => {
@@ -567,7 +578,7 @@ export function SiteNavbar() {
                     setActiveDropdown(null);
                     setGetStartedOpen(true);
                   }}
-                  className="relative bg-[#298dff] text-white text-[0.875em] font-normal leading-none tracking-[-0.004375em] px-[0.75em] py-[0.84375em] cursor-pointer whitespace-nowrap flex items-center"
+                  className="relative bg-[#CCFF00] hover:bg-[#B8E600] transition-colors text-black text-[0.875em] font-medium leading-none tracking-[-0.004375em] px-[0.75em] py-[0.84375em] cursor-pointer whitespace-nowrap flex items-center"
                 >
                   <TextStaggerLabel
                     text={GET_STARTED_CTA.label}
@@ -686,7 +697,7 @@ export function SiteNavbar() {
                             <span className="relative z-10 flex-1 min-w-0">
                               <span
                                 className={`flex items-center gap-[0.3em] text-[0.875em] font-normal leading-none tracking-[-0.004375em] transition-colors duration-300 ${
-                                  isHovered ? "text-[#298dff]" : "text-white"
+                                  isHovered ? "text-[#CCFF00]" : "text-white"
                                 }`}
                               >
                                 <span>{link.label}</span>
@@ -767,7 +778,7 @@ export function SiteNavbar() {
                           <span className="relative z-10 flex-1 min-w-0">
                             <span
                               className={`block text-[0.9375em] font-normal leading-none transition-colors duration-300 ${
-                                isHovered ? "text-[#298dff]" : "text-white"
+                                isHovered ? "text-[#CCFF00]" : "text-white"
                               }`}
                             >
                               {link.label}
@@ -835,7 +846,7 @@ export function SiteNavbar() {
                     <span>{item.label}</span>
                     <span
                       className={`w-[2em] h-[2em] p-[0.65em] flex items-center justify-center transition-colors ${
-                        expanded ? "bg-[#298dff]" : "bg-[#222529]"
+                        expanded ? "bg-[#CCFF00] text-black" : "bg-[#222529] text-white"
                       }`}
                     >
                       <NavPlusSvg className="w-full h-full" rotated={expanded} />
@@ -880,13 +891,24 @@ export function SiteNavbar() {
               );
             })}
 
-            <div className="pt-[1.5em] pb-[3em]">
+            <div className="pt-[1.5em] pb-[3em] flex flex-col gap-[0.75em]">
               <a
                 href={GET_STARTED_CTA.href}
                 onClick={() => setMobileOpen(false)}
-                className="block w-full bg-[#298dff] text-white text-center py-[0.95em] font-normal text-[1em]"
+                className="block w-full bg-[#CCFF00] hover:bg-[#B8E600] transition-colors text-black text-center py-[0.95em] font-medium text-[1em]"
               >
                 {GET_STARTED_CTA.label}
+              </a>
+              <a
+                href="https://x.com/NTI_Index"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-center gap-[0.55em] w-full bg-[#222529] border border-[#343940] hover:border-[#CCFF00] text-white py-[0.85em] font-mono text-[0.875em] transition-colors"
+              >
+                <XIcon className="w-[0.95em] h-[0.95em]" />
+                <span>@NTI_Index</span>
+                <ExternalArrowIcon className="w-[0.65em] h-[0.65em] opacity-70" />
               </a>
             </div>
           </div>

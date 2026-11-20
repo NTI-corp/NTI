@@ -3,40 +3,75 @@
 import React, { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { HOME_CONTENT } from "@/content/home";
-import { DottedDivider } from "@/components/ui/DottedDivider";
+import { Check, Copy } from "lucide-react";
 import {
-  BellIcon,
-  DiscordIcon,
-  ExternalArrowIcon,
-  PlayIcon,
-  SingleArrowIcon,
-  XIcon,
-} from "@/components/ui/Icons";
+  PROTOCOL_ADDRESSES,
+  ROBINHOOD_TESTNET_ID,
+  robinhoodTestnet,
+} from "@nti/sdk";
+import { HOME_CONTENT, type DeployedContractMeta } from "@/content/home";
+import { DottedDivider } from "@/components/ui/DottedDivider";
+import { ExternalArrowIcon, NtiOracleIcon, ProtocolIcon, RobinhoodMark } from "@/components/ui/Icons";
+import { ScrambleText } from "@/components/ui/ScrambleText";
 
-function formatUsd(value: number) {
-  return "$" + Math.round(value).toLocaleString("en-US");
+const GLYPHS = "abcdefghijklmnopqrstuvwxyz0123456789!$^*()-_=+[]{}";
+
+function runDomScramble(el: HTMLElement, text: string) {
+  const activeRaf = Number(el.dataset.scrambleRaf || "0");
+  if (activeRaf) cancelAnimationFrame(activeRaf);
+
+  const start = performance.now();
+  const duration = Math.min(550, Math.max(240, text.length * 18));
+
+  const tick = (now: number) => {
+    const progress = Math.min(1, (now - start) / duration);
+    const settledCount = Math.floor(progress * text.length);
+    const next = text
+      .split("")
+      .map((ch, idx) => {
+        if (ch === " ") return " ";
+        if (idx < settledCount) return ch;
+        return GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+      })
+      .join("");
+
+    el.textContent = next;
+    if (progress < 1) {
+      el.dataset.scrambleRaf = String(requestAnimationFrame(tick));
+    } else {
+      el.textContent = text;
+      delete el.dataset.scrambleRaf;
+    }
+  };
+
+  el.dataset.scrambleRaf = String(requestAnimationFrame(tick));
 }
 
 export function StayInLoopSection() {
-  const { stayInLoop } = HOME_CONTENT;
+  const { deployedContracts } = HOME_CONTENT;
+  const addresses = PROTOCOL_ADDRESSES[ROBINHOOD_TESTNET_ID];
+  const explorerBase =
+    robinhoodTestnet.blockExplorers?.default.url ??
+    "https://explorer.testnet.chain.robinhood.com";
+
   const sectionRef = useRef<HTMLElement>(null);
   const headingCharsRef = useRef<(HTMLSpanElement | null)[]>([]);
-  const bellRef = useRef<HTMLSpanElement>(null);
+  const badgeRef = useRef<HTMLSpanElement>(null);
   const subtitleMaskRef = useRef<HTMLDivElement>(null);
-  const tvlRef = useRef<HTMLDivElement>(null);
-  const [targetTvl, setTargetTvl] = useState<number>(
-    stayInLoop.tvl.fallbackNumeric
-  );
-  const [displayTvl, setDisplayTvl] = useState<string>(
-    stayInLoop.tvl.fallbackFormatted
-  );
-  const hasAnimatedTvl = useRef(false);
+  const timelineWrapRef = useRef<HTMLDivElement>(null);
+  const progressMainRef = useRef<HTMLDivElement>(null);
+  const topTrailRef = useRef<HTMLDivElement>(null);
+  const bottomTrailRef = useRef<HTMLDivElement>(null);
+  const progressClipRef = useRef<HTMLDivElement>(null);
 
-  const prefixChars = stayInLoop.headingPrefix.split("");
-  const suffixChars = stayInLoop.headingSuffix.split("");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // _revealText2Animation: char stagger + bell scale + subtitle mask wipe
+  const prefixChars = deployedContracts.headingPrefix.split("");
+  const suffixChars = deployedContracts.headingSuffix.split("");
+
+  const leftCards = deployedContracts.cards.filter((c) => c.column === "left");
+  const rightCards = deployedContracts.cards.filter((c) => c.column === "right");
+
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
     const el = sectionRef.current;
@@ -57,9 +92,9 @@ export function StayInLoopSection() {
         );
       }
 
-      if (bellRef.current) {
+      if (badgeRef.current) {
         tl.fromTo(
-          bellRef.current,
+          badgeRef.current,
           { scale: 0.4, opacity: 0 },
           { scale: 1, opacity: 1, duration: 0.28, ease: "back.out(2)" },
           0.18
@@ -74,80 +109,95 @@ export function StayInLoopSection() {
           0.2
         );
       }
+
+      // Sync vertical dotted progress rail & sticky #CCFF00 trails inside contracts timeline
+      const wrap = timelineWrapRef.current;
+      const topTrail = topTrailRef.current;
+      const bottomTrail = bottomTrailRef.current;
+      const clip = progressClipRef.current;
+
+      if (wrap && clip) {
+        const trail = { top: 0, bottom: 0 };
+        let tween: gsap.core.Tween | null = null;
+        let idleTimer: ReturnType<typeof setTimeout> | null = null;
+        let isActive = false;
+
+        const applyTrails = (dir: number) => {
+          if (topTrail) topTrail.style.height = `${trail.top}%`;
+          if (bottomTrail) bottomTrail.style.height = `${trail.bottom}%`;
+          if (dir === -1) {
+            clip.style.clipPath = `inset(0% 0px calc(${50 - trail.bottom}%) 0px)`;
+          } else {
+            clip.style.clipPath = `inset(calc(${50 - trail.top}%) 0px 0% 0px)`;
+          }
+        };
+
+        ScrollTrigger.create({
+          trigger: wrap,
+          start: "top 65%",
+          end: "bottom 40%",
+          scrub: true,
+          onUpdate: (self) => {
+            if (!isActive) return;
+            const dir = self.direction;
+            tween?.kill();
+            tween = gsap.to(trail, {
+              top: dir === 1 ? 48 : 0,
+              bottom: dir === -1 ? 48 : 0,
+              duration: 0.22,
+              ease: "power2.out",
+              onUpdate: () => applyTrails(dir),
+            });
+            if (idleTimer) clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+              tween?.kill();
+              tween = gsap.to(trail, {
+                top: 0,
+                bottom: 0,
+                duration: 0.45,
+                ease: "power2.out",
+                onUpdate: () => applyTrails(0),
+              });
+            }, 140);
+          },
+          onEnter: () => {
+            isActive = true;
+          },
+          onEnterBack: () => {
+            isActive = true;
+          },
+          onLeave: () => {
+            isActive = false;
+          },
+          onLeaveBack: () => {
+            isActive = false;
+          },
+        });
+      }
     }, el);
 
     return () => ctx.revert();
   }, []);
 
-  // Fetch live Sui TVL from DeFiLlama with safe fallback
-  useEffect(() => {
-    let cancelled = false;
-    fetch(stayInLoop.tvl.apiUrl)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((chains: Array<{ name?: string; tvl?: number }> | null) => {
-        if (cancelled || !Array.isArray(chains)) return;
-        const sui = chains.find(
-          (c) => c.name?.toLowerCase() === "sui" && typeof c.tvl === "number"
-        );
-        if (sui && typeof sui.tvl === "number" && sui.tvl > 0) {
-          setTargetTvl(sui.tvl);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [stayInLoop.tvl.apiUrl]);
-
-  // Animate TVL counter from $0 to targetTvl when scrolled into view
-  useEffect(() => {
-    const el = tvlRef.current;
-    if (!el) return;
-
-    const runCountUp = (goal: number) => {
-      const duration = 1400;
-      const start = performance.now();
-      const tick = (now: number) => {
-        const progress = Math.min(1, (now - start) / duration);
-        const eased = 1 - Math.pow(1 - progress, 2);
-        setDisplayTvl(formatUsd(goal * eased));
-        if (progress < 1) {
-          requestAnimationFrame(tick);
-        } else {
-          setDisplayTvl(formatUsd(goal));
-        }
-      };
-      requestAnimationFrame(tick);
-    };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && !hasAnimatedTvl.current) {
-          hasAnimatedTvl.current = true;
-          runCountUp(targetTvl);
-        }
-      },
-      { threshold: 0.2 }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [targetTvl]);
-
-  useEffect(() => {
-    if (hasAnimatedTvl.current) {
-      setDisplayTvl(formatUsd(targetTvl));
+  const handleCopy = (key: string, address: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(address).catch(() => {});
     }
-  }, [targetTvl]);
+    setCopiedKey(key);
+    setTimeout(() => {
+      setCopiedKey((prev) => (prev === key ? null : prev));
+    }, 1800);
+  };
 
   return (
     <section
       ref={sectionRef}
+      id="deployed-contracts"
       className="w-full bg-black text-white pt-[4em] pb-[6em] md:pt-[5em] md:pb-[8em]"
     >
       <div className="sui-padding-global">
         <div className="sui-container-1400">
-          {/* Char-staggered Heading with blue Bell square */}
+          {/* Char-staggered Heading with #CCFF00 Oracle Emblem */}
           <h2 className="text-[2.5em] sm:text-[4em] md:text-[5.625em] font-normal leading-[1] tracking-[-0.045em] text-white text-center flex flex-wrap items-center justify-center gap-x-[0.22em]">
             <span className="inline-block whitespace-nowrap">
               {prefixChars.map((ch, idx) => (
@@ -164,10 +214,10 @@ export function StayInLoopSection() {
             </span>
 
             <span
-              ref={bellRef}
-              className="inline-flex items-center justify-center w-[0.9em] h-[0.9em] bg-[#298dff] text-white shrink-0"
+              ref={badgeRef}
+              className="inline-flex items-center justify-center w-[0.9em] h-[0.9em] bg-[#CCFF00] text-black shrink-0"
             >
-              <BellIcon className="w-[0.52em] h-[0.52em]" />
+              <NtiOracleIcon className="w-[0.55em] h-[0.55em]" />
             </span>
 
             <span className="inline-block whitespace-nowrap">
@@ -189,11 +239,13 @@ export function StayInLoopSection() {
           <div className="mt-[1.35em] flex items-center justify-center gap-[0.65em] text-center">
             <span
               aria-hidden="true"
-              className="w-[0.65em] h-[0.65em] bg-[#298dff] shrink-0"
+              className="w-[0.65em] h-[0.65em] bg-[#CCFF00] shrink-0"
             />
             <div className="relative overflow-hidden">
-              <p className="text-[0.9375em] md:text-[1.0625em] text-[#c2c6cd]">
-                {stayInLoop.subtitle}
+              <p className="text-[0.9375em] md:text-[1.0625em] text-[#c2c6cd] inline-flex flex-wrap items-center justify-center gap-x-[0.35em]">
+                <span>15 protocol contracts live on</span>
+                <RobinhoodMark className="inline-block h-[1em] w-auto -mt-[0.1em] opacity-95" />
+                <span>Chain Testnet (46630)</span>
               </p>
               <div
                 ref={subtitleMaskRef}
@@ -207,103 +259,114 @@ export function StayInLoopSection() {
             </div>
           </div>
 
-          {/* Asymmetric 7-Col Bento Grid */}
-          <div className="mt-[3.5em] md:mt-[4.5em] grid grid-cols-1 lg:grid-cols-7 gap-[1em]">
-            {/* Cell 1: Featured Stories */}
-            <div className="lg:col-span-3 lg:row-span-2 bg-[#131518] border border-[#343940] p-[1.5em] flex flex-col justify-between">
-              <div>
-                <div className="font-mono text-[0.75em] uppercase tracking-wider text-[#89919f] mb-[1.25em]">
-                  {stayInLoop.featuredHeading}
-                </div>
+          <div className="mt-[3em] mb-[3.5em]">
+            <DottedDivider color="#4b515b" />
+          </div>
 
-                <div className="flex flex-col">
-                  {stayInLoop.featuredItems.map((item, idx) => (
-                    <React.Fragment key={item.title}>
-                      <a
-                        href={item.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="sui-featured-item flex items-center justify-between gap-[1em] py-[1em] group"
-                      >
-                        <div className="flex items-stretch gap-[0.85em] min-w-0">
-                          <div className="w-[6em] sm:w-[7.25em] h-[4.25em] shrink-0 overflow-hidden bg-[#222529]">
-                            <img
-                              src={item.thumbnail}
-                              alt=""
-                              loading="lazy"
-                              className="sui-featured-thumb w-full h-full object-cover block"
-                            />
-                          </div>
-                          <h3 className="text-[0.9375em] font-medium leading-[1.35] text-white group-hover:text-[#298dff] transition-colors flex items-center">
-                            {item.title}
-                          </h3>
-                        </div>
-
-                        <span className="sui-featured-arrow w-[2em] h-[2em] bg-[#222529] text-white flex items-center justify-center shrink-0 transition-colors">
-                          <SingleArrowIcon className="w-[0.75em] h-[0.65em]" />
-                        </span>
-                      </a>
-
-                      {idx < stayInLoop.featuredItems.length - 1 && (
-                        <DottedDivider color="#343940" />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
+          {/* Alternating Timeline Grid matching StackTimelineSection architecture */}
+          <div
+            ref={timelineWrapRef}
+            className="hidden md:grid grid-cols-[1fr_auto_1fr] gap-x-[2.5em] lg:gap-x-[3.5em] items-stretch"
+          >
+            {/* Left Column (01, 03, 05, ...) */}
+            <div className="flex flex-col gap-[3.25em]">
+              {leftCards.map((card) => {
+                const addr = addresses[card.key];
+                if (!addr) return null;
+                return (
+                  <ContractTimelineCard
+                    key={card.key}
+                    card={card}
+                    address={addr}
+                    explorerBase={explorerBase}
+                    copied={copiedKey === card.key}
+                    onCopy={() => handleCopy(card.key, addr)}
+                  />
+                );
+              })}
             </div>
 
-            {/* Cells 2 & 3: Event Video Recap Cards */}
-            {stayInLoop.videoRecaps.map((recap) => (
-              <VideoRecapCard key={recap.title} recap={recap} />
-            ))}
+            {/* Center Dotted Timeline Rail + Sticky Glowing #CCFF00 Cube */}
+            <div
+              ref={progressMainRef}
+              className="relative flex flex-col items-center w-[2px] shrink-0"
+            >
+              <div className="sticky top-[40%] z-10 flex items-center justify-center w-[2px] h-[12em]">
+                <div
+                  ref={topTrailRef}
+                  className="absolute bottom-1/2 left-0 w-[2px] bg-[#CCFF00] pointer-events-none"
+                  style={{ height: "0%" }}
+                />
+                <div className="relative z-[2] w-[0.75em] h-[0.75em] min-h-[0.75em] bg-white shadow-[0_0_16px_rgba(204,255,0,0.9)] shrink-0" />
+                <div
+                  ref={bottomTrailRef}
+                  className="absolute top-1/2 left-0 w-[2px] bg-[#CCFF00] pointer-events-none"
+                  style={{ height: "0%" }}
+                />
+              </div>
 
-            {/* Cell 4: TVL + Discord + X Bottom Row */}
-            <div className="lg:col-span-4 grid grid-cols-1 sm:grid-cols-4 gap-[1em]">
               <div
-                ref={tvlRef}
-                className="sm:col-span-2 bg-[#131518] border border-[#343940] p-[1.5em] flex flex-col justify-between min-h-[12.5em]"
-              >
-                <div className="flex items-center justify-between gap-[0.5em]">
-                  <span className="text-[1em] font-medium text-white">
-                    {stayInLoop.tvl.label}
-                  </span>
-                  <span className="font-mono text-[0.75em] text-[#89919f]">
-                    {stayInLoop.tvl.caption}
-                  </span>
-                </div>
+                ref={progressClipRef}
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0"
+                style={{
+                  clipPath: "inset(50% 0px 50% 0px)",
+                  backgroundImage:
+                    "radial-gradient(circle, rgba(204,255,0,0.9) 1px, transparent 1px)",
+                  backgroundSize: "2px 10px",
+                  backgroundPosition: "center top",
+                  backgroundRepeat: "repeat-y",
+                }}
+              />
 
-                <div className="mt-[2em] text-[2em] sm:text-[2.35em] font-normal tracking-[-0.03em] text-white tabular-nums break-words">
-                  {displayTvl}
-                </div>
-              </div>
-
-              {stayInLoop.socialTiles.map((tile) => (
-                <a
-                  key={tile.name}
-                  href={tile.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="sm:col-span-1 bg-[#131518] hover:bg-[#298dff] border border-[#343940] hover:border-[#298dff] transition-colors duration-200 p-[1.35em] flex flex-col justify-between min-h-[12.5em] group"
-                >
-                  <div className="flex items-center justify-end text-[#89919f] group-hover:text-white transition-colors">
-                    <ExternalArrowIcon className="w-[0.75em] h-[0.75em]" />
-                  </div>
-
-                  <div className="flex items-center justify-center my-[0.75em]">
-                    {tile.kind === "discord" ? (
-                      <DiscordIcon className="w-[2.5em] h-[2.5em] text-white" />
-                    ) : (
-                      <XIcon className="w-[2.15em] h-[2.15em] text-white" />
-                    )}
-                  </div>
-
-                  <div className="text-[0.9375em] font-medium text-white text-center">
-                    {tile.name}
-                  </div>
-                </a>
-              ))}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 opacity-45"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle, #4b515b 1px, transparent 1px)",
+                  backgroundSize: "2px 10px",
+                  backgroundPosition: "center top",
+                  backgroundRepeat: "repeat-y",
+                }}
+              />
             </div>
+
+            {/* Right Column staggered downward (02, 04, 06, ...) */}
+            <div className="flex flex-col gap-[3.25em] mt-[6em]">
+              {rightCards.map((card) => {
+                const addr = addresses[card.key];
+                if (!addr) return null;
+                return (
+                  <ContractTimelineCard
+                    key={card.key}
+                    card={card}
+                    address={addr}
+                    explorerBase={explorerBase}
+                    copied={copiedKey === card.key}
+                    onCopy={() => handleCopy(card.key, addr)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile Single-Column Sequential Timeline */}
+          <div className="flex flex-col gap-[1.5em] md:hidden">
+            {deployedContracts.cards.map((card) => {
+              const addr = addresses[card.key];
+              if (!addr) return null;
+              return (
+                <ContractTimelineCard
+                  key={card.key}
+                  card={card}
+                  address={addr}
+                  explorerBase={explorerBase}
+                  copied={copiedKey === card.key}
+                  onCopy={() => handleCopy(card.key, addr)}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
@@ -311,63 +374,119 @@ export function StayInLoopSection() {
   );
 }
 
-function VideoRecapCard({
-  recap,
+function ContractTimelineCard({
+  card,
+  address,
+  explorerBase,
+  copied,
+  onCopy,
 }: {
-  recap: (typeof HOME_CONTENT.stayInLoop.videoRecaps)[number];
+  card: DeployedContractMeta;
+  address: string;
+  explorerBase: string;
+  copied: boolean;
+  onCopy: () => void;
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const handleEnter = () => {
-    const vid = videoRef.current;
-    if (vid) {
-      vid.currentTime = 0;
-      vid.play().catch(() => {});
-    }
-  };
-
-  const handleLeave = () => {
-    const vid = videoRef.current;
-    if (vid) {
-      vid.pause();
-      vid.currentTime = 0;
-    }
-  };
-
   return (
-    <a
-      href={recap.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
-      className="lg:col-span-2 sui-fest-btn relative bg-[#131518] border border-[#343940] overflow-hidden min-h-[16em] flex flex-col justify-end group"
-    >
-      <video
-        ref={videoRef}
-        src={recap.videoSrc}
-        poster={recap.posterSrc}
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-      />
+    <article className="group relative w-full bg-[#131518] border-x-[1.5px] border-[#4b515b] hover:border-[#CCFF00]/75 transition-colors flex flex-col overflow-hidden">
+      {/* Left Inner Vertical Connector + Bottom Turn matching `.timeline_connector` */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none"
-      />
-
-      <div className="relative z-10 p-[1.25em] flex items-center justify-between gap-[0.75em]">
-        <span className="text-[1.125em] font-medium text-white">
-          {recap.title}
-        </span>
-
-        <span className="sui-fest-text inline-flex items-center gap-[0.45em] bg-[#222529]/90 text-white text-[0.75em] font-medium px-[0.75em] py-[0.45em] transition-colors shrink-0">
-          <PlayIcon className="w-[0.65em] h-[0.65em]" />
-          <span>{recap.ctaLabel}</span>
-        </span>
+        className="pointer-events-none absolute inset-y-0 left-0 w-[1.4em] ml-[2.2em] pt-[2.55em] pb-[1.35em] z-[2] flex flex-col"
+      >
+        <div className="w-[1.5px] flex-1 bg-[#4b515b] group-hover:bg-[#CCFF00]/65 transition-colors" />
+        <div className="w-full h-[1.5px] bg-[#4b515b] group-hover:bg-[#CCFF00]/65 transition-colors" />
       </div>
-    </a>
+
+      {/* Top Header Bar */}
+      <div
+        className="relative flex items-center justify-between gap-[0.75em] border-y-[1.5px] border-[#4b515b] bg-[#131518] pr-[1em]"
+        onMouseEnter={(e) => {
+          const t = e.currentTarget.querySelector<HTMLElement>("[data-contract-title]");
+          if (t) runDomScramble(t, card.name);
+        }}
+      >
+        <div className="flex items-center gap-[0.75em] min-w-0">
+          <div className="w-[2.5em] h-[2.5em] border-r-[1.5px] border-[#4b515b] text-white group-hover:text-[#CCFF00] transition-colors flex items-center justify-center shrink-0">
+            <ProtocolIcon
+              name={
+                card.category === "CORE"
+                  ? "engine"
+                  : card.category === "ORACLE"
+                    ? "oracle"
+                    : card.category === "MARKETS"
+                      ? "market"
+                      : card.category === "VAULTS"
+                        ? "twap"
+                        : "guard"
+              }
+              className="w-[1.05em] h-[1.05em]"
+            />
+          </div>
+          <div className="font-mono text-[0.875em] text-white py-[0.55em] leading-[1.3] truncate">
+            <span data-contract-title="">{card.name}</span>
+          </div>
+        </div>
+
+        <span className="font-mono text-[0.6875em] uppercase tracking-wider bg-[#222529] text-[#c2c6cd] border border-[#343940] px-[0.55em] py-[0.25em] shrink-0">
+          {card.category}
+        </span>
+
+        {/* Corner masking cube */}
+        <span
+          aria-hidden="true"
+          className="absolute bottom-0 left-0 ml-[1.8em] translate-y-1/2 w-[0.875em] h-[0.875em] bg-[#131518] z-[1]"
+        />
+      </div>
+
+      {/* Body: Role Description & Address Box */}
+      <div className="pl-[4.188em] pr-[1.25em] py-[1.25em] flex flex-col gap-[0.95em]">
+        <p className="text-[0.9375em] leading-[1.45] text-[#c2c6cd]">
+          {card.description}
+        </p>
+
+        <div className="bg-[#0b0d10] border border-[#343940] px-[0.85em] py-[0.6em] flex items-center justify-between gap-[0.75em]">
+          <code className="font-mono text-[0.75em] sm:text-[0.8125em] text-[#CCFF00] break-all">
+            {address}
+          </code>
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label={`Copy ${card.name} address`}
+            className="shrink-0 w-[2em] h-[2em] bg-[#222529] hover:bg-[#CCFF00] text-white hover:text-black flex items-center justify-center transition-colors cursor-pointer"
+          >
+            {copied ? (
+              <Check className="w-[0.9em] h-[0.9em]" />
+            ) : (
+              <Copy className="w-[0.9em] h-[0.9em]" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className="relative flex items-center justify-between gap-[0.75em] pl-[4.188em] pr-[1.25em] py-[0.8em] border-t-[1.5px] border-b-[1.5px] border-[#4b515b]">
+        <div className="flex items-center gap-[0.5em] font-mono text-[0.75em] text-[#89919f]">
+          <span className="w-[0.5em] h-[0.5em] bg-[#CCFF00] inline-block shrink-0" />
+          <span>CHAIN 46630</span>
+        </div>
+
+        <a
+          href={`${explorerBase}/address/${address}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-[0.4em] font-mono text-[0.75em] text-white hover:text-[#CCFF00] transition-colors"
+        >
+          <ScrambleText text="Explorer" trigger="hover" />
+          <ExternalArrowIcon className="w-[0.7em] h-[0.7em]" />
+        </a>
+
+        {/* Bottom corner cube */}
+        <span
+          aria-hidden="true"
+          className="absolute top-[-0.9em] left-0 ml-[1.8em] w-[0.875em] h-[0.875em] bg-[#131518] z-[1]"
+        />
+      </div>
+    </article>
   );
 }

@@ -218,9 +218,8 @@ export function WalletButton() {
             setError(null);
             setModalOpen(true);
           }}
-          className="inline-flex min-h-[34px] cursor-pointer items-center gap-2 rounded-lg bg-[#6366F1] px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#818CF8]"
+          className="inline-flex min-h-[34px] cursor-pointer items-center rounded-lg bg-[#CCFF00] px-3.5 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-[#B8E600]"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
           <span>{isConnecting ? "Connecting..." : "Connect Wallet"}</span>
         </button>
       ) : (
@@ -238,17 +237,12 @@ export function WalletButton() {
 
           {!wrongChain && session?.authenticated && (
             <span
-              className={`hidden min-h-[34px] items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium sm:inline-flex ${
+              className={`hidden min-h-[34px] items-center rounded-lg border px-2.5 py-1.5 text-[11px] font-medium sm:inline-flex ${
                 session.hasRadarAccess
                   ? "border-[#10B981]/40 bg-[#10B981]/10 text-[#34D399]"
                   : "border-[#26262E] bg-[#141418] text-[#A1A1AA]"
               }`}
             >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  session.hasRadarAccess ? "bg-[#34D399]" : "bg-[#A1A1AA]"
-                }`}
-              />
               {session.hasRadarAccess ? "RT Radar" : "SIWE"}
             </span>
           )}
@@ -263,10 +257,8 @@ export function WalletButton() {
                 : "border-[#26262E] bg-[#141418] text-[#F4F4F5] hover:border-[#3F3F4C]"
             }`}
           >
-            {activeIcon ? (
+            {activeIcon && (
               <img src={activeIcon} alt="" className="h-4 w-4 shrink-0 object-contain" />
-            ) : (
-              <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
             )}
             <span className="tabular-nums">{truncateHex(address, 6, 4)}</span>
             <span className="text-[9px] text-[#71717A]">{menuOpen ? "▲" : "▼"}</span>
@@ -330,7 +322,7 @@ export function WalletButton() {
                   type="button"
                   disabled={signingIn}
                   onClick={() => void signIn()}
-                  className="cursor-pointer rounded border border-[#6366F1]/50 bg-[#6366F1]/15 px-2 py-0.5 text-[10px] uppercase text-[#A5B4FC] hover:bg-[#6366F1]/25 disabled:opacity-50"
+                  className="cursor-pointer rounded border border-[#CCFF00]/50 bg-[#CCFF00]/12 px-2 py-0.5 text-[10px] uppercase text-[#CCFF00] hover:bg-[#CCFF00]/22 disabled:opacity-50"
                 >
                   {signingIn ? "SIGNING..." : "SIGN IN (SIWE)"}
                 </button>
@@ -369,7 +361,7 @@ export function WalletButton() {
               href={`${explorerBase}/address/${address}`}
               target="_blank"
               rel="noreferrer noopener"
-              className="flex items-center justify-center border-r border-[#24242C] py-2.5 text-[#A1A1AA] transition-colors hover:bg-[#19191F] hover:text-[#A5B4FC]"
+              className="flex items-center justify-center border-r border-[#24242C] py-2.5 text-[#A1A1AA] transition-colors hover:bg-[#19191F] hover:text-[#CCFF00]"
             >
               EXPLORER ↗
             </a>
@@ -407,7 +399,7 @@ export function WalletButton() {
             >
               <header className="flex items-start justify-between border-b border-[#24242C] px-5 py-4">
                 <div>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#6366F1]">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#CCFF00]">
                     CONNECT TO NTI TERMINAL
                   </span>
                   <h2
@@ -449,7 +441,7 @@ export function WalletButton() {
                           {logo ? (
                             <img src={logo} alt="" className="h-5 w-5 object-contain" />
                           ) : (
-                            <span className="font-mono text-xs text-[#A5B4FC]">W</span>
+                            <span className="font-mono text-xs text-[#CCFF00]">W</span>
                           )}
                         </div>
                         <div>

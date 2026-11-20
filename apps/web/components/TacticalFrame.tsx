@@ -27,15 +27,14 @@ export function CopyContractPill({
       type="button"
       onClick={() => void handleCopy()}
       title={`Copy contract ${address}`}
-      className="group inline-flex min-h-[34px] cursor-pointer items-center gap-2 rounded-md border border-[#24242C] bg-[#131317] px-3 py-1.5 font-mono text-[11px] transition-colors hover:border-[#6366F1]/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#6366F1]"
+      className="group inline-flex min-h-[34px] cursor-pointer items-center gap-2 rounded-md border border-[#242830] bg-[#131518] px-3 py-1.5 font-mono text-[11px] transition-colors hover:border-[#CCFF00]/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#CCFF00]"
     >
-      <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
-      <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[9px] uppercase tracking-widest text-[#A1A1AA]">
+      <span className="rounded border border-[#242830] bg-[#1A1D22] px-1.5 py-0.5 text-[9px] uppercase tracking-widest text-[#A1A1AA]">
         {label}
       </span>
       <span className="text-[#F4F4F5] tabular-nums sm:hidden">{truncateHex(address, 8, 6)}</span>
       <span className="hidden text-[#F4F4F5] tabular-nums sm:inline">{address}</span>
-      <span className="border-l border-[#24242C] pl-2 text-[10px] uppercase tracking-wider text-[#A5B4FC] group-hover:text-[#F4F4F5]">
+      <span className="border-l border-[#242830] pl-2 text-[10px] uppercase tracking-wider text-[#CCFF00] group-hover:text-[#F4F4F5]">
         {copied ? "COPIED" : "COPY"}
       </span>
     </button>
@@ -54,11 +53,11 @@ export function TacticalFrame({
   className?: string;
 }) {
   return (
-    <div className={`rounded-lg border border-[#24242C] bg-[#131317] ${className}`}>
+    <div className={`rounded-lg border border-[#242830] bg-[#131518] ${className}`}>
       {(eyebrow || rightLabel) && (
-        <div className="flex items-center justify-between border-b border-[#24242C] px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.16em]">
+        <div className="flex items-center justify-between border-b border-[#242830] px-4 py-2.5 font-mono text-[10px] uppercase tracking-[0.16em]">
           <span className="text-[#A1A1AA]">{eyebrow}</span>
-          {rightLabel && <span className="text-[#A5B4FC] tabular-nums">{rightLabel}</span>}
+          {rightLabel && <span className="text-[#CCFF00] tabular-nums">{rightLabel}</span>}
         </div>
       )}
       {children}

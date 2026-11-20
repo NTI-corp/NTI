@@ -46,7 +46,7 @@ export function RadarClient({ initialData }: { initialData: RadarResponse }) {
 
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#24242C] pb-4">
         <div>
-          <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
             Emerging Radar · Velocity &amp; On-Chain Token Discovery
           </span>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
@@ -84,12 +84,7 @@ export function RadarClient({ initialData }: { initialData: RadarResponse }) {
         }`}
       >
         <div>
-          <div className="flex items-center gap-2 font-mono text-xs font-semibold">
-            <span
-              className={`h-2 w-2 rounded-full ${
-                data.realtimeUnlocked ? "bg-[#22C55E]" : "bg-[#F59E0B]"
-              }`}
-            />
+          <div className="font-mono text-xs font-semibold">
             <span className={data.realtimeUnlocked ? "text-[#22C55E]" : "text-[#F59E0B]"}>
               {data.realtimeUnlocked
                 ? "REAL-TIME STAKER FEED UNLOCKED"
@@ -112,7 +107,7 @@ export function RadarClient({ initialData }: { initialData: RadarResponse }) {
               type="button"
               disabled={signingIn}
               onClick={() => void signIn()}
-              className="rounded-md bg-[#6366F1] px-3.5 py-2 font-mono text-xs font-semibold text-white transition-colors hover:bg-[#5558E6] disabled:opacity-50"
+              className="rounded-md bg-[#CCFF00] px-3.5 py-2 font-mono text-xs font-semibold text-black transition-colors hover:bg-[#B8E600] disabled:opacity-50"
             >
               {signingIn ? "VERIFYING SIWE..." : "SIGN IN WITH ETHEREUM"}
             </button>

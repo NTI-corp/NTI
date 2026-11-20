@@ -30,7 +30,6 @@ export function TestnetBanner() {
     >
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[#F59E0B]" />
           <span className="font-semibold tracking-wider">
             {isMainnet ? "PRE-FREEZE REGISTRY MODE" : "TESTNET MODE · NTITestToken"}
           </span>

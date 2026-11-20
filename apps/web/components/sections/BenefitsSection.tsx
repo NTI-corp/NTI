@@ -6,7 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { HOME_CONTENT } from "@/content/home";
 import { DottedFrame } from "@/components/ui/DottedDivider";
 
-function SuiStackLogoSvg({ className = "w-full h-full" }: { className?: string }) {
+function NTILogoMarkSvg({ className = "w-full h-full" }: { className?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -16,9 +16,13 @@ function SuiStackLogoSvg({ className = "w-full h-full" }: { className?: string }
       aria-hidden="true"
     >
       <path
-        d="M15.3241 24.6111L24.6527 18.6678H24.6577V20.7197L15.3239 26.6663L5.99609 20.7201V18.6678H6.00104L15.3241 24.6111ZM19.3424 7.8946V9.94967L15.3241 7.38965L6.00104 13.333L15.3241 19.2764L24.6527 13.333H24.6577V15.385L15.3239 21.3316L5.99609 15.3854V11.2807L15.3239 5.33444L19.3424 7.8946ZM23.9536 5.33301C24.4968 6.47344 25.3777 8.30805 25.6829 8.92819C25.8837 9.33629 25.9961 9.79524 25.9961 10.2779C25.9961 11.9672 24.627 13.3367 22.9381 13.3368C21.2492 13.3368 19.8798 11.9672 19.8798 10.2779C19.8798 9.79523 19.9924 9.3363 20.1933 8.92819C20.503 8.29903 21.3645 6.48571 21.9189 5.33301H23.9536ZM22.9355 7.22194C22.4662 8.20304 21.9637 9.25557 21.748 9.69382C21.6618 9.86902 21.6129 10.0665 21.6129 10.2779C21.6129 11.0099 22.2062 11.6034 22.9381 11.6035C23.6699 11.6034 24.2632 11.0099 24.2632 10.2779C24.2632 10.0665 24.2143 9.86902 24.128 9.69382C23.9093 9.24944 23.4051 8.20207 22.9355 7.22194Z"
-        fill="currentColor"
+        d="M5 23L12.5 13.5L18 18.5L27 8.5"
+        stroke="currentColor"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
+      <circle cx="27" cy="8.5" r="2.75" fill="currentColor" />
     </svg>
   );
 }
@@ -132,7 +136,7 @@ export function BenefitsSection() {
                       >
                         <span
                           aria-hidden="true"
-                          className="w-[0.75em] h-[0.75em] bg-[#298dff] shrink-0 mt-[0.35em]"
+                          className="w-[0.75em] h-[0.75em] bg-[#CCFF00] shrink-0 mt-[0.35em]"
                         />
                         <p className="text-[1em] md:text-[1.125em] leading-[1.35] tracking-[-0.01em] text-black">
                           {text}
@@ -150,13 +154,11 @@ export function BenefitsSection() {
             <a
               ref={ctaRef}
               href={benefits.cta.href}
-              target="_blank"
-              rel="noopener noreferrer"
               onMouseEnter={() => setCtaHovered(true)}
               onMouseLeave={() => setCtaHovered(false)}
-              className="inline-flex items-center gap-[0.55em] bg-[#298dff] hover:bg-[#1a7ae6] text-white text-[0.9375em] font-normal px-[0.938em] py-[0.438em] transition-colors overflow-hidden"
+              className="inline-flex items-center gap-[0.55em] bg-[#CCFF00] hover:bg-[#B8E600] text-black text-[0.9375em] font-medium px-[0.938em] py-[0.438em] transition-colors overflow-hidden"
             >
-              {/* Left icon box swapping SuiStackLogoSvg <-> SingleArrowSvg */}
+              {/* Left icon box swapping NTILogoMarkSvg <-> SingleArrowSvg */}
               <span className="relative w-[2em] h-[2em] overflow-hidden flex items-center justify-center shrink-0">
                 <span
                   className="absolute inset-0 flex items-center justify-center transition-transform duration-[375ms]"
@@ -165,7 +167,7 @@ export function BenefitsSection() {
                     transform: ctaHovered ? "translateX(200%)" : "translateX(0%)",
                   }}
                 >
-                  <SuiStackLogoSvg className="w-[1.65em] h-[1.65em]" />
+                  <NTILogoMarkSvg className="w-[1.45em] h-[1.45em]" />
                 </span>
                 <span
                   className="absolute inset-0 flex items-center justify-center transition-transform duration-[375ms]"

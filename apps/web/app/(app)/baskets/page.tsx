@@ -16,7 +16,7 @@ export default async function BasketsPage() {
       )}
 
       <div className="border-b border-[#24242C] pb-4">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-[#6366F1]">
+        <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
           Narrative Baskets · ERC-20 Spot Vaults
         </span>
         <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
@@ -40,17 +40,17 @@ export default async function BasketsPage() {
               <Link
                 key={b.id}
                 href={`/baskets/${b.id}`}
-                className="group flex flex-col justify-between rounded-lg border border-[#24242C] bg-[#131317] p-4 transition-colors hover:border-[#6366F1]/50 hover:bg-[#19191F]"
+                className="group flex flex-col justify-between rounded-lg border border-[#24242C] bg-[#131317] p-4 transition-colors hover:border-[#CCFF00]/50 hover:bg-[#19191F]"
               >
                 <div>
                   <div className="flex items-center justify-between font-mono text-[11px]">
-                    <span className="rounded border border-[#6366F1]/40 bg-[#6366F1]/15 px-2 py-0.5 text-[#A5B4FC]">
+                    <span className="rounded border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-2 py-0.5 text-[#CCFF00]">
                       {b.symbol}
                     </span>
                     <span className="text-[#71717A]">{b.narrativeLabel}</span>
                   </div>
 
-                  <h2 className="mt-2.5 text-base font-semibold text-[#F4F4F5] transition-colors group-hover:text-[#A5B4FC]">
+                  <h2 className="mt-2.5 text-base font-semibold text-[#F4F4F5] transition-colors group-hover:text-[#CCFF00]">
                     {b.name}
                   </h2>
 
@@ -90,7 +90,7 @@ export default async function BasketsPage() {
                           </div>
                           <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-[#24242C]">
                             <div
-                              className="h-full rounded-full bg-[#6366F1]"
+                              className="h-full rounded-full bg-[#CCFF00]"
                               style={{ width: `${Math.min(100, h.weightBps / 100)}%` }}
                             />
                           </div>
@@ -115,7 +115,7 @@ export default async function BasketsPage() {
                   </div>
                   <div className="mt-2.5 flex justify-between text-[10px] text-[#71717A]">
                     <span>Rebalanced {formatRelativeTime(b.lastRebalancedAt)}</span>
-                    <span className="text-[#A5B4FC]">OPEN VAULT →</span>
+                    <span className="text-[#CCFF00]">OPEN VAULT →</span>
                   </div>
                 </div>
               </Link>

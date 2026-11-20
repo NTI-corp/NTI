@@ -7,7 +7,7 @@ import { PolicyEditIcon } from "@/components/ui/Icons";
 import { LottieIcon } from "@/components/ui/LottieIcon";
 
 const FLASH_PALETTES = [
-  { bg: "#298DFF", color: "#ffffff" },
+  { bg: "#CCFF00", color: "#000000" },
   { bg: "#ABB2B9", color: "#000103" },
   { bg: "#000000", color: "#FEFEFE" },
 ];
@@ -192,13 +192,13 @@ export function SuiIsSection() {
               >
                 <div className="sui-padding-global">
                   <div className="sui-container-1400 grid grid-cols-1 md:grid-cols-[0.22fr_1fr_auto] items-center gap-[1.25em] py-[2em] md:py-[2.65em]">
-                    <div className="hidden md:block font-mono text-[0.75em] text-[#6c7584]">
-                      0{idx + 1}
+                    <div className="hidden md:block font-mono text-[0.75em] tracking-wider text-[#6c7584]">
+                      {item.tag}
                     </div>
 
                     <HighlightScrambleTitle text={item.title} />
 
-                    <div className="w-[3.25em] h-[3.25em] md:w-[4em] md:h-[4em] bg-[#298dff] text-white flex items-center justify-center shrink-0 justify-self-start md:justify-self-end transition-transform duration-200 group-hover:scale-[1.04]">
+                    <div className="w-[3.25em] h-[3.25em] md:w-[4em] md:h-[4em] bg-[#CCFF00] text-black flex items-center justify-center shrink-0 justify-self-start md:justify-self-end transition-transform duration-200 group-hover:scale-[1.04]">
                       {item.kind === "svg" ? (
                         <PolicyEditIcon className="w-[1.65em] h-[1.65em]" />
                       ) : (
@@ -207,7 +207,7 @@ export function SuiIsSection() {
                             src={item.lottieSrc}
                             playOnScroll
                             isHovered={isHovered}
-                            className="w-[2.4em] h-[2.4em]"
+                            className="w-[2.4em] h-[2.4em] brightness-0"
                           />
                         )
                       )}

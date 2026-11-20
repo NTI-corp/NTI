@@ -255,11 +255,11 @@ export function BetModal({
           onClick={() => setSide(1)}
           className={`rounded-md border px-3 py-2.5 text-left transition-colors ${
             side === 1
-              ? "border-[#6366F1]/60 bg-[#6366F1]/15 text-[#F4F4F5]"
+              ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
               : "border-[#24242C] bg-[#0B0B0E] text-[#A1A1AA] hover:border-[#32323D]"
           }`}
         >
-          <div className="font-mono text-[10px] font-medium text-[#A5B4FC]">
+          <div className="font-mono text-[10px] font-medium text-[#CCFF00]">
             SIDE B OUTPERFORMS
           </div>
           <div className="mt-0.5 text-xs font-semibold text-[#F4F4F5]">
@@ -290,7 +290,7 @@ export function BetModal({
             value={amountInput}
             onChange={(e) => setAmountInput(e.target.value)}
             disabled={cutoffPassed}
-            className="w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#6366F1] focus:outline-none disabled:opacity-50"
+            className="w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#CCFF00] focus:outline-none disabled:opacity-50"
           />
           {["0.005", "0.02", "0.1"].map((preset) => (
             <button

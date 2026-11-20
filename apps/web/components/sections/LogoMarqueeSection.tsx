@@ -1,22 +1,65 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { HOME_CONTENT, type PartnerLogo } from "@/content/home";
-
-function getLogoFilterClass(variant?: PartnerLogo["variant"]) {
-  if (variant === "invert") return "invert-[0.5]";
-  if (variant === "opacity-50") return "opacity-50";
-  return "";
-}
+import { HOME_CONTENT, type SectorTickerItem } from "@/content/home";
+import { SectorIcon } from "@/components/ui/Icons";
 
 export function LogoMarqueeSection() {
   const { marquee } = HOME_CONTENT;
   const headingWrapRef = useRef<HTMLDivElement>(null);
   const wordsRef = useRef<(HTMLSpanElement | null)[]>([]);
+  const [sectors, setSectors] = useState<SectorTickerItem[]>(marquee.sectors);
+
   const words = marquee.heading.split(" ");
-  const logos = [...marquee.logos, ...marquee.logos];
+  const trackItems = [...sectors, ...sectors];
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(marquee.apiUrl)
+      .then((res) => (res.ok ? res.json() : null))
+      .then(
+        (
+          snapshot: {
+            narratives?: Array<{
+              narrativeId?: number;
+              slug?: string;
+              label?: string;
+              iBps?: number;
+              vBps?: number | null;
+            }>;
+          } | null
+        ) => {
+          if (cancelled || !snapshot || !Array.isArray(snapshot.narratives) || snapshot.narratives.length === 0) {
+            return;
+          }
+          const next: SectorTickerItem[] = snapshot.narratives
+            .filter(
+              (n): n is { narrativeId: number; slug: string; label: string; iBps: number; vBps?: number | null } =>
+                typeof n.narrativeId === "number" &&
+                typeof n.slug === "string" &&
+                typeof n.label === "string" &&
+                typeof n.iBps === "number"
+            )
+            .map((n) => ({
+              narrativeId: n.narrativeId,
+              slug: n.slug,
+              label: n.label,
+              iBps: n.iBps,
+              vBps: typeof n.vBps === "number" ? n.vBps : null,
+            }));
+          if (next.length > 0) {
+            setSectors(next);
+          }
+        }
+      )
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [marquee.apiUrl]);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -67,7 +110,7 @@ export function LogoMarqueeSection() {
         </div>
       </div>
 
-      {/* Infinite Continuous Logo Marquee */}
+      {/* Infinite Continuous Unboxed Sector Marquee */}
       <div className="relative w-full overflow-hidden">
         <div
           aria-hidden="true"
@@ -79,21 +122,41 @@ export function LogoMarqueeSection() {
         />
 
         <div className="sui-marquee-track items-center">
-          {logos.map((logo, idx) => (
-            <div
-              key={`${logo.name}-${idx}`}
-              className="flex items-center justify-center shrink-0 px-[2.25em] md:px-[3.25em]"
-            >
-              <img
-                src={logo.src}
-                alt={logo.name}
-                loading="lazy"
-                className={`h-[1.65em] md:h-[2em] w-auto max-w-[9.5em] object-contain select-none ${getLogoFilterClass(
-                  logo.variant
-                )}`}
-              />
-            </div>
-          ))}
+          {trackItems.map((sector, idx) => {
+            const positive = (sector.vBps ?? 0) >= 0;
+            return (
+              <a
+                key={`${sector.slug}-${idx}`}
+                href={`/narratives/${sector.narrativeId}`}
+                className="group flex items-center gap-[0.65em] shrink-0 px-[1.6em] md:px-[2.2em] text-[#7a808a] hover:text-black transition-colors duration-200 select-none"
+              >
+                <SectorIcon
+                  slug={sector.slug}
+                  className="w-[1.8em] h-[1.8em] md:w-[2.1em] md:h-[2.1em] shrink-0 text-[#8b919c] group-hover:text-black transition-colors duration-200"
+                />
+
+                <span className="text-[1.4em] md:text-[1.8em] font-medium leading-none tracking-[-0.03em] whitespace-nowrap">
+                  {sector.label}
+                </span>
+
+                <span className="font-mono text-[0.82em] md:text-[0.9em] tracking-[-0.015em] text-[#9aa0ab] group-hover:text-[#4b515b] tabular-nums whitespace-nowrap transition-colors duration-200">
+                  {sector.iBps.toLocaleString("en-US")} bps
+                </span>
+
+                {sector.vBps !== null && (
+                  <span
+                    className={`font-mono text-[0.78em] md:text-[0.85em] font-medium tabular-nums whitespace-nowrap transition-colors duration-200 ${
+                      positive
+                        ? "text-[#4c7a00] group-hover:text-[#2e4d00]"
+                        : "text-[#b0b5bf] group-hover:text-[#666d78]"
+                    }`}
+                  >
+                    {positive ? `+${sector.vBps}` : sector.vBps}
+                  </span>
+                )}
+              </a>
+            );
+          })}
         </div>
       </div>
     </section>
