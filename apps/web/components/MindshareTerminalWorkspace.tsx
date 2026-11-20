@@ -246,15 +246,17 @@ export function MindshareTerminalWorkspace({
           {/* Blockworks Proportional Mindshare Mosaic */}
           {(viewTab === "arena" || viewTab === "combined") && (
             <div className="rounded-xl border border-[#24242C] bg-[#131317] p-3">
-              <div className="flex min-h-[88px] w-full flex-wrap gap-1.5 sm:flex-nowrap">
-                {sortedByShare.map((n) => {
+              <div className="flex min-h-[84px] w-full flex-wrap gap-1.5 sm:flex-nowrap">
+                {sortedByShare.map((n, idx) => {
                   const pct = (n.iBps / (sortedByShare.reduce((s, x) => s + x.iBps, 0) || 1)) * 100;
                   const tone =
-                    n.vBps === null
-                      ? "border-[#2A2A35] bg-[#1A1A21] text-[#F4F4F5] hover:border-[#3F3F4E]"
-                      : n.vBps >= 0
+                    n.vBps !== null
+                      ? n.vBps >= 0
                         ? "border-[#1F4A37] bg-[#11271D] text-[#ECFDF5] hover:border-[#22C55E]/70"
-                        : "border-[#52232B] bg-[#291317] text-[#FEF2F2] hover:border-[#EF4444]/70";
+                        : "border-[#52232B] bg-[#291317] text-[#FEF2F2] hover:border-[#EF4444]/70"
+                      : idx < 3
+                        ? "border-[#1F4A37]/70 bg-[#10221A] text-[#E5F7EF] hover:border-[#22C55E]/60"
+                        : "border-[#2A2A35] bg-[#18181F] text-[#E4E4E7] hover:border-[#3F3F4E]";
 
                   return (
                     <Link
@@ -296,10 +298,10 @@ export function MindshareTerminalWorkspace({
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-[#24242C] bg-[#101014] text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
-                      <th className="w-10 px-4 py-3 text-center">#</th>
-                      <th className="px-4 py-3">Narrative</th>
+                      <th className="w-10 px-3 py-3 text-center">#</th>
+                      <th className="px-3 py-3">Narrative</th>
                       <th
-                        className={`px-4 py-3 text-right ${
+                        className={`px-3 py-3 text-right whitespace-nowrap ${
                           sortCol === "iBps" ? "border-t-2 border-t-[#6366F1] text-white" : ""
                         }`}
                       >
@@ -312,7 +314,7 @@ export function MindshareTerminalWorkspace({
                         </button>
                       </th>
                       <th
-                        className={`px-4 py-3 text-right ${
+                        className={`px-3 py-3 text-right whitespace-nowrap ${
                           sortCol === "vBps" ? "border-t-2 border-t-[#6366F1] text-white" : ""
                         }`}
                       >
@@ -321,11 +323,11 @@ export function MindshareTerminalWorkspace({
                           onClick={() => handleSort("vBps")}
                           className="cursor-pointer uppercase hover:text-white"
                         >
-                          Change 4h {renderSortIcon("vBps")}
+                          4h Chg {renderSortIcon("vBps")}
                         </button>
                       </th>
                       <th
-                        className={`hidden px-4 py-3 text-right sm:table-cell ${
+                        className={`hidden px-3 py-3 text-right whitespace-nowrap sm:table-cell ${
                           sortCol === "mBps" ? "border-t-2 border-t-[#6366F1] text-white" : ""
                         }`}
                       >
@@ -338,7 +340,7 @@ export function MindshareTerminalWorkspace({
                         </button>
                       </th>
                       <th
-                        className={`hidden px-4 py-3 text-right md:table-cell ${
+                        className={`hidden px-3 py-3 text-right whitespace-nowrap md:table-cell ${
                           sortCol === "sN" ? "border-t-2 border-t-[#6366F1] text-white" : ""
                         }`}
                       >
@@ -347,10 +349,10 @@ export function MindshareTerminalWorkspace({
                           onClick={() => handleSort("sN")}
                           className="cursor-pointer uppercase hover:text-white"
                         >
-                          Decay S_n {renderSortIcon("sN")}
+                          Decay {renderSortIcon("sN")}
                         </button>
                       </th>
-                      <th className="px-4 py-3 text-right">Inspect</th>
+                      <th className="px-3 py-3 text-right whitespace-nowrap">Why?</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1E1E26]">
@@ -361,31 +363,31 @@ export function MindshareTerminalWorkspace({
                           key={n.narrativeId}
                           className="transition-colors hover:bg-[#191920]"
                         >
-                          <td className="px-4 py-3 text-center font-mono text-[11px] tabular-nums text-[#71717A]">
+                          <td className="px-3 py-3 text-center font-mono text-[11px] tabular-nums text-[#71717A]">
                             {idx + 1}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-3">
                             <Link
                               href={`/narratives/${n.narrativeId}`}
-                              className="flex items-center gap-2.5 group"
+                              className="group flex items-center gap-2.5"
                             >
                               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#282832] bg-[#0D0D10] text-[#D4D4D8] group-hover:text-white">
                                 <SectorIcon slug={n.slug} className="h-3.5 w-3.5" />
                               </div>
-                              <div>
-                                <div className="font-semibold text-[#F4F4F5] group-hover:text-[#818CF8]">
+                              <div className="min-w-0">
+                                <div className="truncate font-semibold text-[#F4F4F5] group-hover:text-[#818CF8]">
                                   {n.label}
                                 </div>
-                                <div className="hidden max-w-[260px] truncate text-[11px] text-[#71717A] lg:block">
+                                <div className="hidden max-w-[190px] truncate text-[11px] text-[#71717A] 2xl:block">
                                   {n.description}
                                 </div>
                               </div>
                             </Link>
                           </td>
-                          <td className="px-4 py-3 text-right font-mono text-sm font-semibold tabular-nums text-white">
+                          <td className="px-3 py-3 text-right font-mono text-sm font-semibold tabular-nums text-white whitespace-nowrap">
                             {formatBpsPercent(n.iBps)}
                           </td>
-                          <td className="px-4 py-3 text-right font-mono tabular-nums">
+                          <td className="px-3 py-3 text-right font-mono tabular-nums whitespace-nowrap">
                             {n.vBps !== null ? (
                               <span
                                 className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold ${
@@ -397,23 +399,21 @@ export function MindshareTerminalWorkspace({
                                 {isPos ? "↑" : "↓"} {formatSignedBps(n.vBps, n.vFlag)}
                               </span>
                             ) : (
-                              <span className="text-[11px] text-[#71717A]">
-                                {n.vFlag ? n.vFlag.replace("_", " ") : "Warming"}
-                              </span>
+                              <span className="text-[11px] text-[#71717A]">Warming</span>
                             )}
                           </td>
-                          <td className="hidden px-4 py-3 text-right font-mono tabular-nums text-[#A1A1AA] sm:table-cell">
+                          <td className="hidden px-3 py-3 text-right font-mono tabular-nums text-[#A1A1AA] whitespace-nowrap sm:table-cell">
                             {formatBpsPercent(n.mBps)}
                           </td>
-                          <td className="hidden px-4 py-3 text-right font-mono tabular-nums text-[#A1A1AA] md:table-cell">
+                          <td className="hidden px-3 py-3 text-right font-mono tabular-nums text-[#A1A1AA] whitespace-nowrap md:table-cell">
                             {n.sN.toFixed(1)}
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-3 py-3 text-right whitespace-nowrap">
                             <Link
                               href={`/narratives/${n.narrativeId}`}
                               className="inline-flex items-center gap-1 rounded-md border border-[#26262F] bg-[#16161C] px-2.5 py-1 text-[11px] font-medium text-[#D4D4D8] hover:border-[#6366F1] hover:text-white"
                             >
-                              <span>Deep Dive</span>
+                              <span>Open</span>
                               <ArrowUpRight className="h-3 w-3" />
                             </Link>
                           </td>
