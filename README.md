@@ -40,3 +40,23 @@ pnpm build:sdk
 pnpm typecheck
 pnpm build:web
 ```
+
+## Testnet status (Robinhood Chain Testnet 46630)
+
+Live and automated: contracts (`contracts/deployments/46630.json`), fetcher, operator, keeper, monitor and indexer on
+the VPS (PM2), Supabase, and the web app on Vercel. Contract waits are short on testnet (5 s dispute window, 10 s
+unstake cooldown, 60 s commit delay) and frozen at production values on mainnet; the only remaining wait is the 4 hour
+epoch cadence.
+
+```bash
+# read-only health check: wiring, oracle freshness, keeper backlog, indexer lag (add --web <url> for the API)
+uv run --directory services python ../infra/scripts/testnet_healthcheck.py
+
+# full economic lifecycle on a throwaway sandbox suite, about 5 minutes
+bash infra/scripts/run_lifecycle_e2e.sh
+
+# challenger-wins dispute path on a sandbox suite
+forge script contracts/script/DisputeE2ETestnet.s.sol:DisputeE2ETestnet --root contracts --rpc-url $RPC_URL_TESTNET --broadcast
+```
+
+Mainnet is prepared but not deployed: see `MAINNET.md`.
