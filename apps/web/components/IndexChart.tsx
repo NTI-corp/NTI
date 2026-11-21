@@ -31,14 +31,14 @@ interface IndexChartProps {
 export const NARRATIVE_CHART_COLORS = [
   "#22C55E",
   "#CCFF00",
-  "#F59E0B",
-  "#A78BFA",
-  "#EF4444",
-  "#38BDF8",
-  "#FB923C",
   "#F4F4F5",
-  "#34D399",
-  "#EC4899",
+  "#9AAA2E",
+  "#A1A1AA",
+  "#E6FF6B",
+  "#71717A",
+  "#B6CC2B",
+  "#D4D4D8",
+  "#7B8A22",
 ] as const;
 
 export function IndexChart({

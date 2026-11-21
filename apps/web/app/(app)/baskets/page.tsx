@@ -7,7 +7,7 @@ import { formatBpsPercent, formatEth, formatRelativeTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-const HOLDING_COLORS = ["#CCFF00", "#38BDF8", "#F59E0B", "#A78BFA", "#EC4899", "#34D399"] as const;
+const HOLDING_COLORS = ["#CCFF00", "#F4F4F5", "#9AAA2E", "#A1A1AA", "#E6FF6B", "#71717A"] as const;
 
 export default async function BasketsPage() {
   const { baskets, awaitingDeployment } = await fetchBasketsData();

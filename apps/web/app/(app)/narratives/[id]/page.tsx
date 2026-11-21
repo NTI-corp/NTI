@@ -80,7 +80,7 @@ export default async function NarrativeDetailPage({
             href={`/narratives/${n.id}`}
             className={`rounded border px-2.5 py-1 font-mono text-[11px] transition-colors ${
               n.id === meta.id
-                ? "border-[#38BDF8]/60 bg-[#38BDF8]/12 text-[#EDF1F7]"
+                ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
                 : "border-[#1B2028] bg-[#0E1117] text-[#8A8A93] hover:border-[#2A3342] hover:text-[#EDF1F7]"
             }`}
           >
@@ -119,7 +119,7 @@ export default async function NarrativeDetailPage({
 
         <div className="panel-surface rounded-md p-3.5">
           <div className="text-[10px] text-[#556173]">RAW MINDSHARE M_n</div>
-          <div className="mt-1 text-xl font-semibold text-[#38BDF8]">
+          <div className="mt-1 text-xl font-semibold text-[#CCFF00]">
             {latest ? formatBpsPercent(latest.mBps) : "—"}
           </div>
           <div className="text-[11px] text-[#8A8A93]">Before α = 0.3 EMA</div>
@@ -140,7 +140,7 @@ export default async function NarrativeDetailPage({
           {
             id: meta.id,
             label: meta.label,
-            color: "#38BDF8",
+            color: "#CCFF00",
             points: data.series,
           },
         ]}

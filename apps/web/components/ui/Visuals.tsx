@@ -108,11 +108,11 @@ export function FlowSteps({ steps }: { steps: Array<{ icon: IconType; title: str
  * ---------------------------------------------------------------------------------------------- */
 const STATUS_VISUAL: Record<EpochStatus, { color: string; height: number; label: string }> = {
   final: { color: "#22C55E", height: 100, label: "Final" },
-  committed: { color: "#F59E0B", height: 72, label: "Committed" },
+  committed: { color: "#A1A1AA", height: 72, label: "Committed" },
   disputed: { color: "#EF4444", height: 88, label: "Disputed" },
-  computed: { color: "#38BDF8", height: 56, label: "Computed" },
-  collecting: { color: "#71717A", height: 44, label: "Collecting" },
-  incomplete: { color: "#52525B", height: 30, label: "Incomplete" },
+  computed: { color: "#71717A", height: 56, label: "Computed" },
+  collecting: { color: "#52525B", height: 44, label: "Collecting" },
+  incomplete: { color: "#3F3F46", height: 30, label: "Incomplete" },
 };
 
 export function EpochTimeline({
@@ -182,7 +182,7 @@ export function EpochTimeline({
 /* ------------------------------------------------------------------------------------------------
  * ValidatorSpread: how closely the validators agree, per narrative.
  * ---------------------------------------------------------------------------------------------- */
-const VALIDATOR_TINTS = ["#CCFF00", "#38BDF8", "#F472B6", "#F59E0B", "#A78BFA"] as const;
+const VALIDATOR_TINTS = ["#CCFF00", "#F4F4F5", "#A1A1AA", "#9AAA2E", "#71717A"] as const;
 
 export function ValidatorSpread({ attestations }: { attestations: ValidatorAttestationItem[] }) {
   if (attestations.length === 0) return null;

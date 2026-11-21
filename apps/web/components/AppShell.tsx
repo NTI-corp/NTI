@@ -505,7 +505,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               style={{ background: "linear-gradient(to bottom, rgba(6,6,7,0) 0%, #060607 96%)" }}
             />
             <div className="absolute -top-44 left-[18%] h-[360px] w-[720px] rounded-full bg-[#CCFF00]/[0.075] blur-[120px]" />
-            <div className="absolute -top-52 right-[6%] h-[300px] w-[520px] rounded-full bg-[#38BDF8]/[0.05] blur-[120px]" />
           </div>
           <main className="app-main relative mx-auto min-h-[70vh] w-full max-w-[1480px] px-4 pb-16 pt-8 sm:px-6">
             {showSkeleton && optimisticPath && optimisticPath !== pathname ? (
