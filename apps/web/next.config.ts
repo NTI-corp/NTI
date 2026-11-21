@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Keep visited and prefetched dashboards in the client router cache so tab switches are instant.
+    staleTimes: { dynamic: 45, static: 300 },
+  },
   transpilePackages: ["@nti/sdk"],
   serverExternalPackages: ["viem"],
   onDemandEntries: {

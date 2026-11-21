@@ -43,7 +43,7 @@ export function ManifestoSection() {
   return (
     <section
       ref={sectionRef}
-      className="w-full bg-white text-black pt-[3em] pb-[5.5em] md:pt-[4em] md:pb-[8em]"
+      className="w-full bg-white text-black pt-[2em] pb-[5.5em] md:pt-[2.5em] md:pb-[8em]"
     >
       <div className="sui-padding-global">
         <div className="sui-container-1400">

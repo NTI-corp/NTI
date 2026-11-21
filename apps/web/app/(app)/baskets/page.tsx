@@ -8,7 +8,7 @@ export default async function BasketsPage() {
   const { baskets, awaitingDeployment } = await fetchBasketsData();
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
+    <div className="space-y-6">
       {awaitingDeployment && (
         <div className="rounded-md border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-2.5 font-mono text-xs text-[#F59E0B]">
           <strong>PREVIEW VAULTS</strong> · BasketFactory returned 0 deployed vaults. Showing governance-whitelisted Uniswap V3 vault architecture (≥20 ETH pool liquidity + 30m TWAP oracle).

@@ -30,7 +30,7 @@ export default async function NarrativeDetailPage({
   const matchingBasket = basketsData.baskets.find((b) => b.narrativeId === meta.id) ?? null;
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-6 lg:px-6">
+    <div className="space-y-6">
       {data.awaitingFirstEpoch && <AwaitingEpochBanner />}
 
       {/* Breadcrumb & Narrative Switcher */}

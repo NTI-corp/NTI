@@ -55,8 +55,17 @@ export function SuiLandingPage() {
       <main>
         {/* [home-trigger] grouping Hero..Sui-is while bottom canvas bar grows 0% -> 100% */}
         <div id="home-trigger" className="relative z-[9]">
-          <HeroSection />
-          <LogoMarqueeSection />
+          <div
+            className="hero-marquee-portal relative"
+            style={{
+              ["--marquee-scale" as string]: "0.7",
+              ["--marquee-opacity" as string]: "0",
+              ["--marquee-y" as string]: "18px",
+            }}
+          >
+            <HeroSection />
+            <LogoMarqueeSection />
+          </div>
           <ManifestoSection />
           <SuiIsSection />
         </div>

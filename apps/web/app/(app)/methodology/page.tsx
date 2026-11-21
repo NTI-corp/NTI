@@ -7,7 +7,7 @@ export default async function MethodologyPage() {
   const p = config.payload;
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-6 lg:px-6">
+    <div className="space-y-6">
       <div className="border-b border-[#232325] pb-4">
         <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
           Deterministic Specification · Config V{config.version}

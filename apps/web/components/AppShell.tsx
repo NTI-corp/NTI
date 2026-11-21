@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ExternalLink, Menu, Search, X } from "lucide-react";
 import { NARRATIVES } from "@nti/sdk";
 import { EpochBadge } from "./EpochBadge";
+import { LiveTickerBar } from "./LiveTickerBar";
+import { HalftoneHorizonCanvas } from "./HalftoneHorizonCanvas";
 import { TestnetBanner } from "./TestnetBanner";
 import { WalletButton } from "./WalletButton";
 import { getActiveChainId, getChain } from "@/lib/contracts";
-import type { EpochStatus, IndexesSnapshot } from "@/lib/types";
+import type { EpochStatus, IndexesSnapshot, NarrativeIndexItem } from "@/lib/types";
 import { NtiBrandMark } from "@/components/landing/NtiLogos";
 import { RobinhoodMark, XIcon } from "@/components/ui/Icons";
 
@@ -31,6 +33,13 @@ const NAV: readonly NavItem[] = [
   { href: "/methodology", label: "Docs" },
 ];
 
+/** Lime underline that pulses while the target page is still loading (must render inside the Link). */
+function PendingBar() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return <span className="nav-pending absolute inset-x-0 bottom-[-1px] h-[2px] bg-[#CCFF00]" />;
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -40,6 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     epochId: number | null;
     status: EpochStatus;
   }>({ epochId: null, status: "collecting" });
+  const [sectors, setSectors] = useState<NarrativeIndexItem[]>([]);
   const [query, setQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -72,6 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (!active) return;
         const target = data.latestObservedEpoch ?? data.latestFinalEpoch;
         if (target) setEpochMeta({ epochId: target.epochId, status: target.status });
+        if (Array.isArray(data.narratives)) setSectors(data.narratives);
       } catch {
         // transient poll failure: keep the last known epoch
       }
@@ -126,6 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch
                     aria-current={active ? "page" : undefined}
                     className={`relative flex items-center border-l border-[#1B1B1D] px-3 font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors last:border-r xl:px-4 xl:text-[11px] ${
                       active ? "bg-[#0E0E0F] text-white" : "text-[#8A8A93] hover:bg-[#0B0B0C] hover:text-white"
@@ -135,6 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     {active && (
                       <span className="absolute inset-x-0 bottom-[-1px] h-[2px] bg-[#CCFF00]" />
                     )}
+                    <PendingBar />
                   </Link>
                 );
               })}
@@ -240,14 +253,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </header>
 
+      <LiveTickerBar narratives={sectors} epochId={epochMeta.epochId} />
       <TestnetBanner />
 
       <div className="relative">
         {/* Atmosphere: dot matrix fading downward plus a soft lime glow behind the page header */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[460px] overflow-hidden">
+          <HalftoneHorizonCanvas className="absolute inset-x-0 top-0 h-full w-full opacity-60" />
           <div
-            className="terminal-grid-bg absolute inset-0 opacity-70"
-            style={{ maskImage: "linear-gradient(to bottom, black 0%, transparent 100%)" }}
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(to bottom, rgba(6,6,7,0) 0%, #060607 96%)" }}
           />
           <div className="absolute -top-44 left-[18%] h-[360px] w-[720px] rounded-full bg-[#CCFF00]/[0.075] blur-[120px]" />
           <div className="absolute -top-52 right-[6%] h-[300px] w-[520px] rounded-full bg-[#38BDF8]/[0.05] blur-[120px]" />

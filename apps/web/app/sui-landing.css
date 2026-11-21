@@ -160,6 +160,41 @@
   margin-right: auto;
 }
 
+/* ── Hero -> Marquee BELL-Style Zoom Portal ── */
+.hero-portal-section {
+  height: 190svh;
+}
+
+.marquee-portal-section {
+  margin-top: -190svh;
+  height: 190svh;
+}
+
+.marquee-portal-stage {
+  opacity: var(--marquee-opacity, 0);
+  transform: translate3d(0, var(--marquee-y, 18px), 0) scale(var(--marquee-scale, 0.7));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-portal-section,
+  .marquee-portal-section {
+    height: auto;
+    margin-top: 0;
+  }
+
+  .hero-portal-sticky,
+  .marquee-portal-sticky {
+    position: relative;
+    height: auto;
+    min-height: 90svh;
+  }
+
+  .marquee-portal-stage {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* ── Hero Radial Spotlight Blur ── */
 .hero-first-section {
   --mouse-x: 50%;

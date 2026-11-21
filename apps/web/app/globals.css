@@ -212,3 +212,77 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #3a3a3d;
 }
+
+/* ---------- Motion: page entrance, staggered sections, panel hover ---------- */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-enter {
+  animation: page-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.page-enter > * {
+  animation: page-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.page-enter > *:nth-child(2) { animation-delay: 40ms; }
+.page-enter > *:nth-child(3) { animation-delay: 80ms; }
+.page-enter > *:nth-child(4) { animation-delay: 120ms; }
+.page-enter > *:nth-child(5) { animation-delay: 160ms; }
+.page-enter > *:nth-child(6) { animation-delay: 200ms; }
+.page-enter > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+/* Panels lift their border and glow softly on hover */
+.app-main .rounded-xl.border,
+.app-main .rounded-lg.border {
+  transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+.app-main .rounded-xl.border:hover {
+  border-color: #3a3a3d;
+  box-shadow: 0 0 0 1px rgba(204, 255, 0, 0.05), 0 22px 60px -30px rgba(204, 255, 0, 0.22);
+}
+
+/* Stat strip cells get a lime corner tick */
+.stat-strip > * {
+  position: relative;
+  transition: background-color 200ms ease;
+}
+.stat-strip > *:hover {
+  background-color: #0f0f10;
+}
+.stat-strip > *::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid rgba(204, 255, 0, 0.55);
+  border-left: 2px solid rgba(204, 255, 0, 0.55);
+}
+
+/* Navigation pending indicator (tab underline pulse while the next page loads) */
+@keyframes nav-pending {
+  0% { transform: scaleX(0.1); opacity: 0.5; }
+  60% { transform: scaleX(0.85); opacity: 1; }
+  100% { transform: scaleX(0.95); opacity: 0.7; }
+}
+.nav-pending {
+  transform-origin: left;
+  animation: nav-pending 900ms cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .page-enter > *,
+  .nav-pending {
+    animation: none !important;
+  }
+}

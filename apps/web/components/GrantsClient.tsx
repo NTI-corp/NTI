@@ -104,7 +104,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
 
   if (!round) {
     return (
-      <div className="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
+      <div className="space-y-6">
         <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-8 text-center">
           <div className="font-mono text-xs uppercase tracking-wider text-[#71717A]">
             Ecosystem Grants
@@ -261,7 +261,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
   const recipientInvalid = newRecipient.trim().length > 0 && !isAddress(newRecipient.trim());
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
+    <div className="space-y-6">
       {/* Header + Round Tabs */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#232325] pb-4">
         <div>

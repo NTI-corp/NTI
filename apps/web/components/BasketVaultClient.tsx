@@ -242,7 +242,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
   const redeemBlocked = mode === "redeem" && (insufficientShares || amtWei <= 0n);
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <Link href="/baskets" className="font-mono text-[#A1A1AA] hover:text-[#F4F4F5]">
           ← All Narrative Baskets

@@ -110,7 +110,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
   };
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-6 lg:px-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#232325] pb-4">
         <div>
           <div className="flex items-center gap-2 font-mono text-[11px] text-[#71717A]">

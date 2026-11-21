@@ -9,7 +9,7 @@ export default async function HeatmapPage() {
   const topOpportunity = data.points[0];
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
+    <div className="space-y-6">
       {data.awaitingFirstEpoch && <AwaitingEpochBanner />}
 
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#232325] pb-4">
