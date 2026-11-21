@@ -69,6 +69,8 @@ export interface ContributorRow {
   followers: number;
   shareBps: number;
   capped: boolean;
+  displayName?: string;
+  avatarUrl?: string;
 }
 
 export interface TokenItem {

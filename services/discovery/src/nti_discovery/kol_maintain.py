@@ -25,8 +25,8 @@ class Storage(Protocol):
 
 
 class ProfileSource(Protocol):
-    async def profile(self, user_id: int) -> tuple[str, int] | None:
-        """Return (handle, followers) or None when the account no longer exists."""
+    async def profile(self, user_id: int) -> tuple[str, int, str, str] | None:
+        """Return (handle, followers, display_name, avatar_url); None when the account is gone."""
 
 
 async def import_seed(storage: Storage, seed_path: Path) -> int:
@@ -78,7 +78,7 @@ async def refresh_profiles(
     now: datetime,
     *,
     stale_days: int = 7,
-    batch: int = 100,
+    batch: int = 300,
 ) -> dict[str, int]:
     cutoff = (now - timedelta(days=stale_days)).isoformat()
     stale = await storage.select(
@@ -86,7 +86,10 @@ async def refresh_profiles(
         columns="user_id,handle",
         filters={
             "active": "eq.true",
-            "or": f"(followers_updated_at.is.null,followers_updated_at.lt.{cutoff})",
+            "or": (
+                f"(followers_updated_at.is.null,followers_updated_at.lt.{cutoff},"
+                "avatar_url.is.null)"
+            ),
         },
         order="followers_updated_at.asc.nullsfirst",
         limit=batch,
@@ -103,11 +106,17 @@ async def refresh_profiles(
             await storage.patch("kols", {"user_id": f"eq.{uid}"}, {"active": False})
             deactivated += 1
             continue
-        handle, followers = prof
+        handle, followers, display_name, avatar_url = prof
         await storage.patch(
             "kols",
             {"user_id": f"eq.{uid}"},
-            {"handle": handle, "followers": followers, "followers_updated_at": now.isoformat()},
+            {
+                "handle": handle,
+                "followers": followers,
+                "display_name": display_name or None,
+                "avatar_url": avatar_url or None,
+                "followers_updated_at": now.isoformat(),
+            },
         )
         refreshed += 1
     return {"refreshed": refreshed, "deactivated": deactivated, "failed": failed}
@@ -140,7 +149,7 @@ class TwscrapeProfiles:
         self._db_path = str(db_path)
         self._api: Any | None = None
 
-    async def profile(self, user_id: int) -> tuple[str, int] | None:
+    async def profile(self, user_id: int) -> tuple[str, int, str, str] | None:
         if self._api is None:
             from nti_fetcher.adapters import TwscrapeSource
 
@@ -148,7 +157,12 @@ class TwscrapeProfiles:
         u = await self._api.user_by_id(user_id)
         if u is None:
             return None
-        return str(u.username), int(getattr(u, "followersCount", 0))
+        return (
+            str(u.username),
+            int(getattr(u, "followersCount", 0)),
+            str(getattr(u, "displayname", "") or ""),
+            str(getattr(u, "profileImageUrl", "") or ""),
+        )
 
 
 def utcnow() -> datetime:

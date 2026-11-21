@@ -397,9 +397,14 @@ async function load_fetchNarrativeHistory(
       user_id: number;
       share_bps: number;
       capped: boolean;
-      kols?: { handle?: string; followers?: number } | null;
+      kols?: {
+        handle?: string;
+        followers?: number;
+        display_name?: string | null;
+        avatar_url?: string | null;
+      } | null;
     }>(
-      `kol_contribution?select=user_id,share_bps,capped,kols(handle,followers)&epoch_id=eq.${finalEpochs[finalEpochs.length - 1]!.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
+      `kol_contribution?select=user_id,share_bps,capped,kols(handle,followers,display_name,avatar_url)&epoch_id=eq.${finalEpochs[finalEpochs.length - 1]!.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
       "service",
     ),
     supabaseSelect<{
@@ -450,6 +455,8 @@ async function load_fetchNarrativeHistory(
     userId: String(c.user_id),
     handle: c.kols?.handle ?? `kol_${c.user_id}`,
     followers: c.kols?.followers ?? 0,
+    displayName: c.kols?.display_name ?? undefined,
+    avatarUrl: c.kols?.avatar_url ?? undefined,
     shareBps: c.share_bps,
     capped: c.capped,
   }));

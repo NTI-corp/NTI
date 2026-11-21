@@ -156,6 +156,7 @@ export default async function NarrativeDetailPage({
           <ContributorsTable
             contributors={data.contributors}
             narrativeLabel={meta.label}
+            accent={sectorColor(meta.id)}
           />
         </div>
 

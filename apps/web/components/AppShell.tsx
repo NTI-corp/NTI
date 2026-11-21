@@ -67,6 +67,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   useEffect(() => {
+    // Any in-app link (cards, tables, "open narrative" buttons) shows the skeleton on click, too.
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a");
+      if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
+      if (url.pathname === "/" || url.pathname.startsWith("/api/")) return;
+      setOptimisticPath(url.pathname);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+
+  useEffect(() => {
     setOptimisticPath(null);
     setMobileOpen(false);
     setSearchFocused(false);

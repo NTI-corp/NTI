@@ -111,12 +111,13 @@ def test_refresh_profiles_updates_and_deactivates() -> None:
                 return None
             if uid == 3:
                 raise RuntimeError("rate limited")
-            return ("new_handle", 9000)
+            return ("new_handle", 9000, "New Name", "https://pbs.twimg.com/a.jpg")
 
     st = FakeStorage(kols=[{"user_id": i, "handle": f"h{i}"} for i in (1, 2, 3)])
     rep = asyncio.run(refresh_profiles(st, Src(), NOW))
     assert rep == {"refreshed": 1, "deactivated": 1, "failed": 1}
     assert any(v == {"active": False} for _, v in st.patches)
+    assert any(v.get("avatar_url") == "https://pbs.twimg.com/a.jpg" for _, v in st.patches)
 
 
 def test_retier_uses_real_post_counts() -> None:

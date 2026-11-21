@@ -14,6 +14,8 @@ class KolCandidateMetrics:
     avg_likes: float
     themed_posts_per_week: int
     narrative_id: int
+    display_name: str = ""
+    avatar_url: str = ""
 
 
 def filter_kol_candidates(

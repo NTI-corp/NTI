@@ -58,6 +58,8 @@ class SearchHit:
     followers: int
     likes: int
     created_at: datetime
+    display_name: str = ""
+    avatar_url: str = ""
 
 
 class SearchSource(Protocol):
@@ -97,6 +99,8 @@ class TwscrapeSearch:
                     followers=int(getattr(u, "followersCount", 0)),
                     likes=int(getattr(tw, "likeCount", 0)),
                     created_at=date,
+                    display_name=str(getattr(u, "displayname", "") or ""),
+                    avatar_url=str(getattr(u, "profileImageUrl", "") or ""),
                 )
             )
         return hits
@@ -120,6 +124,8 @@ def poll_tier_for(posts_in_window: int) -> int:
 class _Agg:
     user_id: int
     handle: str
+    display_name: str = ""
+    avatar_url: str = ""
     followers: int = 0
     posts: int = 0
     likes: int = 0
@@ -129,6 +135,8 @@ class _Agg:
         self.posts += 1
         self.likes += hit.likes
         self.followers = max(self.followers, hit.followers)
+        self.display_name = hit.display_name or self.display_name
+        self.avatar_url = hit.avatar_url or self.avatar_url
         if self.narrative_posts is None:
             self.narrative_posts = defaultdict(int)
         self.narrative_posts[narrative_id] += 1
@@ -160,6 +168,8 @@ def aggregate_hits(
                     avg_likes=agg.likes / max(1, agg.posts),
                     themed_posts_per_week=agg.posts,
                     narrative_id=primary,
+                    display_name=agg.display_name,
+                    avatar_url=agg.avatar_url,
                 ),
                 agg.posts,
             )
@@ -237,6 +247,8 @@ def to_rows(
             "user_id": m.user_id,
             "handle": m.handle,
             "followers": m.followers,
+            "display_name": m.display_name or None,
+            "avatar_url": m.avatar_url or None,
             "followers_updated_at": now.isoformat(),
             "h_k": 1,
             "r_k": 1,
