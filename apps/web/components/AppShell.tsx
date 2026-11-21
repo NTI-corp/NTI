@@ -14,6 +14,7 @@ import { getActiveChainId, getChain } from "@/lib/contracts";
 import type { EpochStatus, IndexesSnapshot, NarrativeIndexItem } from "@/lib/types";
 import { NtiBrandMark } from "@/components/landing/NtiLogos";
 import { RobinhoodMark, XIcon } from "@/components/ui/Icons";
+import AppLoading from "@/app/(app)/loading";
 
 interface NavItem {
   href: string;
@@ -53,8 +54,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [query, setQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Optimistic navigation: show the skeleton the instant a tab is clicked, before the server answers.
+  const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
 
   useEffect(() => {
+    // Warm every dashboard right after the shell mounts so the first click is never cold.
+    const ids: number[] = [];
+    NAV.forEach((item, i) => {
+      ids.push(window.setTimeout(() => router.prefetch(item.href), 150 + i * 120));
+    });
+    return () => ids.forEach((id) => window.clearTimeout(id));
+  }, [router]);
+
+  useEffect(() => {
+    setOptimisticPath(null);
     setMobileOpen(false);
     setSearchFocused(false);
     setQuery("");
@@ -138,6 +151,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     key={item.href}
                     href={item.href}
                     prefetch
+                    onPointerDown={() => router.prefetch(item.href)}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                      if (item.href !== pathname) setOptimisticPath(item.href);
+                    }}
                     aria-current={active ? "page" : undefined}
                     className={`relative flex items-center border-l border-[#1B1B1D] px-3 font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors last:border-r xl:px-4 xl:text-[11px] ${
                       active ? "bg-[#0E0E0F] text-white" : "text-[#8A8A93] hover:bg-[#0B0B0C] hover:text-white"
@@ -268,7 +286,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="absolute -top-52 right-[6%] h-[300px] w-[520px] rounded-full bg-[#38BDF8]/[0.05] blur-[120px]" />
         </div>
         <main className="app-main relative mx-auto min-h-[70vh] w-full max-w-[1480px] px-4 pb-16 pt-8 sm:px-6">
-          {children}
+          {optimisticPath && optimisticPath !== pathname ? <AppLoading /> : children}
         </main>
       </div>
 
