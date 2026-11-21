@@ -94,6 +94,20 @@ module.exports = {
       },
     },
     {
+      // Daily KOL universe growth: searches X per narrative, gates authors numerically and adds the
+      // best ones (capped per run) to Supabase. Runs between fetch cycles so scraper accounts are free.
+      name: "nti-kol-harvest",
+      cwd: "/home/ubuntu/apps/nti/services",
+      script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
+      args: "uv run python -m nti_discovery.kol_harvest",
+      cron_restart: "30 2 * * *",
+      autorestart: false,
+      max_memory_restart: "256M",
+      env: {
+        PYTHONUNBUFFERED: "1",
+      },
+    },
+    {
       name: "nti-purge",
       cwd: "/home/ubuntu/apps/nti/services",
       script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",

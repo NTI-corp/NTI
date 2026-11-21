@@ -187,12 +187,11 @@ async def _main_async(args: argparse.Namespace) -> int:
     )
 
     kols_path = _resolve_repo_path(args.kols)
-    if kols_path.exists():
-        kols = _load_kols_json(kols_path)
-    elif storage is not None:
-        kols = await _load_kols_from_supabase(storage)
-    else:
-        kols = []
+    kols = _load_kols_json(kols_path) if kols_path.exists() else []
+    if storage is not None:
+        # The file holds the curated core; the discovery job grows the rest in Supabase.
+        known_ids = {k.user_id for k in kols}
+        kols += [k for k in await _load_kols_from_supabase(storage) if k.user_id not in known_ids]
 
     accounts_path = _resolve_repo_path(args.accounts)
     pool = AccountPool.from_file(accounts_path) if accounts_path.exists() else None
