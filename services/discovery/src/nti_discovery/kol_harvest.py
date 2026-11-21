@@ -261,6 +261,16 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
     now = datetime.now(UTC)
     report: dict[str, Any] = {"role": "kol_harvest", "dry_run": args.dry_run}
 
+    # pm2 starts cron apps on every (re)deploy; once per ~day is enough, so extra starts exit early.
+    state_path = REPO_ROOT / "data" / "state" / "kol_harvest.json"
+    if not args.dry_run and not args.force and state_path.exists():
+        try:
+            last = datetime.fromisoformat(json.loads(state_path.read_text())["last_run"])
+        except (ValueError, KeyError, OSError):
+            last = None
+        if last and now - last < timedelta(hours=20):
+            return {**report, "status": "skipped", "reason": "ran_within_20h"}
+
     if not args.dry_run:
         report["seed_imported"] = await kol_maintain.import_seed(
             storage, REPO_ROOT / "data" / "kols.json"
@@ -291,6 +301,9 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         else:
             await storage.upsert("kols", kol_rows, on_conflict="user_id")
             await storage.upsert("kol_narratives", link_rows, on_conflict="user_id,narrative_id")
+    if not args.dry_run:
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({"last_run": now.isoformat()}))
     report.update(
         known=len(known),
         added=len(kol_rows),
@@ -302,6 +315,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--force", action="store_true", help="ignore the once-per-day guard")
     parser.add_argument(
         "--max-new", type=int, default=None, help="fixed intake; default adapts to fetch health"
     )
