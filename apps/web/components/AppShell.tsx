@@ -242,9 +242,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <TestnetBanner />
 
-      <main className="app-main mx-auto min-h-[70vh] w-full max-w-[1480px] px-4 pb-16 pt-8 sm:px-6">
-        {children}
-      </main>
+      <div className="relative">
+        {/* Atmosphere: dot matrix fading downward plus a soft lime glow behind the page header */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[460px] overflow-hidden">
+          <div
+            className="terminal-grid-bg absolute inset-0 opacity-70"
+            style={{ maskImage: "linear-gradient(to bottom, black 0%, transparent 100%)" }}
+          />
+          <div className="absolute -top-44 left-[18%] h-[360px] w-[720px] rounded-full bg-[#CCFF00]/[0.075] blur-[120px]" />
+          <div className="absolute -top-52 right-[6%] h-[300px] w-[520px] rounded-full bg-[#38BDF8]/[0.05] blur-[120px]" />
+        </div>
+        <main className="app-main relative mx-auto min-h-[70vh] w-full max-w-[1480px] px-4 pb-16 pt-8 sm:px-6">
+          {children}
+        </main>
+      </div>
 
       <footer className="border-t border-[#232325]">
         <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-3 px-4 py-4 font-mono text-[10px] uppercase tracking-[0.16em] text-[#71717A] sm:px-6">

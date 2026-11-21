@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { fetchIndexesSnapshot, fetchRadarAlerts } from "@/lib/supabase";
 import { getSiweSessionState, SIWE_SESSION_COOKIE } from "@/lib/siwe";
 import { getActiveChainId, getProtocolAddresses } from "@/lib/contracts";
-import { NARRATIVE_CHART_COLORS } from "@/components/IndexChart";
+import { sectorColor } from "@/lib/sectors";
 import { AwaitingEpochBanner } from "@/components/AwaitingEpochBanner";
 import { MindshareTerminalWorkspace } from "@/components/MindshareTerminalWorkspace";
 
@@ -26,10 +26,10 @@ export default async function TerminalPage() {
   const addresses = getProtocolAddresses(chainId);
   const sortedNarratives = [...snapshot.narratives].sort((a, b) => b.iBps - a.iBps);
   const topFive = sortedNarratives.slice(0, 5);
-  const combinedSeries = topFive.map((n, idx) => ({
+  const combinedSeries = topFive.map((n) => ({
     id: n.narrativeId,
     label: n.label,
-    color: NARRATIVE_CHART_COLORS[idx % NARRATIVE_CHART_COLORS.length]!,
+    color: sectorColor(n.narrativeId),
     points: snapshot.recentSeries[n.narrativeId] ?? [],
   }));
   const activeEpoch = snapshot.latestObservedEpoch ?? snapshot.latestFinalEpoch;

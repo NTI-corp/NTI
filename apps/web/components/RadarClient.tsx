@@ -6,9 +6,16 @@ import { useAccount } from "wagmi";
 import { RadarFeed } from "./RadarFeed";
 import { useSiweSession } from "./Providers";
 import { AwaitingEpochBanner } from "./AwaitingEpochBanner";
-import type { RadarResponse } from "@/lib/types";
+import { VelocityBars } from "./VelocityBars";
+import type { NarrativeIndexItem, RadarResponse } from "@/lib/types";
 
-export function RadarClient({ initialData }: { initialData: RadarResponse }) {
+export function RadarClient({
+  initialData,
+  sectors = [],
+}: {
+  initialData: RadarResponse;
+  sectors?: NarrativeIndexItem[];
+}) {
   const { isConnected } = useAccount();
   const { session, signingIn, signIn, error } = useSiweSession();
   const [data, setData] = useState<RadarResponse>(initialData);
@@ -136,7 +143,16 @@ export function RadarClient({ initialData }: { initialData: RadarResponse }) {
         </div>
       )}
 
-      <RadarFeed alerts={filteredAlerts} realtimeUnlocked={data.realtimeUnlocked} />
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+        <div className="xl:col-span-7">
+          <RadarFeed alerts={filteredAlerts} realtimeUnlocked={data.realtimeUnlocked} />
+        </div>
+        {sectors.length > 0 && (
+          <div className="xl:col-span-5">
+            <VelocityBars narratives={sectors} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

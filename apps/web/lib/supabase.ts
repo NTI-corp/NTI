@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
 import {
   readLiveBasketsFromChain,
@@ -224,7 +225,7 @@ function mapEpoch(r: DbEpochRow): EpochSummary {
   };
 }
 
-export async function fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
+async function load_fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
   const epochs = await supabaseSelect<DbEpochRow>(
     "epochs?select=*&order=epoch_id.desc&limit=20",
     "anon",
@@ -317,7 +318,7 @@ export async function fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
   };
 }
 
-export async function fetchNarrativeHistory(
+async function load_fetchNarrativeHistory(
   narrativeId: number,
   fromEpoch?: number,
   toEpoch?: number,
@@ -476,7 +477,7 @@ export async function fetchNarrativeHistory(
   };
 }
 
-export async function fetchEpochDetail(epochId?: number): Promise<EpochDetailResponse> {
+async function load_fetchEpochDetail(epochId?: number): Promise<EpochDetailResponse> {
   const recentRows = await supabaseSelect<DbEpochRow>(
     "epochs?select=*&order=epoch_id.desc&limit=12",
     "anon",
@@ -798,7 +799,7 @@ export async function fetchRadarAlerts(params: {
   };
 }
 
-export async function fetchHeatmapData(): Promise<HeatmapResponse> {
+async function load_fetchHeatmapData(): Promise<HeatmapResponse> {
   const snapshot = await fetchIndexesSnapshot();
   const [tokenRows, projectRows] = await Promise.all([
     supabaseSelect<{ narrative_id: number | null; liquidity_eth: number | string | null; txs_7d: number }>(
@@ -884,7 +885,7 @@ export async function fetchHeatmapData(): Promise<HeatmapResponse> {
   };
 }
 
-export async function fetchMarketsData(): Promise<{
+async function load_fetchMarketsData(): Promise<{
   awaitingDeployment: boolean;
   markets: MarketItem[];
 }> {
@@ -1043,7 +1044,7 @@ export async function fetchMarketsData(): Promise<{
   return { awaitingDeployment: false, markets };
 }
 
-export async function fetchBasketsData(): Promise<{
+async function load_fetchBasketsData(): Promise<{
   awaitingDeployment: boolean;
   baskets: BasketItem[];
 }> {
@@ -1157,7 +1158,7 @@ export async function fetchBasketsData(): Promise<{
   };
 }
 
-export async function fetchGrantsData(): Promise<{
+async function load_fetchGrantsData(): Promise<{
   awaitingDeployment: boolean;
   rounds: GrantRoundItem[];
 }> {
@@ -1401,3 +1402,12 @@ export async function fetchActiveConfig(): Promise<ActiveConfigVersion> {
     payload: latest.payload ?? DEFAULT_NTI_V1_CONFIG.payload,
   };
 }
+
+// Server render cache: pages stay fresh within 20 seconds but no longer wait on RPC/Supabase every click.
+export const fetchIndexesSnapshot = unstable_cache(load_fetchIndexesSnapshot, ["nti-indexes"], { revalidate: 20 });
+export const fetchMarketsData = unstable_cache(load_fetchMarketsData, ["nti-markets"], { revalidate: 20 });
+export const fetchBasketsData = unstable_cache(load_fetchBasketsData, ["nti-baskets"], { revalidate: 20 });
+export const fetchGrantsData = unstable_cache(load_fetchGrantsData, ["nti-grants"], { revalidate: 20 });
+export const fetchHeatmapData = unstable_cache(load_fetchHeatmapData, ["nti-heatmap"], { revalidate: 20 });
+export const fetchEpochDetail = unstable_cache(load_fetchEpochDetail, ["nti-epoch-detail"], { revalidate: 20 });
+export const fetchNarrativeHistory = unstable_cache(load_fetchNarrativeHistory, ["nti-narrative-history"], { revalidate: 20 });

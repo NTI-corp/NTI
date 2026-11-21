@@ -349,15 +349,39 @@ export function IndexChart({
             });
             if (current.length > 0) segments.push(current.join(" "));
 
+            const baseY = padTop + indexPlotH;
+            const isPrimary = primary && s.id === primary.id;
             return (
               <g key={s.id}>
+                {isPrimary && (
+                  <defs>
+                    <linearGradient id={`area-${s.id}`} x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor={s.color} stopOpacity="0.22" />
+                      <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                )}
+                {isPrimary &&
+                  segments.map((d, segIdx) => {
+                    const nums = d.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+                    if (nums.length < 4) return null;
+                    const x0 = nums[0]!;
+                    const x1 = nums[nums.length - 2]!;
+                    return (
+                      <path
+                        key={`area-${segIdx}`}
+                        d={`${d} L ${x1} ${baseY} L ${x0} ${baseY} Z`}
+                        fill={`url(#area-${s.id})`}
+                      />
+                    );
+                  })}
                 {segments.map((d, segIdx) => (
                   <path
                     key={segIdx}
                     d={d}
                     fill="none"
                     stroke={s.color}
-                    strokeWidth={visibleSeries.length === 1 ? 2.2 : 1.7}
+                    strokeWidth={visibleSeries.length === 1 ? 2.4 : isPrimary ? 2.4 : 1.7}
                     strokeLinejoin="round"
                   />
                 ))}

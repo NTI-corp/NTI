@@ -24,6 +24,9 @@ import { IndexChart, type IndexChartSeries } from "./IndexChart";
 import { RadarFeed } from "./RadarFeed";
 import { SectorIcon } from "./landing/NtiLogos";
 import { EpochBadge } from "./EpochBadge";
+import { Sparkline } from "./ui/Sparkline";
+import { Donut } from "./ui/Donut";
+import { sectorColor } from "@/lib/sectors";
 import { CopyContractPill } from "./TacticalFrame";
 
 type ViewTab = "arena" | "chart" | "combined";
@@ -277,90 +280,112 @@ export function MindshareTerminalWorkspace({
         </div>
       </div>
 
+      {/* Mosaic: tile size = share of total mindshare, color = sector, line = recent trend */}
+      <div className="rounded-xl border border-[#232325] bg-[#0A0A0B] p-2">
+        <div className="flex min-h-[132px] w-full flex-wrap gap-1.5 sm:flex-nowrap">
+          {sortedByShare.map((n) => {
+            const total = sortedByShare.reduce((sum, x) => sum + x.iBps, 0) || 1;
+            const pct = (n.iBps / total) * 100;
+            const color = sectorColor(n.narrativeId);
+            const trend = (recentSeries?.[n.narrativeId] ?? []).slice(-24).map((p) => p.iBps);
+            const rising = (n.vBps ?? 0) >= 0;
+            return (
+              <Link
+                key={n.narrativeId}
+                href={`/narratives/${n.narrativeId}`}
+                style={{
+                  flexGrow: Math.max(8, Math.round(pct * 10)),
+                  flexBasis: 0,
+                  background: `linear-gradient(160deg, ${color}22 0%, #0E0E0F 62%)`,
+                  borderColor: `${color}55`,
+                }}
+                title={`${n.label}: ${formatBpsPercent(n.iBps)}`}
+                className="group relative flex min-w-[64px] flex-col justify-between overflow-hidden rounded-lg border p-2.5 transition-transform hover:-translate-y-0.5"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+                    style={{ background: `${color}26`, color }}
+                  >
+                    <SectorIcon slug={n.slug} className="h-3 w-3" />
+                  </span>
+                  <span className="truncate text-[11px] font-semibold text-white">
+                    {pct >= 9 ? n.label : n.label.split(" ")[0]}
+                  </span>
+                </div>
+                <div>
+                  <div className="font-display text-xl font-extrabold tabular-nums tracking-tight text-white">
+                    {(n.iBps / 100).toFixed(pct >= 9 ? 2 : 1)}
+                    <span className="text-xs font-semibold text-[#A1A1AA]">%</span>
+                  </div>
+                  <div className="mt-0.5 flex items-end justify-between gap-1">
+                    <span
+                      className={`font-mono text-[10px] ${rising ? "text-[#22C55E]" : "text-[#EF4444]"}`}
+                    >
+                      {n.vBps !== null ? formatSignedBps(n.vBps, n.vFlag) : "warming"}
+                    </span>
+                    {pct >= 7 && (
+                      <Sparkline values={trend} color={color} width={64} height={22} className="opacity-90" />
+                    )}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Trajectory chart + distribution donut */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+        <div className="xl:col-span-8">
+          <IndexChart
+            series={windowedChartSeries}
+            title={`Top 5 narratives · mindshare trajectory (${windowChip})`}
+            subtitle="Toggle sectors below · velocity bars follow the selected primary series"
+            showVelocityBars
+            height={330}
+          />
+        </div>
+        <div className="rounded-xl border border-[#232325] bg-[#0E0E0F] p-4 xl:col-span-4">
+          <div className="kicker">Distribution</div>
+          <div className="mt-1 font-display text-lg font-extrabold uppercase tracking-tight text-white">
+            Share of attention
+          </div>
+          <div className="mt-4">
+            <Donut
+              slices={sortedByShare.map((n) => ({
+                id: n.narrativeId,
+                label: n.label,
+                value: n.iBps,
+                color: sectorColor(n.narrativeId),
+              }))}
+              centerLabel="Total"
+              centerValue="100%"
+            />
+          </div>
+          <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+            {sortedByShare.slice(0, 8).map((n) => (
+              <li key={n.narrativeId} className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-[#A1A1AA]">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-sm"
+                    style={{ background: sectorColor(n.narrativeId) }}
+                  />
+                  <span className="truncate">{n.label}</span>
+                </span>
+                <span className="font-mono tabular-nums text-white">{(n.iBps / 100).toFixed(1)}%</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
       {/* Main 12-Col Blockworks Grid: 8 Left (Arena + Screener) | 4 Right (Overview + Signals) */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         {/* Left 8 Columns */}
         <div className="space-y-4 xl:col-span-8">
-          {/* Sub-Tabs Strip */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="inline-flex rounded-lg border border-[#232325] bg-[#0E0E0F] p-0.5">
-              {(
-                [
-                  { id: "arena", label: "Sectors & Screener" },
-                  { id: "chart", label: "Trajectory Chart" },
-                  { id: "combined", label: "Combined View" },
-                ] as const
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setViewTab(tab.id)}
-                  className={`cursor-pointer rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                    viewTab === tab.id
-                      ? "bg-[#25252E] text-white"
-                      : "text-[#A1A1AA] hover:text-white"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="font-mono text-[11px] tabular-nums text-[#71717A]">
-              {windowChip} CADENCE · Σ I_n = {totalBps.toLocaleString("en-US")} BPS
-            </div>
-          </div>
-
-          {/* Blockworks Proportional Mindshare Mosaic */}
-          {(viewTab === "arena" || viewTab === "combined") && (
-            <div className="rounded-xl border border-[#232325] bg-[#0E0E0F] p-3">
-              <div className="flex min-h-[84px] w-full flex-wrap gap-1.5 sm:flex-nowrap">
-                {sortedByShare.map((n, idx) => {
-                  const pct = (n.iBps / (sortedByShare.reduce((s, x) => s + x.iBps, 0) || 1)) * 100;
-                  const tone =
-                    n.vBps !== null
-                      ? n.vBps >= 0
-                        ? "border-[#1F4A37] bg-[#11271D] text-[#ECFDF5] hover:border-[#22C55E]/70"
-                        : "border-[#52232B] bg-[#291317] text-[#FEF2F2] hover:border-[#EF4444]/70"
-                      : idx < 3
-                        ? "border-[#1F4A37]/70 bg-[#10221A] text-[#E5F7EF] hover:border-[#22C55E]/60"
-                        : "border-[#2A2A35] bg-[#18181F] text-[#E4E4E7] hover:border-[#3F3F4E]";
-
-                  return (
-                    <Link
-                      key={n.narrativeId}
-                      href={`/narratives/${n.narrativeId}`}
-                      style={{ flexGrow: Math.max(8, Math.round(pct * 10)), flexBasis: 0 }}
-                      title={`${n.label}: ${formatBpsPercent(n.iBps)}`}
-                      className={`flex min-w-[54px] flex-col items-center justify-center rounded-lg border px-2 py-2.5 text-center transition-colors ${tone}`}
-                    >
-                      <span className="max-w-full truncate text-[11px] font-semibold">
-                        {pct >= 9 ? n.label : n.label.split(" ")[0]}
-                      </span>
-                      <span className="mt-0.5 font-mono text-[11px] tabular-nums opacity-85">
-                        {pct >= 7 ? formatBpsPercent(n.iBps) : `${(n.iBps / 100).toFixed(1)}%`}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Trajectory Chart */}
-          {(viewTab === "chart" || viewTab === "combined") && (
-            <div className="rounded-xl border border-[#232325] bg-[#0E0E0F] p-4">
-              <IndexChart
-                series={windowedChartSeries}
-                title={`Top 5 Narratives · Mindshare Trajectory (${windowChip})`}
-                subtitle="Toggle sectors below · Velocity bars track selected primary series"
-                showVelocityBars
-              />
-            </div>
-          )}
-
           {/* Blockworks-Style Sortable Screener Table */}
-          {(viewTab === "arena" || viewTab === "combined") && (
+          {(
             <div className="overflow-hidden rounded-xl border border-[#232325] bg-[#0E0E0F]">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
@@ -420,13 +445,14 @@ export function MindshareTerminalWorkspace({
                           Decay {renderSortIcon("sN")}
                         </button>
                       </th>
+                      <th className="hidden px-3 py-3 text-right whitespace-nowrap lg:table-cell">Trend</th>
                       <th className="px-3 py-3 text-right whitespace-nowrap">Why?</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1E1E26]">
                     {filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-xs text-[#71717A]">
+                        <td colSpan={8} className="px-4 py-8 text-center text-xs text-[#71717A]">
                           No narrative sectors match the selected filter.
                         </td>
                       </tr>
@@ -447,8 +473,15 @@ export function MindshareTerminalWorkspace({
                                 href={`/narratives/${n.narrativeId}`}
                                 className="group flex items-center gap-2.5"
                               >
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[#282832] bg-[#0D0D10] text-[#D4D4D8] group-hover:text-white">
-                                  <SectorIcon slug={n.slug} className="h-3.5 w-3.5" />
+                                <div
+                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border"
+                                  style={{
+                                    borderColor: `${sectorColor(n.narrativeId)}55`,
+                                    background: `${sectorColor(n.narrativeId)}1A`,
+                                    color: sectorColor(n.narrativeId),
+                                  }}
+                                >
+                                  <SectorIcon slug={n.slug} className="h-4 w-4" />
                                 </div>
                                 <div className="min-w-0">
                                   <div className="truncate font-semibold text-[#F4F4F5] group-hover:text-[#CCFF00]">
@@ -460,8 +493,19 @@ export function MindshareTerminalWorkspace({
                                 </div>
                               </Link>
                             </td>
-                            <td className="px-3 py-3 text-right font-mono text-sm font-semibold tabular-nums text-white whitespace-nowrap">
-                              {formatBpsPercent(n.iBps)}
+                            <td className="px-3 py-3 text-right whitespace-nowrap">
+                              <div className="font-mono text-sm font-semibold tabular-nums text-white">
+                                {formatBpsPercent(n.iBps)}
+                              </div>
+                              <div className="ml-auto mt-1 h-1 w-20 overflow-hidden rounded-full bg-[#1A1A1C]">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{
+                                    width: `${Math.min(100, (n.iBps / (sortedByShare[0]?.iBps || 1)) * 100)}%`,
+                                    background: sectorColor(n.narrativeId),
+                                  }}
+                                />
+                              </div>
                             </td>
                             <td className="px-3 py-3 text-right font-mono tabular-nums whitespace-nowrap">
                               {delta !== null ? (
@@ -483,6 +527,15 @@ export function MindshareTerminalWorkspace({
                             </td>
                             <td className="hidden px-3 py-3 text-right font-mono tabular-nums text-[#A1A1AA] whitespace-nowrap md:table-cell">
                               {n.sN.toFixed(1)}
+                            </td>
+                            <td className="hidden px-3 py-3 text-right lg:table-cell">
+                              <Sparkline
+                                values={(recentSeries?.[n.narrativeId] ?? []).slice(-24).map((p) => p.iBps)}
+                                color={sectorColor(n.narrativeId)}
+                                width={92}
+                                height={26}
+                                className="ml-auto"
+                              />
                             </td>
                             <td className="px-3 py-3 text-right whitespace-nowrap">
                               <Link
