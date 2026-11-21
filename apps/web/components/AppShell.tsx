@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ExternalLink, Menu, Search, X } from "lucide-react";
@@ -45,6 +45,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const navItemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const navMountedRef = useRef(false);
 
   const [epochMeta, setEpochMeta] = useState<{
     epochId: number | null;
@@ -54,8 +57,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [query, setQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Optimistic navigation: show the skeleton the instant a tab is clicked, before the server answers.
+  // Optimistic navigation: glide the active tab immediately on click; only show full skeleton if server takes >120ms.
   const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
+  const [showSkeleton, setShowSkeleton] = useState(false);
+  const [hoveredNavHref, setHoveredNavHref] = useState<string | null>(null);
+  const [navAnimate, setNavAnimate] = useState(false);
+  const [activeNavIndicator, setActiveNavIndicator] = useState({ left: 0, width: 0, visible: false });
+  const [hoverNavIndicator, setHoverNavIndicator] = useState({ left: 0, width: 0, visible: false });
 
   useEffect(() => {
     // Warm every dashboard right after the shell mounts so the first click is never cold.

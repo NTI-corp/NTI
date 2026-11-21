@@ -282,7 +282,7 @@ export function MindshareTerminalWorkspace({
 
       {/* Mosaic: tile size = share of total mindshare, color = sector, line = recent trend */}
       <div className="rounded-xl border border-[#232325] bg-[#0A0A0B] p-2">
-        <div className="flex min-h-[132px] w-full flex-wrap gap-1.5 sm:flex-nowrap">
+        <div className="grid min-h-[132px] w-full grid-cols-2 gap-1.5 sm:flex sm:flex-nowrap">
           {sortedByShare.map((n) => {
             const total = sortedByShare.reduce((sum, x) => sum + x.iBps, 0) || 1;
             const pct = (n.iBps / total) * 100;
@@ -300,7 +300,7 @@ export function MindshareTerminalWorkspace({
                   borderColor: `${color}55`,
                 }}
                 title={`${n.label}: ${formatBpsPercent(n.iBps)}`}
-                className="group relative flex min-w-[64px] flex-col justify-between overflow-hidden rounded-lg border p-2.5 transition-transform hover:-translate-y-0.5"
+                className="group relative flex min-h-[92px] min-w-0 flex-col justify-between overflow-hidden rounded-lg border p-2.5 transition-transform hover:-translate-y-0.5 sm:min-w-[64px]"
               >
                 <div className="flex items-center gap-1.5">
                   <span
@@ -310,7 +310,7 @@ export function MindshareTerminalWorkspace({
                     <SectorIcon slug={n.slug} className="h-3 w-3" />
                   </span>
                   <span className="truncate text-[11px] font-semibold text-white">
-                    {pct >= 9 ? n.label : n.label.split(" ")[0]}
+                    {n.label}
                   </span>
                 </div>
                 <div>

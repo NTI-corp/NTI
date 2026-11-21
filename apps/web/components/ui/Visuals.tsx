@@ -72,7 +72,7 @@ export function EmptyState({
  * ---------------------------------------------------------------------------------------------- */
 export function FlowSteps({ steps }: { steps: Array<{ icon: IconType; title: string; text: string }> }) {
   return (
-    <div className="grid gap-px overflow-hidden rounded-xl border border-[#232325] bg-[#232325] sm:grid-cols-2 lg:grid-cols-6">
+    <div className="grid gap-px overflow-hidden rounded-xl border border-[#232325] bg-[#232325] grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
       {steps.map((s, i) => {
         const Icon = s.icon;
         return (
@@ -198,7 +198,7 @@ export function ValidatorSpread({ attestations }: { attestations: ValidatorAttes
       </div>
       <ul className="mt-4 space-y-2">
         {rows.map(({ n, values, min, max }) => (
-          <li key={n.id} className="grid grid-cols-[120px_1fr_64px] items-center gap-3 text-xs">
+          <li key={n.id} className="grid grid-cols-[92px_1fr_44px] sm:grid-cols-[120px_1fr_64px] items-center gap-3 text-xs">
             <span className="flex items-center gap-2 truncate text-[#D4D4D8]">
               <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: sectorColor(n.id) }} />
               <span className="truncate">{n.label}</span>
