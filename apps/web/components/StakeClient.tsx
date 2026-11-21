@@ -18,6 +18,7 @@ import { formatCompactNumber, getStakerTier, truncateHex } from "@/lib/format";
 import { useChainAction } from "@/lib/useChainAction";
 import { useSiweSession } from "./Providers";
 import type { GovernorProposalItem } from "@/lib/types";
+import { TierLadder } from "@/components/ui/Visuals";
 
 const TIERS = [
   { name: "Tier 1", minNti: 100_000, discount: "10%", radar: "Real-time Radar" },
@@ -591,6 +592,8 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
           <p className="mt-0.5 text-xs text-[#A1A1AA]">
             Fee-on-transfer safe staking (tracks exact received delta). Slashing applies across active + cooldown balances.
           </p>
+
+          <TierLadder stake={activeStakeNum} tiers={TIERS} />
 
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {TIERS.map((t) => {

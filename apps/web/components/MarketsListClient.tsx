@@ -3,6 +3,8 @@
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
+import { Swords } from "lucide-react";
+import { EmptyState } from "@/components/ui/Visuals";
 import { BetModal } from "./BetModal";
 import { TxStatusBanner } from "./TxStatusBanner";
 import {
@@ -288,24 +290,24 @@ export function MarketsListClient({
 
       {/* Market Grid or Empty State */}
       {visible.length === 0 ? (
-        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-8 text-center">
-          <div className="text-sm font-semibold text-[#F4F4F5]">
-            No markets match the selected filter
-          </div>
-          <p className="mt-1 text-xs text-[#A1A1AA]">
-            Try clearing the status or sector filter, or launch a new permissionless pair market above.
-          </p>
+        <EmptyState
+          icon={Swords}
+          kicker="Narrative markets"
+          title="No markets match"
+          text="Try clearing the status or sector filter, or launch a new permissionless pair market above."
+          steps={["Pick two sectors to pair", "Both sides stake ETH into pools", "Oracle epoch settles the winner"]}
+        >
           <button
             type="button"
             onClick={() => {
               setFilter("all");
               setNarrativeFilter(null);
             }}
-            className="mt-3 rounded-md border border-[#232325] bg-[#131314] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] hover:border-[#CCFF00]/50"
+            className="rounded-md border border-[#2E2E31] bg-[#131314] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] hover:border-[#CCFF00]/50"
           >
             RESET FILTERS
           </button>
-        </div>
+        </EmptyState>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {visible.map((m) => {

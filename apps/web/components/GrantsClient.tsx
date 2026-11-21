@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatEther, isAddress, keccak256, stringToBytes, type Address } from "viem";
 import { useAccount, useReadContract } from "wagmi";
+import { Sprout } from "lucide-react";
+import { EmptyState } from "@/components/ui/Visuals";
 import { TxStatusBanner } from "@/components/TxStatusBanner";
 import { NARRATIVE_BY_ID } from "@nti/sdk";
 import { getActiveChainId, getProtocolAddresses, grantsAbi, stakingAbi } from "@/lib/contracts";
@@ -105,17 +107,13 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
   if (!round) {
     return (
       <div className="space-y-6">
-        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-8 text-center">
-          <div className="font-mono text-xs uppercase tracking-wider text-[#71717A]">
-            Ecosystem Grants
-          </div>
-          <h2 className="mt-2 text-lg font-semibold text-[#F4F4F5]">
-            No grant rounds configured yet
-          </h2>
-          <p className="mt-1 text-xs text-[#A1A1AA]">
-            Awaiting governance round initialization on Robinhood Chain.
-          </p>
-        </div>
+        <EmptyState
+          icon={Sprout}
+          kicker="Ecosystem grants"
+          title="No grant rounds yet"
+          text="Awaiting governance round initialization on Robinhood Chain."
+          steps={["Governance opens a funded round", "Builders submit proposals", "Stakers vote, winners get paid"]}
+        />
       </div>
     );
   }

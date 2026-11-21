@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { formatEther, keccak256, stringToBytes } from "viem";
 import { useAccount, useReadContract } from "wagmi";
 import { TxStatusBanner } from "@/components/TxStatusBanner";
+import { EpochTimeline, ValidatorSpread } from "@/components/ui/Visuals";
 import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
 import {
   disputeAbi,
@@ -287,29 +288,13 @@ export function OracleClient({ initial }: OracleClientProps) {
       </div>
 
       {/* Epoch Switcher */}
-      <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
-        <span className="mr-1 text-[10px] uppercase tracking-wider text-[#71717A]">
-          Recent Epochs:
-        </span>
-        {detail.recentEpochs.map((ep) => {
-          const active = ep.epochId === detail.epoch.epochId;
-          return (
-            <button
-              key={ep.epochId}
-              type="button"
-              disabled={loadingEpochId === ep.epochId}
-              onClick={() => void loadEpoch(ep.epochId)}
-              className={`rounded-md border px-2.5 py-1 transition-colors tabular-nums ${
-                active
-                  ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
-                  : "border-[#232325] bg-[#0E0E0F] text-[#A1A1AA] hover:border-[#3A3A3D] hover:text-[#F4F4F5]"
-              }`}
-            >
-              #{ep.epochId} · {ep.status.toUpperCase()}
-            </button>
-          );
-        })}
-      </div>
+      <EpochTimeline
+        epochs={detail.recentEpochs}
+        activeId={detail.epoch.epochId}
+        loadingId={loadingEpochId}
+        onSelect={(id) => void loadEpoch(id)}
+      />
+      <ValidatorSpread attestations={detail.attestations} />
 
       {loadError && (
         <div className="flex items-center justify-between rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">

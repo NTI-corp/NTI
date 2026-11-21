@@ -1,3 +1,5 @@
+import { BadgeCheck, Calculator, Link2, Radio, ShieldCheck, Tags } from "lucide-react";
+import { FlowSteps } from "@/components/ui/Visuals";
 import { fetchActiveConfig } from "@/lib/supabase";
 
 export const revalidate = 60;
@@ -16,9 +18,20 @@ export default async function MethodologyPage() {
           Methodology
         </h1>
         <p className="mt-1 max-w-3xl text-xs text-[#A1A1AA]">
-          NTI measures how actively crypto narratives are discussed on X across 4-hour epochs; it does not predict token prices. Every finalized epoch is backed by a canonical dataset archived to Arweave and reproducible down to the exact basis point.
+          NTI measures how actively crypto narratives are discussed on X across 4-hour epochs; it does not predict token prices. Every finalized epoch is backed by a canonical dataset archived as a public dataset and reproducible down to the exact basis point.
         </p>
       </div>
+
+      <FlowSteps
+        steps={[
+          { icon: Radio, title: "Fetch", text: "Posts from the KOL universe are pulled from X every epoch." },
+          { icon: Tags, title: "Classify", text: "Each post is mapped to one of 10 narrative sectors." },
+          { icon: Calculator, title: "Compute", text: "Authority-weighted mindshare I and velocity V in basis points." },
+          { icon: ShieldCheck, title: "Attest", text: "3+ validators re-derive the vector and sign EIP-712." },
+          { icon: Link2, title: "Commit", text: "Median is committed on-chain with the dataset hash." },
+          { icon: BadgeCheck, title: "Finalize", text: "After the dispute window the epoch becomes final." },
+        ]}
+      />
 
       {/* Mathematical Formulas */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">

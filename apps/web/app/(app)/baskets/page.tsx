@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Layers } from "lucide-react";
 import { Donut } from "@/components/ui/Donut";
+import { EmptyState } from "@/components/ui/Visuals";
 import { fetchBasketsData } from "@/lib/supabase";
 import { formatBpsPercent, formatEth, formatRelativeTime } from "@/lib/format";
 
@@ -31,9 +33,13 @@ export default async function BasketsPage() {
       </div>
 
       {baskets.length === 0 ? (
-        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-8 text-center text-xs text-[#A1A1AA]">
-          No narrative baskets deployed yet.
-        </div>
+        <EmptyState
+          icon={Layers}
+          kicker="Narrative baskets"
+          title="No baskets deployed"
+          text="Baskets hold whitelisted tokens with deep Uniswap V3 pools and rebalance each epoch."
+          steps={["Governance whitelists tokens", "Factory deploys the vault", "Deposit ETH, receive basket shares"]}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {baskets.map((b) => {

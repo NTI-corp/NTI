@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { NARRATIVES, NARRATIVE_BY_ID, NARRATIVE_BY_SLUG } from "@nti/sdk";
 import { fetchBasketsData, fetchNarrativeHistory } from "@/lib/supabase";
 import { formatBpsPercent, formatSignedBps, truncateHex } from "@/lib/format";
+import { sectorColor } from "@/lib/sectors";
 import { IndexChart } from "@/components/IndexChart";
 import { ContributorsTable } from "@/components/ContributorsTable";
 import { AwaitingEpochBanner } from "@/components/AwaitingEpochBanner";
@@ -43,7 +44,12 @@ export default async function NarrativeDetailPage({
             <span>/</span>
             <span className="text-[#A1A1AA]">NARRATIVE #{meta.id}</span>
           </div>
-          <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-[#F4F4F5]">
+          <h1 className="mt-1.5 flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="inline-block h-7 w-2 rounded-sm"
+              style={{ background: sectorColor(meta.id), boxShadow: `0 0 24px ${sectorColor(meta.id)}88` }}
+            />
             {meta.label}
           </h1>
           <p className="mt-1 text-xs text-[#8A8A93]">{meta.description}</p>

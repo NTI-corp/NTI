@@ -17,10 +17,8 @@ export default async function HeatmapPage() {
           <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
             Builder Heatmap · Attention vs. Supply Density
           </span>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
-            Builder Heatmap
-          </h1>
-          <p className="mt-1 max-w-2xl text-xs text-[#A1A1AA]">
+          <h1 className="mt-1">Builder Heatmap</h1>
+          <p>
             Opportunity Score = Mindshare M_n (%) ÷ Active Projects. Active projects include indexed tokens with ≥1 ETH liquidity and ≥10 transactions in 7 days plus curated ecosystem builders.
           </p>
         </div>
