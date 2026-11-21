@@ -27,7 +27,9 @@ import { EpochBadge } from "./EpochBadge";
 import { Sparkline } from "./ui/Sparkline";
 import { Donut } from "./ui/Donut";
 import { sectorColor } from "@/lib/sectors";
+import { SectorGlyph } from "@/components/ui/Visuals";
 import { CopyContractPill } from "./TacticalFrame";
+import { SegmentedTabs } from "./ui/SegmentedTabs";
 
 type ViewTab = "arena" | "chart" | "combined";
 type SideTab = "radar" | "actions";
@@ -201,49 +203,33 @@ export function MindshareTerminalWorkspace({
 
         {/* Timeframe + Category Filter Strip (Blockworks style) */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-[#232325] bg-[#0E0E0F] p-0.5">
-            {(["4H", "24H", "7D", "ALL"] as const).map((w) => (
-              <button
-                key={w}
-                type="button"
-                onClick={() => setWindowChip(w)}
-                className={`cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  windowChip === w
-                    ? "bg-[#25252E] text-white"
-                    : "text-[#A1A1AA] hover:text-white"
-                }`}
-              >
-                {w}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            value={windowChip}
+            onChange={setWindowChip}
+            options={[
+              { value: "4H", label: "4H" },
+              { value: "24H", label: "24H" },
+              { value: "7D", label: "7D" },
+              { value: "ALL", label: "ALL" },
+            ]}
+            buttonClassName="px-2.5 py-1 text-xs"
+          />
 
           <div className="h-5 w-px bg-[#232325]" />
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(
-              [
-                { id: "all", label: "All Sectors" },
-                { id: "defi", label: "DeFi & Perps" },
-                { id: "ai", label: "AI & Compute" },
-                { id: "infra", label: "Infra & Privacy" },
-                { id: "consumer", label: "Consumer & Memes" },
-              ] as const
-            ).map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setCategory(cat.id)}
-                className={`cursor-pointer rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
-                  category === cat.id
-                    ? "border-[#3D3D4A] bg-[#1D1D1F] text-white"
-                    : "border-[#1D1D1F] bg-[#0E0E0F] text-[#A1A1AA] hover:border-[#3A3A3D] hover:text-white"
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            value={category}
+            onChange={setCategory}
+            options={[
+              { value: "all", label: "All Sectors", tone: "lime" },
+              { value: "defi", label: "DeFi & Perps", tone: "lime" },
+              { value: "ai", label: "AI & Compute", tone: "lime" },
+              { value: "infra", label: "Infra & Privacy", tone: "lime" },
+              { value: "consumer", label: "Consumer & Memes", tone: "lime" },
+            ]}
+            className="gap-0.5"
+            buttonClassName="px-3 py-1 text-xs"
+          />
         </div>
       </div>
 
@@ -367,10 +353,7 @@ export function MindshareTerminalWorkspace({
             {sortedByShare.slice(0, 8).map((n) => (
               <li key={n.narrativeId} className="flex items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-1.5 text-[#A1A1AA]">
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-sm"
-                    style={{ background: sectorColor(n.narrativeId) }}
-                  />
+                  <SectorGlyph id={n.narrativeId} className="h-3 w-3" />
                   <span className="truncate">{n.label}</span>
                 </span>
                 <span className="font-mono tabular-nums text-white">{(n.iBps / 100).toFixed(1)}%</span>
@@ -563,30 +546,15 @@ export function MindshareTerminalWorkspace({
           {/* Right Panel Tabs: Radar Signals vs On-Chain Execution */}
           <div className="rounded-xl border border-[#232325] bg-[#0E0E0F] p-4">
             <div className="mb-4 flex items-center justify-between gap-2">
-              <div className="inline-flex rounded-lg border border-[#232325] bg-[#0D0D10] p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setSideTab("radar")}
-                  className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                    sideTab === "radar"
-                      ? "bg-[#24242E] text-white"
-                      : "text-[#A1A1AA] hover:text-white"
-                  }`}
-                >
-                  Radar Signals
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSideTab("actions")}
-                  className={`cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                    sideTab === "actions"
-                      ? "bg-[#24242E] text-white"
-                      : "text-[#A1A1AA] hover:text-white"
-                  }`}
-                >
-                  On-Chain Actions
-                </button>
-              </div>
+              <SegmentedTabs
+                value={sideTab}
+                onChange={setSideTab}
+                options={[
+                  { value: "radar", label: "Radar Signals" },
+                  { value: "actions", label: "On-Chain Actions" },
+                ]}
+                buttonClassName="px-3 py-1 text-xs"
+              />
               <Link
                 href="/radar"
                 className="text-[11px] font-medium text-[#CCFF00] hover:underline"
@@ -596,7 +564,7 @@ export function MindshareTerminalWorkspace({
             </div>
 
             {sideTab === "radar" ? (
-              <div className="space-y-4">
+              <div key="radar" className="tab-panel-enter space-y-4">
                 <RadarFeed
                   alerts={radar.alerts}
                   realtimeUnlocked={radar.realtimeUnlocked}
@@ -626,7 +594,7 @@ export function MindshareTerminalWorkspace({
                 )}
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div key="actions" className="tab-panel-enter space-y-2.5">
                 {[
                   {
                     href: "/markets",

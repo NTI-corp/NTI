@@ -54,7 +54,6 @@ export function Sparkline({
       </defs>
       {area && <path d={areaPath} fill={`url(#sp-${id})`} />}
       <path d={line} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={last[0]} cy={last[1]} r={2.2} fill={color} />
     </svg>
   );
 }

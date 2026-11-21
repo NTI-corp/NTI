@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { formatBpsPercent, formatSignedBps } from "@/lib/format";
-import { sectorColor } from "@/lib/sectors";
+import { Radio } from "lucide-react";
+import { SectorGlyph } from "@/components/ui/Visuals";
 import type { NarrativeIndexItem } from "@/lib/types";
 
 /** Marquee of all sectors under the navbar: color dot, mindshare share and 24h velocity. */
@@ -25,7 +26,7 @@ export function LiveTickerBar({
     <div className="border-b border-[#232325] bg-[#08080A] font-mono text-[11px] tabular-nums">
       <div className="mx-auto flex max-w-[1480px] items-stretch px-4 sm:px-6">
         <div className="flex shrink-0 items-center gap-2 border-x border-[#1B1B1D] pr-4 pl-3">
-          <span className="live-dot h-1.5 w-1.5 rounded-full bg-[#CCFF00]" aria-hidden="true" />
+          <Radio className="live-dot h-3 w-3 text-[#CCFF00]" aria-hidden="true" />
           <span className="text-[10px] uppercase tracking-[0.18em] text-[#A1A1AA]">
             {epochId ? `EP-${epochId}` : "Index"}
           </span>
@@ -47,7 +48,7 @@ export function LiveTickerBar({
                   href={`/narratives/${n.narrativeId}`}
                   className="inline-flex items-center gap-2 whitespace-nowrap text-[#A1A1AA] transition-colors hover:text-white"
                 >
-                  <span className="h-1.5 w-1.5 rounded-sm" style={{ background: sectorColor(n.narrativeId) }} />
+                  <SectorGlyph id={n.narrativeId} className="h-3 w-3" />
                   <span className="uppercase tracking-wider text-[#E4E4E7]">{n.label}</span>
                   <span className="text-white">{formatBpsPercent(n.iBps, 1)}</span>
                   <span className={n.vBps === null ? "text-[#52525B]" : up ? "text-[#22C55E]" : "text-[#EF4444]"}>

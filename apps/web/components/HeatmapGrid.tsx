@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatBpsPercent, formatSignedBps } from "@/lib/format";
 import type { HeatmapPoint } from "@/lib/types";
+import { SectorIcon } from "@/components/ui/Icons";
 
 interface HeatmapGridProps {
   points: HeatmapPoint[];
@@ -228,23 +229,38 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
                   }}
                 >
                   {isSelected && (
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={radius + 6}
+                    <rect
+                      x={cx - radius - 5}
+                      y={cy - radius - 5}
+                      width={(radius + 5) * 2}
+                      height={(radius + 5) * 2}
+                      rx={10}
                       fill={q.color}
                       fillOpacity="0.18"
                     />
                   )}
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r={radius}
+                  <rect
+                    x={cx - radius}
+                    y={cy - radius}
+                    width={radius * 2}
+                    height={radius * 2}
+                    rx={7}
                     fill={q.color}
                     fillOpacity={isSelected ? 0.95 : 0.8}
                     stroke="#090909"
                     strokeWidth="2"
                   />
+                  <svg
+                    x={cx - radius * 0.55}
+                    y={cy - radius * 0.55}
+                    width={radius * 1.1}
+                    height={radius * 1.1}
+                    viewBox="0 0 20 20"
+                    overflow="visible"
+                    style={{ color: "#090909" }}
+                  >
+                    <SectorIcon slug={pt.slug ?? ""} className="h-full w-full" />
+                  </svg>
                   <text
                     x={cx}
                     y={cy - radius - 6}

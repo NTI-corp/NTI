@@ -102,7 +102,7 @@ export default async function BasketsPage() {
                           <li key={h.address} className="flex items-center justify-between gap-2">
                             <span className="flex min-w-0 items-center gap-1.5 text-[#E4E4E7]">
                               <span
-                                className="h-2 w-2 shrink-0 rounded-sm"
+                                className="h-3 w-1 shrink-0 rounded-sm"
                                 style={{ background: HOLDING_COLORS[i % HOLDING_COLORS.length] }}
                               />
                               <span className="truncate">${h.symbol}</span>

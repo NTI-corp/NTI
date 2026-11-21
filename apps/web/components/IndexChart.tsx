@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { formatBpsPercent, formatSignedBps } from "@/lib/format";
+import { SectorGlyph } from "@/components/ui/Visuals";
 import type { VFlag } from "@/lib/types";
 
 export interface IndexChartSeries {
@@ -162,10 +163,7 @@ export function IndexChart({
                     : "border-[#232325] bg-[#131314] text-[#F4F4F5]"
                 }`}
               >
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: s.color }}
-                />
+                <SectorGlyph id={s.id} className="h-3 w-3" />
                 <span>{s.label}</span>
                 {pt && !pt.incomplete && (
                   <span className="text-[#A1A1AA] tabular-nums">
@@ -386,13 +384,14 @@ export function IndexChart({
                   />
                 ))}
                 {s.points[activeIdx] && !s.points[activeIdx]!.incomplete && (
-                  <circle
-                    cx={xAt(activeIdx)}
-                    cy={yAtI(s.points[activeIdx]!.iBps)}
-                    r="3.8"
-                    fill={s.color}
-                    stroke="#090909"
-                    strokeWidth="1.5"
+                  <line
+                    x1={xAt(activeIdx)}
+                    x2={xAt(activeIdx)}
+                    y1={yAtI(s.points[activeIdx]!.iBps) - 7}
+                    y2={yAtI(s.points[activeIdx]!.iBps) + 7}
+                    stroke={s.color}
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
                   />
                 )}
               </g>

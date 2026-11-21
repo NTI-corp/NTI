@@ -2,9 +2,20 @@ import React from "react";
 import Link from "next/link";
 import { NARRATIVES } from "@nti/sdk";
 import { sectorColor } from "@/lib/sectors";
+import { SectorIcon } from "@/components/ui/Icons";
 import type { EpochStatus, EpochSummary, ValidatorAttestationItem } from "@/lib/types";
 
 type IconType = React.ComponentType<{ className?: string }>;
+
+/** Sector marker: the sector's own icon in its color (replaces anonymous colored dots). */
+export function SectorGlyph({ id, className = "h-3.5 w-3.5" }: { id: number; className?: string }) {
+  const slug = NARRATIVES.find((n) => n.id === id)?.slug ?? "";
+  return (
+    <span className="inline-flex shrink-0" style={{ color: sectorColor(id) }}>
+      <SectorIcon slug={slug} className={className} />
+    </span>
+  );
+}
 
 /* ------------------------------------------------------------------------------------------------
  * EmptyState: a designed "nothing here yet" panel with the steps that will fill it.
@@ -128,7 +139,7 @@ export function EpochTimeline({
         <ul className="flex flex-wrap items-center gap-3 font-mono text-[10px] uppercase tracking-wider text-[#8A8A93]">
           {(["final", "committed", "disputed", "incomplete"] as const).map((st) => (
             <li key={st} className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-sm" style={{ background: STATUS_VISUAL[st].color }} />
+              <span className="h-3 w-1 rounded-sm" style={{ background: STATUS_VISUAL[st].color }} />
               {STATUS_VISUAL[st].label}
             </li>
           ))}
@@ -200,7 +211,7 @@ export function ValidatorSpread({ attestations }: { attestations: ValidatorAttes
         {rows.map(({ n, values, min, max }) => (
           <li key={n.id} className="grid grid-cols-[92px_1fr_44px] sm:grid-cols-[120px_1fr_64px] items-center gap-3 text-xs">
             <span className="flex items-center gap-2 truncate text-[#D4D4D8]">
-              <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: sectorColor(n.id) }} />
+              <SectorGlyph id={n.id} />
               <span className="truncate">{n.label}</span>
             </span>
             <span className="relative h-3 rounded-full bg-[#151516]">
@@ -211,7 +222,7 @@ export function ValidatorSpread({ attestations }: { attestations: ValidatorAttes
               {values.map((v, i) => (
                 <span
                   key={i}
-                  className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#0E0E0F]"
+                  className="absolute top-1/2 h-3.5 w-1 -translate-x-1/2 -translate-y-1/2 rounded-sm"
                   style={{ left: pct(v), background: VALIDATOR_TINTS[i % VALIDATOR_TINTS.length] }}
                   title={`Validator ${i + 1}: ${v} bps`}
                 />
@@ -224,7 +235,7 @@ export function ValidatorSpread({ attestations }: { attestations: ValidatorAttes
       <div className="mt-4 flex flex-wrap gap-4 font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
         {attestations.map((a, i) => (
           <span key={a.validator} className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: VALIDATOR_TINTS[i % VALIDATOR_TINTS.length] }} />
+            <span className="h-3 w-1 rounded-sm" style={{ background: VALIDATOR_TINTS[i % VALIDATOR_TINTS.length] }} />
             {a.validator.slice(0, 6)}…{a.validator.slice(-4)}
           </span>
         ))}
