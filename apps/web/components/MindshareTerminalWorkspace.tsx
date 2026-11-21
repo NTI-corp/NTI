@@ -25,14 +25,11 @@ import { RadarFeed } from "./RadarFeed";
 import { SectorIcon } from "./landing/NtiLogos";
 import { EpochBadge } from "./EpochBadge";
 import { Sparkline } from "./ui/Sparkline";
-import { Donut } from "./ui/Donut";
 import { sectorColor } from "@/lib/sectors";
-import { SectorGlyph } from "@/components/ui/Visuals";
 import { CopyContractPill } from "./TacticalFrame";
 import { SegmentedTabs } from "./ui/SegmentedTabs";
 
-type ViewTab = "arena" | "chart" | "combined";
-type SideTab = "radar" | "actions";
+type SideTab = "sectors" | "radar" | "actions";
 type CategoryFilter = "all" | "defi" | "infra" | "ai" | "consumer";
 type SortColumn = "iBps" | "vBps" | "mBps" | "sN" | "weightedPosts";
 
@@ -61,8 +58,7 @@ export function MindshareTerminalWorkspace({
   oracleAddress: string | null;
   pendingFinalization: boolean;
 }) {
-  const [viewTab, setViewTab] = useState<ViewTab>("arena");
-  const [sideTab, setSideTab] = useState<SideTab>("radar");
+  const [sideTab, setSideTab] = useState<SideTab>("sectors");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [windowChip, setWindowChip] = useState<"4H" | "24H" | "7D" | "ALL">("4H");
   const [sortCol, setSortCol] = useState<SortColumn>("iBps");
@@ -164,44 +160,18 @@ export function MindshareTerminalWorkspace({
   };
 
   return (
-    <div className="space-y-5">
-      {/* Blockworks Analytics Mindshare Header */}
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="kicker">
-              Analytics
-            </div>
-            <div className="mt-0.5 flex flex-wrap items-center gap-3">
-              <h1 className="font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                Mindshare
-              </h1>
-              {activeEpoch && (
-                <EpochBadge epochId={activeEpoch.epochId} status={activeEpoch.status} />
-              )}
-              {pendingFinalization && (
-                <span className="rounded-md border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 text-[11px] font-medium text-[#F59E0B]">
-                  2h Dispute Active
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            {oracleAddress && (
-              <CopyContractPill label="Oracle" address={oracleAddress} />
-            )}
-            <Link
-              href="/methodology"
-              className="inline-flex items-center gap-1 rounded-lg border border-[#232325] bg-[#131314] px-3 py-1.5 text-xs font-medium text-[#A1A1AA] hover:border-[#3A3A46] hover:text-white"
-            >
-              <span>API &amp; Methodology</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+    <div className="flex flex-col gap-3">
+      {/* Header: title, epoch, filters and oracle on one line */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="!text-[1.9rem]">Mindshare</h1>
+          {activeEpoch && <EpochBadge epochId={activeEpoch.epochId} status={activeEpoch.status} />}
+          {pendingFinalization && (
+            <span className="rounded-md border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 text-[11px] font-medium text-[#F59E0B]">
+              2h dispute active
+            </span>
+          )}
         </div>
-
-        {/* Timeframe + Category Filter Strip (Blockworks style) */}
         <div className="flex flex-wrap items-center gap-2">
           <SegmentedTabs
             value={windowChip}
@@ -210,444 +180,271 @@ export function MindshareTerminalWorkspace({
               { value: "4H", label: "4H" },
               { value: "24H", label: "24H" },
               { value: "7D", label: "7D" },
-              { value: "ALL", label: "ALL" },
+              { value: "ALL", label: "All" },
             ]}
             buttonClassName="px-2.5 py-1 text-xs"
           />
-
-          <div className="h-5 w-px bg-[#232325]" />
-
           <SegmentedTabs
             value={category}
             onChange={setCategory}
             options={[
-              { value: "all", label: "All Sectors", tone: "lime" },
-              { value: "defi", label: "DeFi & Perps", tone: "lime" },
-              { value: "ai", label: "AI & Compute", tone: "lime" },
-              { value: "infra", label: "Infra & Privacy", tone: "lime" },
-              { value: "consumer", label: "Consumer & Memes", tone: "lime" },
+              { value: "all", label: "All sectors", tone: "lime" },
+              { value: "defi", label: "DeFi", tone: "lime" },
+              { value: "ai", label: "AI", tone: "lime" },
+              { value: "infra", label: "Infra", tone: "lime" },
+              { value: "consumer", label: "Consumer", tone: "lime" },
             ]}
             className="gap-0.5"
-            buttonClassName="px-3 py-1 text-xs"
+            buttonClassName="px-2.5 py-1 text-xs"
           />
+          {oracleAddress && <CopyContractPill label="Oracle" address={oracleAddress} />}
         </div>
       </div>
 
-      {/* Stat strip: the four numbers that matter at a glance */}
-      <div className="stat-strip">
+      {/* Headline figures */}
+      <div className="stat-strip stat-strip-compact">
         <div>
           <div className="stat-label">Leader sector</div>
-          <div className="stat-value truncate">{leader?.label ?? "—"}</div>
-          <div className="stat-caption">
-            {leader ? formatBpsPercent(leader.iBps) : "—"} of total mindshare
-          </div>
+          <div className="stat-value truncate">{leader?.label ?? "-"}</div>
+          <div className="stat-caption">{leader ? formatBpsPercent(leader.iBps) : "-"} of total mindshare</div>
         </div>
         <div>
           <div className="stat-label">Total weight</div>
           <div className="stat-value tabular-nums">
             {totalBps.toLocaleString("en-US")}
-            <span className="ml-1 text-sm font-semibold text-[#22C55E]">bps</span>
+            <span className="ml-1 font-sans text-xs font-medium text-[#8A8A93]">bps</span>
           </div>
-          <div className="stat-caption">Hamilton-rounded, always sums to 10,000</div>
+          <div className="stat-caption">Always sums to 10,000</div>
         </div>
         <div>
           <div className="stat-label">Fastest mover</div>
-          <div className="stat-value truncate">{fastest ? fastest.label : "Warming"}</div>
+          <div className="stat-value truncate">{fastest ? fastest.label : "Warming up"}</div>
           <div className="stat-caption">
-            {fastest ? `${formatSignedBps(fastest.vBps, fastest.vFlag)} over 24h` : "EMA needs 6 epochs of history"}
+            {fastest ? `${formatSignedBps(fastest.vBps, fastest.vFlag)} over 24h` : "Needs 6 epochs of history"}
           </div>
         </div>
         <div>
           <div className="stat-label">Dataset root</div>
-          <div className="stat-value font-mono text-lg">
+          <div className="stat-value truncate !font-mono !text-base !leading-[2.1rem]">
             {activeEpoch?.datasetHash ? truncateHex(activeEpoch.datasetHash, 6, 4) : "Pending"}
           </div>
-          <div className="stat-caption">Committed on-chain, recomputable by anyone</div>
+          <div className="stat-caption">Committed on-chain</div>
         </div>
       </div>
 
-      {/* Mosaic: tile size = share of total mindshare, color = sector, line = recent trend */}
-      <div className="rounded-xl border border-[#232325] bg-[#0A0A0B] p-2">
-        <div className="grid min-h-[132px] w-full grid-cols-2 gap-1.5 sm:flex sm:flex-nowrap">
-          {sortedByShare.map((n) => {
-            const total = sortedByShare.reduce((sum, x) => sum + x.iBps, 0) || 1;
-            const pct = (n.iBps / total) * 100;
-            const color = sectorColor(n.narrativeId);
-            const trend = (recentSeries?.[n.narrativeId] ?? []).slice(-24).map((p) => p.iBps);
-            const rising = (n.vBps ?? 0) >= 0;
-            return (
-              <Link
-                key={n.narrativeId}
-                href={`/narratives/${n.narrativeId}`}
-                style={{
-                  flexGrow: Math.max(8, Math.round(pct * 10)),
-                  flexBasis: 0,
-                  background: "#0F0F11",
-                  borderColor: "#26262A",
-                  borderTopColor: color,
-                  borderTopWidth: 2,
-                }}
-                title={`${n.label}: ${formatBpsPercent(n.iBps)}`}
-                className="group relative flex min-h-[92px] min-w-0 flex-col justify-between overflow-hidden rounded-lg border p-2.5 transition-transform hover:-translate-y-0.5 sm:min-w-[64px]"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
-                    style={{ background: `${color}26`, color }}
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
+        {/* Left: share mosaic and trajectory */}
+        <div className="flex min-w-0 flex-col gap-3 xl:col-span-8">
+          <div className="rounded-xl border border-[#232325] bg-[#0A0A0B] p-1.5">
+            <div className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-5">
+              {sortedByShare.map((n) => {
+                const color = sectorColor(n.narrativeId);
+                const rising = (n.vBps ?? 0) >= 0;
+                return (
+                  <Link
+                    key={n.narrativeId}
+                    href={`/narratives/${n.narrativeId}`}
+                    style={{
+                      background: "#0F0F11",
+                      borderColor: "#26262A",
+                      borderTopColor: color,
+                      borderTopWidth: 2,
+                    }}
+                    title={`${n.label}: ${formatBpsPercent(n.iBps)}`}
+                    className="relative flex min-h-[78px] min-w-0 flex-col justify-between overflow-hidden rounded-md border px-3 py-2.5 hover:bg-[#131315]"
                   >
-                    <SectorIcon slug={n.slug} className="h-3 w-3" />
-                  </span>
-                  <span className="truncate text-[11px] font-semibold text-white">
-                    {n.label}
-                  </span>
-                </div>
-                <div>
-                  <div className="font-display text-xl font-extrabold tabular-nums tracking-tight text-white">
-                    {(n.iBps / 100).toFixed(pct >= 9 ? 2 : 1)}
-                    <span className="text-xs font-semibold text-[#A1A1AA]">%</span>
-                  </div>
-                  <div className="mt-0.5 flex items-end justify-between gap-1">
-                    <span
-                      className={`font-mono text-[10px] ${rising ? "text-[#22C55E]" : "text-[#EF4444]"}`}
-                    >
-                      {n.vBps !== null ? formatSignedBps(n.vBps, n.vFlag) : "warming"}
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate text-xs font-medium text-[#C9C9CF]">{n.label}</span>
+                      <span
+                        className={`shrink-0 font-mono text-[10px] ${
+                          n.vBps === null ? "text-[#62626B]" : rising ? "text-[#22C55E]" : "text-[#EF4444]"
+                        }`}
+                      >
+                        {n.vBps !== null ? formatSignedBps(n.vBps, n.vFlag) : "warming"}
+                      </span>
                     </span>
-                    {pct >= 7 && (
-                      <Sparkline values={trend} color={color} width={64} height={22} className="opacity-90" />
-                    )}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Trajectory chart + distribution donut */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <div className="xl:col-span-8">
-          <IndexChart
-            series={windowedChartSeries}
-            title={`Top 5 narratives · mindshare trajectory (${windowChip})`}
-            subtitle="Toggle sectors below · velocity bars follow the selected primary series"
-            showVelocityBars
-            height={330}
-          />
-        </div>
-        <div className="rounded-xl border border-[#232325] bg-[#0E0E0F] p-4 xl:col-span-4">
-          <div className="kicker">Distribution</div>
-          <div className="mt-1 font-display text-lg font-extrabold uppercase tracking-tight text-white">
-            Share of attention
+                    <span>
+                      <span className="block font-serif text-lg leading-none tabular-nums text-white">
+                        {(n.iBps / 100).toFixed(2)}
+                        <span className="text-[11px] text-[#8A8A93]">%</span>
+                      </span>
+                      <span className="mt-2 block h-[3px] overflow-hidden rounded-full bg-[#1B1B1E]">
+                        <span
+                          className="block h-full rounded-full"
+                          style={{ width: `${(n.iBps / (sortedByShare[0]?.iBps || 1)) * 100}%`, background: color }}
+                        />
+                      </span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-          <div className="mt-4">
-            <Donut
-              slices={sortedByShare.map((n) => ({
-                id: n.narrativeId,
-                label: n.label,
-                value: n.iBps,
-                color: sectorColor(n.narrativeId),
-              }))}
-              centerLabel="Total"
-              centerValue="100%"
+
+          <div className="h-[400px] xl:h-[460px]">
+            <IndexChart
+              fill
+              series={windowedChartSeries}
+              title={`Top 5 sectors, ${windowChip === "ALL" ? "all epochs" : windowChip}`}
+              subtitle="Share of mindshare per 4h epoch; bars show velocity of the first selected sector"
+              showVelocityBars
             />
           </div>
-          <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
-            {sortedByShare.slice(0, 8).map((n) => (
-              <li key={n.narrativeId} className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-1.5 text-[#A1A1AA]">
-                  <SectorGlyph id={n.narrativeId} className="h-3 w-3" />
-                  <span className="truncate">{n.label}</span>
-                </span>
-                <span className="font-mono tabular-nums text-white">{(n.iBps / 100).toFixed(1)}%</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Main 12-Col Blockworks Grid: 8 Left (Arena + Screener) | 4 Right (Overview + Signals) */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        {/* Left 8 Columns */}
-        <div className="space-y-4 xl:col-span-8">
-          {/* Blockworks-Style Sortable Screener Table */}
-          {(
-            <div className="overflow-hidden rounded-xl border border-[#232325] bg-[#0E0E0F]">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-[#232325] bg-[#101014] text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
-                      <th className="w-10 px-3 py-3 text-center">#</th>
-                      <th className="px-3 py-3">Narrative</th>
-                      <th
-                        className={`px-3 py-3 text-right whitespace-nowrap ${
-                          sortCol === "iBps" ? "border-t-2 border-t-[#CCFF00] text-white" : ""
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleSort("iBps")}
-                          className="cursor-pointer uppercase hover:text-white"
-                        >
-                          Mindshare {renderSortIcon("iBps")}
-                        </button>
-                      </th>
-                      <th
-                        className={`px-3 py-3 text-right whitespace-nowrap ${
-                          sortCol === "vBps" ? "border-t-2 border-t-[#CCFF00] text-white" : ""
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleSort("vBps")}
-                          className="cursor-pointer uppercase hover:text-white"
-                        >
-                          {windowChip === "ALL" ? "Series" : windowChip} Chg {renderSortIcon("vBps")}
-                        </button>
-                      </th>
-                      <th
-                        className={`hidden px-3 py-3 text-right whitespace-nowrap sm:table-cell ${
-                          sortCol === "mBps" ? "border-t-2 border-t-[#CCFF00] text-white" : ""
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleSort("mBps")}
-                          className="cursor-pointer uppercase hover:text-white"
-                        >
-                          Raw M_n {renderSortIcon("mBps")}
-                        </button>
-                      </th>
-                      <th
-                        className={`hidden px-3 py-3 text-right whitespace-nowrap md:table-cell ${
-                          sortCol === "sN" ? "border-t-2 border-t-[#CCFF00] text-white" : ""
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => handleSort("sN")}
-                          className="cursor-pointer uppercase hover:text-white"
-                        >
-                          Decay {renderSortIcon("sN")}
-                        </button>
-                      </th>
-                      <th className="hidden px-3 py-3 text-right whitespace-nowrap lg:table-cell">Trend</th>
-                      <th className="px-3 py-3 text-right whitespace-nowrap">Why?</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#1E1E26]">
-                    {filtered.length === 0 ? (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-xs text-[#71717A]">
-                          No narrative sectors match the selected filter.
-                        </td>
-                      </tr>
-                    ) : (
-                      filtered.map((n, idx) => {
-                        const delta = windowDeltaById.get(n.narrativeId) ?? null;
-                        const isPos = (delta ?? 0) >= 0;
-                        return (
-                          <tr
-                            key={n.narrativeId}
-                            className="transition-colors hover:bg-[#191920]"
-                          >
-                            <td className="px-3 py-3 text-center font-mono text-[11px] tabular-nums text-[#71717A]">
-                              {idx + 1}
-                            </td>
-                            <td className="px-3 py-3">
-                              <Link
-                                href={`/narratives/${n.narrativeId}`}
-                                className="group flex items-center gap-2.5"
-                              >
-                                <div
-                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border"
-                                  style={{
-                                    borderColor: `${sectorColor(n.narrativeId)}55`,
-                                    background: `${sectorColor(n.narrativeId)}1A`,
-                                    color: sectorColor(n.narrativeId),
-                                  }}
-                                >
-                                  <SectorIcon slug={n.slug} className="h-4 w-4" />
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="truncate font-semibold text-[#F4F4F5] group-hover:text-[#CCFF00]">
-                                    {n.label}
-                                  </div>
-                                  <div className="hidden max-w-[190px] truncate text-[11px] text-[#71717A] 2xl:block">
-                                    {n.description}
-                                  </div>
-                                </div>
-                              </Link>
-                            </td>
-                            <td className="px-3 py-3 text-right whitespace-nowrap">
-                              <div className="font-mono text-sm font-semibold tabular-nums text-white">
-                                {formatBpsPercent(n.iBps)}
-                              </div>
-                              <div className="ml-auto mt-1 h-1 w-20 overflow-hidden rounded-full bg-[#1A1A1C]">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${Math.min(100, (n.iBps / (sortedByShare[0]?.iBps || 1)) * 100)}%`,
-                                    background: sectorColor(n.narrativeId),
-                                  }}
-                                />
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 text-right font-mono tabular-nums whitespace-nowrap">
-                              {delta !== null ? (
-                                <span
-                                  className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold ${
-                                    isPos
-                                      ? "bg-[#22C55E]/12 text-[#22C55E]"
-                                      : "bg-[#EF4444]/12 text-[#EF4444]"
-                                  }`}
-                                >
-                                  {isPos ? "↑" : "↓"} {formatSignedBps(delta, windowChip === "4H" ? n.vFlag : null)}
-                                </span>
-                              ) : (
-                                <span className="text-[11px] text-[#71717A]">Warming</span>
-                              )}
-                            </td>
-                            <td className="hidden px-3 py-3 text-right font-mono tabular-nums text-[#A1A1AA] whitespace-nowrap sm:table-cell">
-                              {formatBpsPercent(n.mBps)}
-                            </td>
-                            <td className="hidden px-3 py-3 text-right font-mono tabular-nums text-[#A1A1AA] whitespace-nowrap md:table-cell">
-                              {n.sN.toFixed(1)}
-                            </td>
-                            <td className="hidden px-3 py-3 text-right lg:table-cell">
-                              <Sparkline
-                                values={(recentSeries?.[n.narrativeId] ?? []).slice(-24).map((p) => p.iBps)}
-                                color={sectorColor(n.narrativeId)}
-                                width={92}
-                                height={26}
-                                className="ml-auto"
-                              />
-                            </td>
-                            <td className="px-3 py-3 text-right whitespace-nowrap">
-                              <Link
-                                href={`/narratives/${n.narrativeId}`}
-                                className="inline-flex items-center gap-1 rounded-md border border-[#262A32] bg-[#131314] px-2.5 py-1 text-[11px] font-medium text-[#D4D4D8] hover:border-[#CCFF00] hover:text-[#CCFF00]"
-                              >
-                                <span>Open</span>
-                                <ArrowUpRight className="h-3 w-3" />
-                              </Link>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right 4 Columns: Overview Card + Tabbed Radar/Actions */}
-        <aside className="space-y-4 xl:col-span-4">
-
-          {/* Right Panel Tabs: Radar Signals vs On-Chain Execution */}
-          <div className="rounded-xl border border-[#232325] bg-[#0E0E0F] p-4">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <SegmentedTabs
-                value={sideTab}
-                onChange={setSideTab}
-                options={[
-                  { value: "radar", label: "Radar Signals" },
-                  { value: "actions", label: "On-Chain Actions" },
-                ]}
-                buttonClassName="px-3 py-1 text-xs"
-              />
-              <Link
-                href="/radar"
-                className="text-[11px] font-medium text-[#CCFF00] hover:underline"
-              >
+        {/* Right: sectors, radar and actions in one panel */}
+        <aside className="flex min-w-0 flex-col rounded-xl border border-[#232325] bg-[#0E0E0F] xl:col-span-4">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#232325] px-3 py-2.5">
+            <SegmentedTabs
+              value={sideTab}
+              onChange={setSideTab}
+              options={[
+                { value: "sectors", label: "Sectors" },
+                { value: "radar", label: "Radar" },
+                { value: "actions", label: "Actions" },
+              ]}
+              buttonClassName="px-3 py-1 text-xs"
+            />
+            {sideTab === "radar" && (
+              <Link href="/radar" className="text-[11px] font-medium text-[#CCFF00] hover:underline">
                 View all
               </Link>
-            </div>
+            )}
+          </div>
 
-            {sideTab === "radar" ? (
-              <div key="radar" className="tab-panel-enter space-y-4">
+          <div>
+            {sideTab === "sectors" && (
+              <table key="sectors" className="tab-panel-enter w-full text-left text-xs">
+                <thead className="sticky top-0 bg-[#0E0E0F] text-[11px] text-[#71717A]">
+                  <tr className="border-b border-[#232325]">
+                    <th className="w-8 py-2 pl-3 font-medium">#</th>
+                    <th className="py-2 font-medium">Sector</th>
+                    <th className="py-2 text-right font-medium">
+                      <button type="button" onClick={() => handleSort("iBps")} className="cursor-pointer hover:text-white">
+                        Share {renderSortIcon("iBps")}
+                      </button>
+                    </th>
+                    <th className="py-2 pr-3 text-right font-medium">
+                      <button type="button" onClick={() => handleSort("vBps")} className="cursor-pointer hover:text-white">
+                        Change {renderSortIcon("vBps")}
+                      </button>
+                    </th>
+                    <th className="hidden py-2 pr-3 text-right font-medium 2xl:table-cell">Trend</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1B1B1E]">
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-xs text-[#71717A]">
+                        No sectors match this filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((n, idx) => {
+                      const delta = windowDeltaById.get(n.narrativeId) ?? null;
+                      const isPos = (delta ?? 0) >= 0;
+                      return (
+                        <tr key={n.narrativeId}>
+                          <td className="py-2 pl-3 font-mono text-[11px] tabular-nums text-[#62626B]">{idx + 1}</td>
+                          <td className="py-2">
+                            <Link href={`/narratives/${n.narrativeId}`} className="group flex items-center gap-2">
+                              <span style={{ color: sectorColor(n.narrativeId) }}>
+                                <SectorIcon slug={n.slug} className="h-3.5 w-3.5" />
+                              </span>
+                              <span className="truncate font-medium text-[#E4E4E7] group-hover:text-[#CCFF00]">
+                                {n.label}
+                              </span>
+                            </Link>
+                          </td>
+                          <td className="py-2 text-right font-mono tabular-nums text-white">
+                            {formatBpsPercent(n.iBps)}
+                          </td>
+                          <td className="py-2 pr-3 text-right font-mono tabular-nums">
+                            {delta !== null ? (
+                              <span className={isPos ? "text-[#22C55E]" : "text-[#EF4444]"}>
+                                {formatSignedBps(delta, windowChip === "4H" ? n.vFlag : null)}
+                              </span>
+                            ) : (
+                              <span className="text-[#62626B]">warming</span>
+                            )}
+                          </td>
+                          <td className="hidden py-2 pr-3 text-right 2xl:table-cell">
+                            <Sparkline
+                              values={(recentSeries?.[n.narrativeId] ?? []).slice(-24).map((p) => p.iBps)}
+                              color={sectorColor(n.narrativeId)}
+                              width={64}
+                              height={20}
+                              className="ml-auto"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            )}
+
+            {sideTab === "radar" && (
+              <div key="radar" className="tab-panel-enter space-y-4 p-3">
                 <RadarFeed
                   alerts={radar.alerts}
                   realtimeUnlocked={radar.realtimeUnlocked}
-                  maxItems={4}
+                  maxItems={5}
                   compact
                 />
-
                 {!radar.realtimeUnlocked && (
-                  <div className="rounded-xl border border-[#2A2F38] bg-gradient-to-b from-[#131314] to-[#101216] p-5 text-center">
-                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-[#343940] bg-[#090909] text-[#CCFF00]">
-                      <Radar className="h-4 w-4" />
-                    </div>
-                    <h3 className="mt-3 font-display text-sm font-bold text-white">
-                      Unlock Real-Time Mindshare Radar
-                    </h3>
-                    <p className="mt-1 text-xs leading-relaxed text-[#A1A1AA]">
-                      Public feeds carry a 60-minute delay. Stake 100k $NTI to see velocity breakouts
-                      instantly.
+                  <div className="rounded-lg border border-[#232325] bg-[#0B0B0C] p-4">
+                    <div className="text-sm font-medium text-white">Real-time radar</div>
+                    <p className="mt-1 text-xs leading-relaxed text-[#9A9AA3]">
+                      Public feeds are delayed by 60 minutes. Stake 100k $NTI to see velocity breakouts as they
+                      happen.
                     </p>
                     <Link
                       href="/stake"
-                      className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-[#CCFF00] px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-[#B8E600]"
+                      className="mt-3 inline-flex items-center justify-center rounded-md bg-[#CCFF00] px-3.5 py-1.5 text-xs font-semibold text-black hover:bg-[#B8E600]"
                     >
-                      Stake $NTI to Unlock
+                      Stake $NTI
                     </Link>
                   </div>
                 )}
               </div>
-            ) : (
-              <div key="actions" className="tab-panel-enter space-y-2.5">
+            )}
+
+            {sideTab === "actions" && (
+              <ul key="actions" className="tab-panel-enter divide-y divide-[#1B1B1E]">
                 {[
-                  {
-                    href: "/markets",
-                    title: "Narrative Pair Markets",
-                    sub: "24h & 7d parimutuel pools · 0.1% fee",
-                    icon: Activity,
-                  },
-                  {
-                    href: "/baskets",
-                    title: "TWAP Narrative Baskets",
-                    sub: "Uniswap V3 vaults · 30m TWAP NAV",
-                    icon: Layers,
-                  },
-                  {
-                    href: "/stake",
-                    title: "Stake $NTI · 30% ETH Fees",
-                    sub: "Up to 50% discount + instant Radar",
-                    icon: Coins,
-                  },
-                  {
-                    href: "/grants",
-                    title: "Quadratic Ecosystem Grants",
-                    sub: "Vote on mindshare-weighted funding",
-                    icon: Sparkles,
-                  },
+                  { href: "/markets", title: "Pair markets", sub: "Parimutuel pools, 0.1% fee", icon: Activity },
+                  { href: "/baskets", title: "Narrative baskets", sub: "Uniswap V3 vaults, 30m TWAP NAV", icon: Layers },
+                  { href: "/stake", title: "Stake $NTI", sub: "Fee discounts and instant radar", icon: Coins },
+                  { href: "/grants", title: "Ecosystem grants", sub: "Vote on funding rounds", icon: Sparkles },
                   {
                     href: "/oracle",
-                    title: "Oracle Consensus & Disputes",
-                    sub: "EIP-712 attestations & 2h challenges",
+                    title: "Oracle and disputes",
+                    sub: "Attestations and 2h challenge window",
                     icon: ShieldCheck,
                   },
                 ].map((act) => {
                   const Icon = act.icon;
                   return (
-                    <Link
-                      key={act.href}
-                      href={act.href}
-                      className="flex items-center justify-between rounded-lg border border-[#232325] bg-[#0E1014] px-3.5 py-3 transition-colors hover:border-[#CCFF00]/60 hover:bg-[#131314]"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="h-4 w-4 text-[#CCFF00]" />
-                        <div>
-                          <div className="text-xs font-semibold text-white">{act.title}</div>
-                          <div className="text-[11px] text-[#71717A]">{act.sub}</div>
-                        </div>
-                      </div>
-                      <ArrowUpRight className="h-3.5 w-3.5 text-[#71717A]" />
-                    </Link>
+                    <li key={act.href}>
+                      <Link
+                        href={act.href}
+                        className="flex items-center justify-between gap-3 px-3.5 py-3 hover:bg-white/[0.03]"
+                      >
+                        <span className="flex items-center gap-3">
+                          <Icon className="h-4 w-4 text-[#8A8A93]" />
+                          <span>
+                            <span className="block text-[13px] font-medium text-white">{act.title}</span>
+                            <span className="block text-[11px] text-[#71717A]">{act.sub}</span>
+                          </span>
+                        </span>
+                        <ArrowUpRight className="h-3.5 w-3.5 text-[#62626B]" />
+                      </Link>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             )}
           </div>
         </aside>

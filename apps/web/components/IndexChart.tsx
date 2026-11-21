@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatBpsPercent, formatSignedBps } from "@/lib/format";
 import { SectorGlyph } from "@/components/ui/Visuals";
 import type { VFlag } from "@/lib/types";
@@ -26,6 +26,8 @@ interface IndexChartProps {
   subtitle?: string;
   showVelocityBars?: boolean;
   height?: number;
+  /** Fill the parent: the plot is measured and drawn 1:1 so it always uses the space it is given. */
+  fill?: boolean;
 }
 
 export const NARRATIVE_CHART_COLORS = [
@@ -46,8 +48,22 @@ export function IndexChart({
   title = "Narrative Index Trajectory (I_n) & Velocity (V_n)",
   subtitle = "Finalized 4h epochs · Hamilton bps (Σ I_n = 10,000)",
   showVelocityBars = true,
-  height = 290,
+  height: heightProp = 290,
+  fill = false,
 }: IndexChartProps) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 920, h: heightProp });
+  useEffect(() => {
+    if (!fill || !boxRef.current || typeof ResizeObserver === "undefined") return;
+    const el = boxRef.current;
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) setBox({ w: Math.round(r.width), h: Math.max(180, Math.round(r.height)) });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fill]);
+  const height = fill ? box.h : heightProp;
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<number>>(new Set());
 
@@ -62,7 +78,7 @@ export function IndexChart({
     return primary.points.map((p) => p.epochId);
   }, [primary]);
 
-  const width = 920;
+  const width = fill ? Math.max(320, box.w) : 920;
   const padLeft = 56;
   const padRight = 20;
   const padTop = 24;
@@ -139,7 +155,9 @@ export function IndexChart({
     hoveredIdx !== null && hoveredIdx < epochs.length ? hoveredIdx : epochs.length - 1;
 
   return (
-    <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
+    <div
+      className={`rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 ${fill ? "flex h-full min-h-0 flex-col" : ""}`}
+    >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold tracking-tight text-[#F4F4F5]">
@@ -217,10 +235,10 @@ export function IndexChart({
         </div>
       )}
 
-      <div className="w-full overflow-x-auto">
+      <div ref={boxRef} className={`w-full ${fill ? "min-h-0 flex-1 overflow-hidden" : "overflow-x-auto"}`}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="h-auto w-full min-w-[540px] select-none"
+          className={`select-none ${fill ? "block h-full w-full" : "h-auto w-full min-w-[540px]"}`}
           role="img"
           aria-label={title}
           onMouseLeave={() => setHoveredIdx(null)}
