@@ -24,7 +24,6 @@ import {
 import { NARRATIVES } from "@nti/sdk";
 import { EpochBadge } from "./EpochBadge";
 import { LiveTickerBar } from "./LiveTickerBar";
-import { HalftoneHorizonCanvas } from "./HalftoneHorizonCanvas";
 import { TestnetBanner } from "./TestnetBanner";
 import { WalletButton } from "./WalletButton";
 import { getActiveChainId, getChain } from "@/lib/contracts";
@@ -268,7 +267,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {rail ? (
               gi > 0 && <div className="mx-2 mb-3 h-px bg-[#1B1B1D]" />
             ) : (
-              <div className="mb-1.5 px-2 font-mono text-[9.5px] uppercase tracking-[0.2em] text-[#52525B]">
+              <div className="mb-1 px-2.5 text-[11px] font-medium text-[#62626B]">
                 {group.title}
               </div>
             )}
@@ -288,35 +287,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         if (item.href !== pathname) setOptimisticPath(item.href);
                       }}
                       aria-current={active ? "page" : undefined}
-                      className={`group relative flex items-center rounded-lg transition-colors ${
-                        rail ? "h-10 justify-center" : "gap-3 px-2.5 py-2"
+                      className={`group relative flex items-center rounded-md transition-colors ${
+                        rail ? "h-10 justify-center" : "h-9 gap-3 px-2.5"
                       } ${
                         active
-                          ? "bg-[#CCFF00]/[0.09] text-white"
-                          : "text-[#8A8A93] hover:bg-white/[0.04] hover:text-white"
+                          ? "bg-white/[0.06] text-white"
+                          : "text-[#9A9AA3] hover:bg-white/[0.035] hover:text-white"
                       }`}
                     >
                       {active && (
-                        <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-[#CCFF00] shadow-[0_0_12px_rgba(204,255,0,0.55)]" />
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#CCFF00]" />
                       )}
-                      <span
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                          active
-                            ? "border-[#CCFF00]/40 bg-[#CCFF00]/12 text-[#CCFF00]"
-                            : "border-[#232325] bg-[#0C0C0D] group-hover:border-[#3A3A3D]"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </span>
+                      <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-[#CCFF00]" : ""}`} />
                       {!rail && (
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-semibold leading-tight">
-                            {item.label}
-                          </span>
-                          <span className="block truncate text-[10.5px] leading-tight text-[#62626A]">
-                            {item.hint}
-                          </span>
-                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{item.label}</span>
                       )}
                       <PendingSpinner className={rail ? "absolute right-1 top-1 h-3 w-3" : "h-3.5 w-3.5"} />
                     </Link>
@@ -497,15 +481,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <TestnetBanner />
 
         <div className="relative">
-          {/* Atmosphere: dot matrix fading downward plus a soft lime glow behind the page header */}
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-[460px] overflow-hidden">
-            <HalftoneHorizonCanvas className="absolute inset-x-0 top-0 h-full w-full opacity-60" />
-            <div
-              className="absolute inset-0"
-              style={{ background: "linear-gradient(to bottom, rgba(6,6,7,0) 0%, #060607 96%)" }}
-            />
-            <div className="absolute -top-44 left-[18%] h-[360px] w-[720px] rounded-full bg-[#CCFF00]/[0.075] blur-[120px]" />
-          </div>
           <main className="app-main relative mx-auto min-h-[70vh] w-full max-w-[1480px] px-4 pb-16 pt-8 sm:px-6">
             {showSkeleton && optimisticPath && optimisticPath !== pathname ? (
               <div className="tab-panel-enter">

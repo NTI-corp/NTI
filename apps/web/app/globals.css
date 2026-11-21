@@ -34,6 +34,7 @@
   --color-cyan: var(--signal-cyan);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-archivo), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif), Georgia, "Times New Roman", serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
@@ -449,4 +450,117 @@ body {
 body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+}
+
+
+/* =====================================================================================================
+ * Index-publication refinement
+ * The app reads like an index factsheet: serif titles and headline figures, sentence-case labels, flat
+ * panels, hairline rules. Lime is reserved for the primary action, the current selection and live data.
+ * ===================================================================================================== */
+.app-main h1 {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 1.5rem + 1.7vw, 2.8rem);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.022em;
+  text-transform: none;
+  color: #f4f4f5;
+}
+.app-main h1 + p {
+  margin-top: 0.7rem;
+  max-width: 44rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #9a9aa3;
+}
+
+/* Display type: serif, sentence case, no heavy caps. */
+.app-main .font-display {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: -0.015em;
+}
+.app-main .font-display.uppercase {
+  text-transform: none;
+}
+
+/* Headline figures in tables of numbers: serif lining numerals, tabular. */
+.stat-strip .stat-value,
+.app-main .font-display.tabular-nums {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.02em;
+}
+.stat-strip .stat-value {
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+/* Labels: calm tracking instead of wide spaced caps. */
+.kicker,
+.stat-strip .stat-label,
+.app-main [class*="tracking-[0.1"],
+.app-main [class*="tracking-[0.2"] {
+  letter-spacing: 0.06em !important;
+}
+.kicker {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0 !important;
+}
+.stat-strip .stat-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0 !important;
+  color: #8a8a93;
+}
+
+/* Flat surfaces: no corner ticks, glows or lift. */
+.stat-strip > *::before {
+  display: none;
+}
+.stat-strip > *:hover {
+  background-color: transparent;
+}
+.app-main .rounded-xl.border:hover {
+  border-color: inherit;
+  box-shadow: none;
+}
+.app-main tbody tr:hover {
+  box-shadow: none;
+  background-color: rgba(255, 255, 255, 0.025);
+}
+.terminal-grid-bg {
+  background-image: none;
+}
+.live-dot {
+  animation: none;
+}
+.app-root button:not(:disabled):active {
+  transform: none;
+}
+
+/* Page transitions: a plain fade, no travel, no scale. */
+@keyframes page-fade {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.page-enter,
+.page-enter > * {
+  animation: page-fade 220ms ease-out both;
+  animation-delay: 0ms !important;
+}
+.tab-panel-enter {
+  animation: page-fade 160ms ease-out both;
 }

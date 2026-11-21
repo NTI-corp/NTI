@@ -282,8 +282,10 @@ export function MindshareTerminalWorkspace({
                 style={{
                   flexGrow: Math.max(8, Math.round(pct * 10)),
                   flexBasis: 0,
-                  background: `linear-gradient(160deg, ${color}22 0%, #0E0E0F 62%)`,
-                  borderColor: `${color}55`,
+                  background: "#0F0F11",
+                  borderColor: "#26262A",
+                  borderTopColor: color,
+                  borderTopWidth: 2,
                 }}
                 title={`${n.label}: ${formatBpsPercent(n.iBps)}`}
                 className="group relative flex min-h-[92px] min-w-0 flex-col justify-between overflow-hidden rounded-lg border p-2.5 transition-transform hover:-translate-y-0.5 sm:min-w-[64px]"

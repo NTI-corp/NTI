@@ -107,7 +107,7 @@ export function FlowSteps({ steps }: { steps: Array<{ icon: IconType; title: str
  * EpochTimeline: recent epochs as status-colored bars, newest on the right.
  * ---------------------------------------------------------------------------------------------- */
 const STATUS_VISUAL: Record<EpochStatus, { color: string; height: number; label: string }> = {
-  final: { color: "#22C55E", height: 100, label: "Final" },
+  final: { color: "#2F8F5B", height: 100, label: "Final" },
   committed: { color: "#A1A1AA", height: 72, label: "Committed" },
   disputed: { color: "#EF4444", height: 88, label: "Disputed" },
   computed: { color: "#71717A", height: 56, label: "Computed" },
@@ -159,10 +159,10 @@ export function EpochTimeline({
               className="group relative flex h-full min-w-0 flex-1 cursor-pointer flex-col items-center justify-end gap-1.5"
             >
               <span
-                className="w-full rounded-t-md transition-all duration-300 group-hover:brightness-125"
+                className="w-full rounded-[3px] transition-all duration-200 group-hover:brightness-125"
                 style={{
                   height: `${v.height}%`,
-                  background: `linear-gradient(to top, ${v.color}33, ${v.color})`,
+                  background: v.color,
                   outline: active ? `2px solid #CCFF00` : "none",
                   outlineOffset: 2,
                   opacity: active ? 1 : 0.78,
