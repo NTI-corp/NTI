@@ -71,3 +71,60 @@ def test_rows_and_tiers() -> None:
     assert kols[0]["poll_tier"] == 1 and kols[0]["active"] is True
     assert links == [{"user_id": 7, "narrative_id": 7}]
     assert poll_tier_for(3) == 2 and poll_tier_for(2) == 4
+
+
+class FakeStorage:
+    def __init__(self, cycles=(), kols=(), posts=()):
+        self.tables = {"fetch_cycles": list(cycles), "kols": list(kols), "posts": list(posts)}
+        self.patches: list[tuple[dict, dict]] = []
+        self.upserts: list[tuple[str, list]] = []
+
+    async def select(self, table, **kw):
+        return list(self.tables.get(table, []))[: kw.get("limit") or None]
+
+    async def upsert(self, table, rows, on_conflict=None):
+        self.upserts.append((table, rows))
+
+    async def patch(self, table, filters, values):
+        self.patches.append((filters, values))
+
+
+def test_adaptive_budget_follows_failure_ratio() -> None:
+    from nti_discovery.kol_maintain import adaptive_budget
+
+    def b(ok, failed):
+        s = FakeStorage(cycles=[{"accounts_ok": ok, "accounts_failed": failed}])
+        return asyncio.run(adaptive_budget(s, 150))[0]
+
+    assert b(95, 5) == 150
+    assert b(80, 20) == 50
+    assert b(50, 50) == 0
+    assert asyncio.run(adaptive_budget(FakeStorage(), 150))[0] == 50
+
+
+def test_refresh_profiles_updates_and_deactivates() -> None:
+    from nti_discovery.kol_maintain import refresh_profiles
+
+    class Src:
+        async def profile(self, uid):
+            if uid == 2:
+                return None
+            if uid == 3:
+                raise RuntimeError("rate limited")
+            return ("new_handle", 9000)
+
+    st = FakeStorage(kols=[{"user_id": i, "handle": f"h{i}"} for i in (1, 2, 3)])
+    rep = asyncio.run(refresh_profiles(st, Src(), NOW))
+    assert rep == {"refreshed": 1, "deactivated": 1, "failed": 1}
+    assert any(v == {"active": False} for _, v in st.patches)
+
+
+def test_retier_uses_real_post_counts() -> None:
+    from nti_discovery.kol_maintain import retier
+
+    st = FakeStorage(
+        kols=[{"user_id": 1, "poll_tier": 4}, {"user_id": 2, "poll_tier": 1}],
+        posts=[{"user_id": 1}] * 7,
+    )
+    assert asyncio.run(retier(st, NOW)) == 1
+    assert st.patches[0][1] == {"poll_tier": 1}

@@ -252,38 +252,58 @@ def to_rows(
 async def run(args: argparse.Namespace) -> dict[str, Any]:
     from nti_fetcher.storage import SupabaseStorage
 
+    from nti_discovery import kol_maintain
+
     storage = SupabaseStorage(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
+    db_path = Path(os.environ.get("TWSCRAPE_DB_PATH", "data/state/accounts.db"))
+    if not db_path.is_absolute():
+        db_path = REPO_ROOT / db_path
+    now = datetime.now(UTC)
+    report: dict[str, Any] = {"role": "kol_harvest", "dry_run": args.dry_run}
+
+    if not args.dry_run:
+        report["seed_imported"] = await kol_maintain.import_seed(
+            storage, REPO_ROOT / "data" / "kols.json"
+        )
+        report["profiles"] = await kol_maintain.refresh_profiles(
+            storage, kol_maintain.TwscrapeProfiles(db_path), now
+        )
+        report["retiered"] = await kol_maintain.retier(storage, now)
+
     existing = await storage.select("kols", columns="user_id,handle")
     known = {int(r["user_id"]) for r in existing}
     known_handles = {str(r["handle"]).lower() for r in existing}
 
-    db_path = Path(os.environ.get("TWSCRAPE_DB_PATH", "data/state/accounts.db"))
-    if not db_path.is_absolute():
-        db_path = REPO_ROOT / db_path
-    cfg = HarvestConfig(max_new_per_run=args.max_new, max_total=args.max_total)
-    now = datetime.now(UTC)
-    accepted = await harvest(TwscrapeSearch(db_path), known, now=now, cfg=cfg)
-    accepted = [(m, p) for m, p in accepted if m.handle.lower() not in known_handles]
-    kol_rows, link_rows = to_rows(accepted, now)
-    if args.dry_run:
-        print(json.dumps({"would_add": kol_rows}, default=str, indent=2))
+    if args.max_new is not None:
+        budget, reason = args.max_new, "fixed"
     else:
-        await storage.upsert("kols", kol_rows, on_conflict="user_id")
-        await storage.upsert("kol_narratives", link_rows, on_conflict="user_id,narrative_id")
-    return {
-        "role": "kol_harvest",
-        "known": len(known),
-        "added": len(kol_rows),
-        "total": len(known) + (0 if args.dry_run else len(kol_rows)),
-        "dry_run": args.dry_run,
-    }
+        budget, reason = await kol_maintain.adaptive_budget(storage, full=150)
+    report["growth"] = {"budget": budget, "reason": reason}
+
+    kol_rows: list[dict[str, Any]] = []
+    if budget > 0:
+        cfg = HarvestConfig(max_new_per_run=budget, max_total=args.max_total)
+        accepted = await harvest(TwscrapeSearch(db_path), known, now=now, cfg=cfg)
+        accepted = [(m, p) for m, p in accepted if m.handle.lower() not in known_handles]
+        kol_rows, link_rows = to_rows(accepted, now)
+        if args.dry_run:
+            print(json.dumps({"would_add": kol_rows}, default=str, indent=2))
+        else:
+            await storage.upsert("kols", kol_rows, on_conflict="user_id")
+            await storage.upsert("kol_narratives", link_rows, on_conflict="user_id,narrative_id")
+    report.update(
+        known=len(known),
+        added=len(kol_rows),
+        total=len(known) + (0 if args.dry_run else len(kol_rows)),
+    )
+    return report
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
-        "--max-new", type=int, default=int(os.environ.get("KOL_HARVEST_MAX_NEW", "150"))
+        "--max-new", type=int, default=None, help="fixed intake; default adapts to fetch health"
     )
     parser.add_argument(
         "--max-total", type=int, default=int(os.environ.get("KOL_HARVEST_MAX_TOTAL", "1500"))
