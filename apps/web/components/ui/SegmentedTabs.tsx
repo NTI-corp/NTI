@@ -11,17 +11,17 @@ export interface SegmentedTabOption<T extends string> {
 }
 
 const TONE_INDICATOR: Record<SegmentedTone, string> = {
-  neutral: "bg-[#25252E] border-[#3A3A46]/80",
-  lime: "bg-[#CCFF00]/15 border-[#CCFF00]/50",
-  green: "bg-[#22C55E]/15 border-[#22C55E]/45",
-  amber: "bg-[#F59E0B]/15 border-[#F59E0B]/45",
+  neutral: "bg-[#1F1F23] border-[#3A3A40]",
+  lime: "bg-[#1E1E21] border-[#CCFF00]/65",
+  green: "bg-[#22C55E]/15 border-[#4ADE80]/50",
+  amber: "bg-[#E2A856]/15 border-[#E2A856]/50",
 };
 
 const TONE_TEXT: Record<SegmentedTone, string> = {
-  neutral: "text-white",
+  neutral: "text-[#F5F5F7]",
   lime: "text-[#CCFF00]",
-  green: "text-[#22C55E]",
-  amber: "text-[#F59E0B]",
+  green: "text-[#4ADE80]",
+  amber: "text-[#E2A856]",
 };
 
 interface IndicatorRect {
@@ -65,14 +65,13 @@ export function SegmentedTabs<T extends string>({
       setRect((prev) => (prev.visible ? { ...prev, visible: false } : prev));
       return;
     }
-    const next: IndicatorRect = {
+    setRect({
       x: activeBtn.offsetLeft,
       y: activeBtn.offsetTop,
       w: activeBtn.offsetWidth,
       h: activeBtn.offsetHeight,
       visible: true,
-    };
-    setRect(next);
+    });
     if (!mountedRef.current) {
       mountedRef.current = true;
       requestAnimationFrame(() => setAnimateSlide(true));
@@ -95,7 +94,7 @@ export function SegmentedTabs<T extends string>({
     <div
       ref={rootRef}
       role="tablist"
-      className={`relative rounded-lg border border-[#232325] bg-[#0D0D10] p-0.5 ${
+      className={`relative rounded-[2px] border border-[#26262A] bg-[#0D0D0E] p-0.5 ${
         fullWidth ? "grid" : "inline-flex flex-wrap items-center"
       } ${className}`}
       style={
@@ -104,14 +103,13 @@ export function SegmentedTabs<T extends string>({
           : undefined
       }
     >
-      {/* Sliding pill indicator */}
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute left-0 top-0 rounded-md border ${
+        className={`pointer-events-none absolute left-0 top-0 rounded-[1px] border ${
           TONE_INDICATOR[activeTone]
         } ${
           animateSlide
-            ? "transition-[transform,width,height,background-color,border-color,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            ? "transition-[transform,width,height,background-color,border-color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]"
             : ""
         }`}
         style={{
@@ -135,12 +133,12 @@ export function SegmentedTabs<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.value)}
-            className={`relative z-[1] cursor-pointer rounded-md font-medium transition-colors duration-200 ${
-              fullWidth ? "py-2 text-center" : "px-3 py-1"
+            className={`relative z-[1] cursor-pointer rounded-[1px] font-mono text-[11px] font-medium transition-colors duration-150 ${
+              fullWidth ? "py-1.5 text-center" : "px-2.5 py-1"
             } ${
               active
                 ? TONE_TEXT[tone]
-                : "text-[#8A8A93] hover:text-white"
+                : "text-[#71717A] hover:text-[#F5F5F7]"
             } ${buttonClassName}`}
           >
             {opt.label}

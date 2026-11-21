@@ -3,11 +3,9 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { formatBpsPercent, formatSignedBps } from "@/lib/format";
-import { Radio } from "lucide-react";
-import { SectorGlyph } from "@/components/ui/Visuals";
 import type { NarrativeIndexItem } from "@/lib/types";
 
-/** Marquee of all sectors under the navbar: color dot, mindshare share and 24h velocity. */
+/** BELL-style flat carbon status tape with clean tabular quotes. */
 export function LiveTickerBar({
   narratives,
   epochId,
@@ -23,21 +21,18 @@ export function LiveTickerBar({
   const items = [...sorted, ...sorted];
 
   return (
-    <div className="border-b border-[#232325] bg-[#08080A] font-mono text-[11px] tabular-nums">
-      <div className="mx-auto flex max-w-[1480px] items-stretch px-4 sm:px-6">
-        <div className="flex shrink-0 items-center gap-2 border-x border-[#1B1B1D] pr-4 pl-3">
-          <Radio className="live-dot h-3 w-3 text-[#CCFF00]" aria-hidden="true" />
-          <span className="text-[10px] uppercase tracking-[0.18em] text-[#A1A1AA]">
-            {epochId ? `EP-${epochId}` : "Index"}
-          </span>
+    <div className="border-b border-[#26262A] bg-[#0D0D0E] font-mono text-[10px] tabular-nums">
+      <div className="flex h-9 items-stretch px-4 sm:px-7">
+        <div className="flex shrink-0 items-center border-r border-[#26262A] pr-4 text-[#71717A] uppercase tracking-[0.1em]">
+          {epochId ? `EPOCH #${epochId}` : "INDEX TAPE"}
         </div>
 
         <div
-          className="relative flex-1 overflow-hidden py-2"
-          style={{ maskImage: "linear-gradient(90deg, transparent, black 4%, black 96%, transparent)" }}
+          className="relative flex flex-1 items-center overflow-hidden"
+          style={{ maskImage: "linear-gradient(90deg, transparent, black 2%, black 98%, transparent)" }}
         >
           <div
-            className="animate-ticker flex w-max items-center gap-7 px-4"
+            className="animate-ticker flex w-max items-center divide-x divide-[#26262A]"
             style={paused ? { animationPlayState: "paused" } : undefined}
           >
             {items.map((n, idx) => {
@@ -46,13 +41,12 @@ export function LiveTickerBar({
                 <Link
                   key={`${n.narrativeId}-${idx}`}
                   href={`/narratives/${n.narrativeId}`}
-                  className="inline-flex items-center gap-2 whitespace-nowrap text-[#A1A1AA] transition-colors hover:text-white"
+                  className="inline-flex items-center gap-2 whitespace-nowrap px-4 text-[#A1A1AA] transition-colors hover:text-[#F5F5F7]"
                 >
-                  <SectorGlyph id={n.narrativeId} className="h-3 w-3" />
-                  <span className="uppercase tracking-wider text-[#E4E4E7]">{n.label}</span>
-                  <span className="text-white">{formatBpsPercent(n.iBps, 1)}</span>
-                  <span className={n.vBps === null ? "text-[#52525B]" : up ? "text-[#22C55E]" : "text-[#EF4444]"}>
-                    {n.vBps === null ? "—" : `${up ? "▲" : "▼"} ${formatSignedBps(n.vBps, n.vFlag)}`}
+                  <span className="uppercase tracking-[0.06em] text-[#F5F5F7]">{n.label}</span>
+                  <span className="text-[#A1A1AA]">{formatBpsPercent(n.iBps, 1)}</span>
+                  <span className={n.vBps === null ? "text-[#52525B]" : up ? "text-[#4ADE80]" : "text-[#EF4444]"}>
+                    {n.vBps === null ? "0 bps" : formatSignedBps(n.vBps, n.vFlag)}
                   </span>
                 </Link>
               );
@@ -63,10 +57,10 @@ export function LiveTickerBar({
         <button
           type="button"
           onClick={() => setPaused((p) => !p)}
-          aria-label={paused ? "Resume ticker motion" : "Pause ticker motion"}
-          className="shrink-0 cursor-pointer border-x border-[#1B1B1D] px-3 text-[10px] uppercase tracking-wider text-[#71717A] transition-colors hover:text-white"
+          aria-label={paused ? "Resume ticker" : "Pause ticker"}
+          className="shrink-0 cursor-pointer border-l border-[#26262A] pl-4 uppercase tracking-[0.1em] text-[#71717A] transition-colors hover:text-[#F5F5F7]"
         >
-          {paused ? "Play" : "Pause"}
+          {paused ? "PLAY" : "PAUSE"}
         </button>
       </div>
     </div>

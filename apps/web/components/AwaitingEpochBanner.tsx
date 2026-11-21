@@ -10,19 +10,19 @@ export function AwaitingEpochBanner({
   return (
     <div
       role="status"
-      className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-2.5 font-mono text-xs text-[#F59E0B]"
+      className="flex flex-wrap items-center justify-between gap-3 border border-[#F59E0B]/35 bg-[#161618] px-4 py-2.5 font-mono text-[11px] text-[#F59E0B]"
     >
       <div className="flex items-center">
         <span>
-          <strong className="tracking-wider">AWAITING FIRST FINALIZED EPOCH</strong>
-          <span className="ml-2 text-[#F59E0B]/85">{message}</span>
+          <strong className="tracking-[0.08em]">AWAITING FIRST FINALIZED EPOCH</strong>
+          <span className="ml-2 font-sans text-xs text-[#A1A1AA]">{message}</span>
         </span>
       </div>
       <Link
         href="/oracle"
-        className="rounded border border-[#F59E0B]/40 px-2.5 py-1 text-[11px] hover:bg-[#F59E0B]/15"
+        className="border border-[#F59E0B]/40 bg-[#0D0D0E] px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-[#F59E0B] transition-colors hover:bg-[#F59E0B]/15"
       >
-        VIEW ORACLE TIMELINE →
+        View Oracle Timeline →
       </Link>
     </div>
   );

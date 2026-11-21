@@ -4,7 +4,6 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { formatBpsPercent, formatSignedBps } from "@/lib/format";
 import type { HeatmapPoint } from "@/lib/types";
-import { SectorIcon } from "@/components/ui/Icons";
 
 interface HeatmapGridProps {
   points: HeatmapPoint[];
@@ -15,14 +14,14 @@ const QUADRANT_BADGE: Record<
   { label: string; color: string; bg: string }
 > = {
   opportunity: {
-    label: "HIGH MINDSHARE / LOW COMP",
-    color: "#22C55E",
-    bg: "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]",
+    label: "OPPORTUNITY",
+    color: "#4ADE80",
+    bg: "border-[#4ADE80]/40 bg-[#4ADE80]/10 text-[#4ADE80]",
   },
   crowded: {
     label: "CROWDED LEADER",
     color: "#CCFF00",
-    bg: "border-[#CCFF00]/40 bg-[#CCFF00]/12 text-[#CCFF00]",
+    bg: "border-[#CCFF00]/40 bg-[#CCFF00]/10 text-[#CCFF00]",
   },
   emerging: {
     label: "EARLY / QUIET",
@@ -32,7 +31,7 @@ const QUADRANT_BADGE: Record<
   quiet: {
     label: "OVERSUPPLIED",
     color: "#EF4444",
-    bg: "border-[#EF4444]/40 bg-[#EF4444]/10 text-[#F87171]",
+    bg: "border-[#EF4444]/40 bg-[#EF4444]/10 text-[#EF4444]",
   },
 };
 
@@ -42,11 +41,11 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
   );
 
   const width = 820;
-  const height = 380;
-  const padL = 62;
-  const padR = 32;
-  const padT = 30;
-  const padB = 46;
+  const height = 400;
+  const padL = 58;
+  const padR = 28;
+  const padT = 26;
+  const padB = 42;
   const plotW = width - padL - padR;
   const plotH = height - padT - padB;
 
@@ -65,7 +64,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
 
   if (points.length === 0) {
     return (
-      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-8 text-center text-xs text-[#A1A1AA]">
+      <div className="border border-[#26262A] bg-[#161618] p-8 text-center text-xs text-[#71717A]">
         No mindshare or active builder telemetry available yet. Heatmap populates automatically once Epoch #1 commits.
       </div>
     );
@@ -77,37 +76,39 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
   const selected = points.find((p) => p.narrativeId === selectedId) ?? points[0] ?? null;
 
   return (
-    <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 xl:col-span-7">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+      {/* Quadrant Matrix Canvas */}
+      <div className="border border-[#26262A] bg-[#161618] xl:col-span-7">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1F1F23] bg-[#111113] px-4 py-2.5">
           <div>
-            <h2 className="text-sm font-semibold text-[#F4F4F5]">
-              Mindshare vs. Active Builder Competition
+            <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-[#F5F5F7]">
+              Mindshare vs. Builder Competition
             </h2>
-            <p className="mt-0.5 text-xs text-[#A1A1AA]">
-              X: Mindshare M_n (%) · Y: Active Projects (≥1 ETH liq &amp; ≥10 txs/7d + curated) · Bottom-right = highest opportunity
+            <p className="mt-0.5 text-[11px] text-[#71717A]">
+              X: Mindshare M_n (%) · Y: Active Projects · Bottom-right = highest opportunity
             </p>
           </div>
           {selected && (
-            <span className="rounded border border-[#232325] bg-[#131314] px-2.5 py-1 font-mono text-[11px] text-[#F4F4F5] tabular-nums">
-              {selected.label}: Score {selected.opportunityScore.toFixed(2)}
+            <span className="border border-[#26262A] bg-[#0D0D0E] px-2.5 py-1 font-mono text-[10.5px] text-[#F5F5F7] tabular-nums">
+              {selected.label}: <span className="text-[#CCFF00]">{selected.opportunityScore.toFixed(2)}</span>
             </span>
           )}
         </div>
 
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto bg-[#0D0D0E] p-2">
           <svg
             viewBox={`0 0 ${width} ${height}`}
-            className="h-auto w-full min-w-[520px]"
+            className="h-auto w-full min-w-[520px] select-none"
             role="img"
             aria-label="Builder Heatmap Quadrant Chart"
           >
+            {/* Opportunity Quadrant Tint */}
             <rect
               x={xOf(medM)}
               y={yOf(medP)}
               width={padL + plotW - xOf(medM)}
               height={padT + plotH - yOf(medP)}
-              fill="#22C55E"
+              fill="#4ADE80"
               fillOpacity="0.06"
             />
 
@@ -116,56 +117,57 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
               const y = padT + (1 - t) * plotH;
               return (
                 <g key={t}>
-                  <line x1={x} x2={x} y1={padT} y2={padT + plotH} stroke="#232325" />
-                  <line x1={padL} x2={padL + plotW} y1={y} y2={y} stroke="#232325" />
+                  <line x1={x} x2={x} y1={padT} y2={padT + plotH} stroke="#1F1F23" strokeDasharray="2 3" />
+                  <line x1={padL} x2={padL + plotW} y1={y} y2={y} stroke="#1F1F23" strokeDasharray="2 3" />
                 </g>
               );
             })}
 
+            {/* Median Dividers */}
             <line
               x1={xOf(medM)}
               x2={xOf(medM)}
               y1={padT}
               y2={padT + plotH}
-              stroke="#3A3A3D"
-              strokeDasharray="4 4"
+              stroke="#3A3A40"
+              strokeDasharray="3 3"
             />
             <line
               x1={padL}
               x2={padL + plotW}
               y1={yOf(medP)}
               y2={yOf(medP)}
-              stroke="#3A3A3D"
-              strokeDasharray="4 4"
+              stroke="#3A3A40"
+              strokeDasharray="3 3"
             />
 
             <text
               x={padL + plotW - 8}
               y={padT + plotH - 10}
               textAnchor="end"
-              fill="#22C55E"
-              fontSize="10"
-              fontFamily="var(--font-ibm-plex-mono), monospace"
+              fill="#4ADE80"
+              fontSize="9.5"
+              fontFamily="var(--font-jetbrains-mono), monospace"
             >
-              OPPORTUNITY · HIGH MINDSHARE / LOW COMPETITION
+              OPPORTUNITY · HIGH MINDSHARE / LOW COMP
             </text>
             <text
               x={padL + plotW - 8}
-              y={padT + 16}
+              y={padT + 15}
               textAnchor="end"
               fill="#CCFF00"
               fontSize="9.5"
-              fontFamily="var(--font-ibm-plex-mono), monospace"
+              fontFamily="var(--font-jetbrains-mono), monospace"
             >
               CROWDED LEADERS
             </text>
             <text
               x={padL + 8}
-              y={padT + 16}
+              y={padT + 15}
               textAnchor="start"
-              fill="#F87171"
+              fill="#EF4444"
               fontSize="9.5"
-              fontFamily="var(--font-ibm-plex-mono), monospace"
+              fontFamily="var(--font-jetbrains-mono), monospace"
             >
               OVERSUPPLIED
             </text>
@@ -175,31 +177,31 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
               textAnchor="start"
               fill="#71717A"
               fontSize="9.5"
-              fontFamily="var(--font-ibm-plex-mono), monospace"
+              fontFamily="var(--font-jetbrains-mono), monospace"
             >
               EARLY / QUIET
             </text>
 
-            <line x1={padL} x2={padL + plotW} y1={padT + plotH} y2={padT + plotH} stroke="#3A3A3D" />
-            <line x1={padL} x2={padL} y1={padT} y2={padT + plotH} stroke="#3A3A3D" />
+            <line x1={padL} x2={padL + plotW} y1={padT + plotH} y2={padT + plotH} stroke="#26262A" />
+            <line x1={padL} x2={padL} y1={padT} y2={padT + plotH} stroke="#26262A" />
 
             <text
               x={padL + plotW / 2}
               y={height - 10}
               textAnchor="middle"
-              fill="#A1A1AA"
-              fontSize="10.5"
-              fontFamily="var(--font-ibm-plex-mono), monospace"
+              fill="#71717A"
+              fontSize="10"
+              fontFamily="var(--font-jetbrains-mono), monospace"
             >
-              MINDSHARE M_n (% OF TOTAL NARRATIVE ATTENTION) →
+              MINDSHARE M_n (% OF TOTAL ATTENTION) →
             </text>
             <text
               x={16}
               y={padT + plotH / 2}
               textAnchor="middle"
-              fill="#A1A1AA"
-              fontSize="10.5"
-              fontFamily="var(--font-ibm-plex-mono), monospace"
+              fill="#71717A"
+              fontSize="10"
+              fontFamily="var(--font-jetbrains-mono), monospace"
               transform={`rotate(-90 16 ${padT + plotH / 2})`}
             >
               ACTIVE PROJECTS →
@@ -210,7 +212,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
               const cy = yOf(pt.activeProjects);
               const q = QUADRANT_BADGE[pt.quadrant];
               const isSelected = selected?.narrativeId === pt.narrativeId;
-              const radius = isSelected ? 10 : 7.5;
+              const r = isSelected ? 7.5 : 5.5;
               return (
                 <g
                   key={pt.narrativeId}
@@ -229,46 +231,51 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
                   }}
                 >
                   {isSelected && (
-                    <rect
-                      x={cx - radius - 5}
-                      y={cy - radius - 5}
-                      width={(radius + 5) * 2}
-                      height={(radius + 5) * 2}
-                      rx={10}
-                      fill={q.color}
-                      fillOpacity="0.18"
-                    />
+                    <>
+                      <line
+                        x1={cx}
+                        x2={cx}
+                        y1={padT}
+                        y2={padT + plotH}
+                        stroke={q.color}
+                        strokeOpacity="0.22"
+                        strokeDasharray="2 2"
+                      />
+                      <line
+                        x1={padL}
+                        x2={padL + plotW}
+                        y1={cy}
+                        y2={cy}
+                        stroke={q.color}
+                        strokeOpacity="0.22"
+                        strokeDasharray="2 2"
+                      />
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={r + 5}
+                        fill={q.color}
+                        fillOpacity="0.16"
+                      />
+                    </>
                   )}
-                  <rect
-                    x={cx - radius}
-                    y={cy - radius}
-                    width={radius * 2}
-                    height={radius * 2}
-                    rx={7}
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={r}
                     fill={q.color}
-                    fillOpacity={isSelected ? 0.95 : 0.8}
-                    stroke="#090909"
+                    fillOpacity={isSelected ? 1 : 0.85}
+                    stroke="#0D0D0E"
                     strokeWidth="2"
                   />
-                  <svg
-                    x={cx - radius * 0.55}
-                    y={cy - radius * 0.55}
-                    width={radius * 1.1}
-                    height={radius * 1.1}
-                    viewBox="0 0 20 20"
-                    overflow="visible"
-                    style={{ color: "#090909" }}
-                  >
-                    <SectorIcon slug={pt.slug ?? ""} className="h-full w-full" />
-                  </svg>
                   <text
                     x={cx}
-                    y={cy - radius - 6}
+                    y={cy - r - 6}
                     textAnchor="middle"
-                    fill={isSelected ? "#F4F4F5" : "#A1A1AA"}
+                    fill={isSelected ? "#F5F5F7" : "#A1A1AA"}
                     fontSize={isSelected ? "10.5" : "9.5"}
                     fontWeight={isSelected ? "600" : "400"}
-                    fontFamily="var(--font-ibm-plex-mono), monospace"
+                    fontFamily="var(--font-jetbrains-mono), monospace"
                   >
                     {pt.label}
                   </text>
@@ -279,27 +286,28 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] xl:col-span-5">
-        <div className="border-b border-[#232325] px-4 py-3">
-          <h3 className="text-sm font-semibold text-[#F4F4F5]">
-            Ranked Opportunity Score (M_n / Active Projects)
+      {/* Ranked Opportunity Table */}
+      <div className="border border-[#26262A] bg-[#161618] xl:col-span-5">
+        <div className="border-b border-[#1F1F23] bg-[#111113] px-4 py-2.5">
+          <h3 className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-[#F5F5F7]">
+            Ranked Opportunity Score
           </h3>
-          <p className="mt-0.5 text-xs text-[#A1A1AA]">
-            Sorted descending · High mindshare with thin builder density
+          <p className="mt-0.5 text-[11px] text-[#71717A]">
+            M_n / Active Projects · High mindshare with thin builder density
           </p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#232325] bg-[#131314] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
-                <th className="px-3.5 py-2.5">Narrative</th>
-                <th className="px-3.5 py-2.5 text-right">M_n</th>
-                <th className="px-3.5 py-2.5 text-right">Projects</th>
-                <th className="px-3.5 py-2.5 text-right">Opp. Score</th>
+              <tr className="border-b border-[#1F1F23] bg-[#0D0D0E] font-mono text-[9.5px] uppercase tracking-[0.1em] text-[#71717A]">
+                <th className="px-3.5 py-2 font-medium">Narrative</th>
+                <th className="px-3.5 py-2 text-right font-medium">M_n</th>
+                <th className="px-3.5 py-2 text-right font-medium">Projects</th>
+                <th className="px-3.5 py-2 text-right font-medium">Score</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#232325] font-mono tabular-nums">
+            <tbody className="divide-y divide-[#1F1F23] font-mono tabular-nums">
               {points.map((pt, i) => {
                 const badge = QUADRANT_BADGE[pt.quadrant];
                 const isSel = selected?.narrativeId === pt.narrativeId;
@@ -309,24 +317,24 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
                     onClick={() => setSelectedId(pt.narrativeId)}
                     onMouseEnter={() => setSelectedId(pt.narrativeId)}
                     className={`cursor-pointer transition-colors ${
-                      isSel ? "bg-[#131314]" : "hover:bg-[#131314]/60"
+                      isSel ? "bg-[#1E1E21]" : "hover:bg-[#1E1E21]/60"
                     }`}
                   >
                     <td className="px-3.5 py-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-[#71717A]">
+                        <span className="text-[10px] text-[#52525B]">
                           {String(i + 1).padStart(2, "0")}
                         </span>
                         <div>
                           <Link
                             href={`/narratives/${pt.narrativeId}`}
-                            className="font-sans text-xs font-medium text-[#F4F4F5] hover:text-[#CCFF00]"
+                            className="font-sans text-xs font-medium text-[#F5F5F7] hover:text-[#CCFF00]"
                           >
                             {pt.label}
                           </Link>
                           <div className="mt-0.5">
                             <span
-                              className={`inline-block rounded border px-1.5 py-0.5 text-[9px] ${badge.bg}`}
+                              className={`inline-block border px-1.5 py-0.5 text-[8.5px] tracking-[0.06em] ${badge.bg}`}
                             >
                               {badge.label}
                             </span>
@@ -334,7 +342,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
                         </div>
                       </div>
                     </td>
-                    <td className="px-3.5 py-2.5 text-right text-[#F4F4F5]">
+                    <td className="px-3.5 py-2.5 text-right text-[#F5F5F7]">
                       {formatBpsPercent(pt.mBps, 1)}
                       <div className="text-[10px] text-[#71717A]">
                         {formatSignedBps(pt.vBps)}
@@ -342,11 +350,11 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
                     </td>
                     <td className="px-3.5 py-2.5 text-right text-[#A1A1AA]">
                       {pt.activeProjects}
-                      <div className="text-[10px] text-[#71717A]">
+                      <div className="text-[10px] text-[#52525B]">
                         {pt.activeTokens}T + {pt.curatedProjects}C
                       </div>
                     </td>
-                    <td className="px-3.5 py-2.5 text-right font-semibold text-[#22C55E]">
+                    <td className="px-3.5 py-2.5 text-right font-medium text-[#4ADE80]">
                       {pt.opportunityScore.toFixed(2)}
                     </td>
                   </tr>

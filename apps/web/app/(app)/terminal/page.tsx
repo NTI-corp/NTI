@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { fetchIndexesSnapshot, fetchRadarAlerts } from "@/lib/supabase";
 import { getSiweSessionState, SIWE_SESSION_COOKIE } from "@/lib/siwe";
@@ -5,10 +6,11 @@ import { getActiveChainId, getProtocolAddresses } from "@/lib/contracts";
 import { sectorColor } from "@/lib/sectors";
 import { AwaitingEpochBanner } from "@/components/AwaitingEpochBanner";
 import { MindshareTerminalWorkspace } from "@/components/MindshareTerminalWorkspace";
+import { InstantRouteShell } from "@/components/InstantRouteShell";
 
 export const revalidate = 60;
 
-export default async function TerminalPage() {
+async function TerminalContent() {
   const cookieStore = await cookies();
   const siwe = await getSiweSessionState(cookieStore.get(SIWE_SESSION_COOKIE)?.value);
 
@@ -35,7 +37,7 @@ export default async function TerminalPage() {
   const activeEpoch = snapshot.latestObservedEpoch ?? snapshot.latestFinalEpoch;
 
   return (
-    <div className="space-y-4">
+    <div className="tab-panel-enter space-y-4">
       {snapshot.awaitingFirstEpoch && <AwaitingEpochBanner />}
       <MindshareTerminalWorkspace
         narratives={snapshot.narratives}
@@ -47,5 +49,13 @@ export default async function TerminalPage() {
         pendingFinalization={snapshot.pendingFinalization}
       />
     </div>
+  );
+}
+
+export default function TerminalPage() {
+  return (
+    <Suspense fallback={<InstantRouteShell path="/terminal" />}>
+      <TerminalContent />
+    </Suspense>
   );
 }

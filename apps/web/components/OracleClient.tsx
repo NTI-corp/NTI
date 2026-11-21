@@ -237,29 +237,29 @@ export function OracleClient({ initial }: OracleClientProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#232325] pb-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#26262A] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
               Optimistic Attestation &amp; Provenance
             </span>
             {detail.dataSource === "preview" && (
-              <span className="rounded border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
+              <span className="border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
                 PREVIEW DATA
               </span>
             )}
             {wrongChain && (
-              <span className="rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
+              <span className="border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
                 AUTO-SWITCHES TO CHAIN {targetChainId} ON TX
               </span>
             )}
           </div>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#F5F5F7]">
             Oracle · Epoch #{detail.epoch.epochId}
           </h1>
-          <p className="mt-1 text-xs text-[#A1A1AA]">
+          <p className="mt-1 text-xs text-[#71717A]">
             Deterministic dataset snapshot, 2-of-3 validator EIP-712 median commit, and 2h bonded dispute window.
           </p>
         </div>
@@ -272,7 +272,7 @@ export function OracleClient({ initial }: OracleClientProps) {
               setValidationError(null);
               setDisputeModalOpen(true);
             }}
-            className="rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-1.5 font-medium text-[#F87171] transition-colors hover:bg-[#EF4444]/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-1.5 font-medium text-[#EF4444] transition-colors hover:bg-[#EF4444]/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
             OPEN DISPUTE ({formatCompactNumber(bondNti)} $NTI)
           </button>
@@ -280,7 +280,7 @@ export function OracleClient({ initial }: OracleClientProps) {
             type="button"
             disabled={isBusy || !canFinalize}
             onClick={() => void handleFinalize()}
-            className="rounded-md border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-1.5 font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-40"
+            className="border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-1.5 font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-40"
           >
             FINALIZE EPOCH
           </button>
@@ -297,7 +297,7 @@ export function OracleClient({ initial }: OracleClientProps) {
       <ValidatorSpread attestations={detail.attestations} />
 
       {loadError && (
-        <div className="flex items-center justify-between rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+        <div className="flex items-center justify-between border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
           <span>{loadError}</span>
           <button
             type="button"
@@ -310,17 +310,17 @@ export function OracleClient({ initial }: OracleClientProps) {
       )}
 
       {/* Lifecycle Timeline */}
-      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
+      <div className="border border-[#26262A] bg-[#161618] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-xs font-semibold text-[#F4F4F5]">Epoch State Machine</div>
-          <div className="font-mono text-[11px] text-[#A1A1AA]">
+          <div className="text-xs font-semibold text-[#F5F5F7]">Epoch State Machine</div>
+          <div className="font-mono text-[11px] text-[#71717A]">
             Status:{" "}
             <span
               className={
                 detail.epoch.status === "final"
-                  ? "text-[#22C55E]"
+                  ? "text-[#4ADE80]"
                   : detail.epoch.status === "disputed"
-                    ? "text-[#F87171]"
+                    ? "text-[#EF4444]"
                     : detail.epoch.status === "incomplete"
                       ? "text-[#F59E0B]"
                       : "text-[#CCFF00]"
@@ -339,12 +339,12 @@ export function OracleClient({ initial }: OracleClientProps) {
             return (
               <div
                 key={step.key}
-                className={`rounded-md border p-3 font-mono ${
+                className={`border p-3 font-mono ${
                   current
                     ? "border-[#CCFF00]/60 bg-[#CCFF00]/10"
                     : reached
-                      ? "border-[#22C55E]/35 bg-[#22C55E]/8"
-                      : "border-[#232325] bg-[#131314]"
+                      ? "border-[#4ADE80]/35 bg-[#4ADE80]/8"
+                      : "border-[#26262A] bg-[#111113]"
                 }`}
               >
                 <div className="flex items-center justify-between text-[10px]">
@@ -354,14 +354,14 @@ export function OracleClient({ initial }: OracleClientProps) {
                       current
                         ? "text-[#CCFF00]"
                         : reached
-                          ? "text-[#22C55E]"
+                          ? "text-[#4ADE80]"
                           : "text-[#52525B]"
                     }
                   >
                     {current ? "ACTIVE" : reached ? "DONE" : "QUEUED"}
                   </span>
                 </div>
-                <div className="mt-1.5 font-sans text-xs font-semibold text-[#F4F4F5]">
+                <div className="mt-1.5 font-sans text-xs font-semibold text-[#F5F5F7]">
                   {step.title}
                 </div>
               </div>
@@ -370,24 +370,24 @@ export function OracleClient({ initial }: OracleClientProps) {
         </div>
 
         {/* Cryptographic Hashes & Arweave Provenance */}
-        <div className="mt-4 grid grid-cols-1 gap-3 border-t border-[#232325] pt-4 font-mono text-xs md:grid-cols-3">
-          <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 border-t border-[#26262A] pt-4 font-mono text-xs md:grid-cols-3">
+          <div className="border border-[#26262A] bg-[#0D0D0E] p-3">
             <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
               Dataset Hash (keccak256)
             </div>
-            <div className="mt-1 break-all text-[11px] text-[#F4F4F5]">
+            <div className="mt-1 break-all text-[11px] text-[#F5F5F7]">
               {detail.epoch.datasetHash ?? "Pending snapshot"}
             </div>
           </div>
-          <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
+          <div className="border border-[#26262A] bg-[#0D0D0E] p-3">
             <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
               Config Hash (ConfigRegistry)
             </div>
-            <div className="mt-1 break-all text-[11px] text-[#F4F4F5]">
+            <div className="mt-1 break-all text-[11px] text-[#F5F5F7]">
               {detail.epoch.configHash ?? "Pending"}
             </div>
           </div>
-          <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
+          <div className="border border-[#26262A] bg-[#0D0D0E] p-3">
             <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
               Public Dataset Snapshot
             </div>
@@ -410,13 +410,13 @@ export function OracleClient({ initial }: OracleClientProps) {
       </div>
 
       {/* Validator Attestation Matrix */}
-      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F]">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#232325] px-4 py-3">
+      <div className="border border-[#26262A] bg-[#161618]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#26262A] px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-[#F4F4F5]">
+            <h2 className="text-sm font-semibold text-[#F5F5F7]">
               Validator EIP-712 Attestation Vectors ({detail.attestations.length} / 3 Quorum)
             </h2>
-            <p className="mt-0.5 text-xs text-[#A1A1AA]">
+            <p className="mt-0.5 text-xs text-[#71717A]">
               Median per narrative is committed on-chain; operator and validators must agree within ±100 bps.
             </p>
           </div>
@@ -425,7 +425,7 @@ export function OracleClient({ initial }: OracleClientProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#232325] bg-[#131314] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+              <tr className="border-b border-[#26262A] bg-[#111113] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 <th className="px-4 py-2.5">Validator</th>
                 {NARRATIVES.slice(0, 6).map((n) => (
                   <th key={n.id} className="px-2.5 py-2.5 text-right">
@@ -436,7 +436,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                 <th className="px-4 py-2.5 text-right">Signed</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#232325] font-mono tabular-nums">
+            <tbody className="divide-y divide-[#1F1F23] font-mono tabular-nums">
               {detail.attestations.length === 0 ? (
                 <tr>
                   <td
@@ -448,21 +448,21 @@ export function OracleClient({ initial }: OracleClientProps) {
                 </tr>
               ) : (
                 detail.attestations.map((att) => (
-                  <tr key={att.validator} className="transition-colors hover:bg-[#131314]/60">
-                    <td className="px-4 py-2.5 text-[#F4F4F5]">
+                  <tr key={att.validator} className="transition-colors hover:bg-[#111113]/60">
+                    <td className="px-4 py-2.5 text-[#F5F5F7]">
                       {truncateHex(att.validator, 8, 6)}
                     </td>
                     {NARRATIVES.slice(0, 6).map((n, idx) => (
-                      <td key={n.id} className="px-2.5 py-2.5 text-right text-[#A1A1AA]">
+                      <td key={n.id} className="px-2.5 py-2.5 text-right text-[#71717A]">
                         {att.iBps[idx] !== undefined ? formatBpsPercent(att.iBps[idx]!, 1) : "—"}
                       </td>
                     ))}
                     <td className="px-4 py-2.5 text-right">
                       <span
-                        className={`rounded border px-2 py-0.5 text-[10px] ${
+                        className={`border px-2 py-0.5 text-[10px] ${
                           att.matchesMedian
-                            ? "border-[#22C55E]/35 bg-[#22C55E]/10 text-[#22C55E]"
-                            : "border-[#EF4444]/35 bg-[#EF4444]/10 text-[#F87171]"
+                            ? "border-[#4ADE80]/35 bg-[#4ADE80]/10 text-[#4ADE80]"
+                            : "border-[#EF4444]/35 bg-[#EF4444]/10 text-[#EF4444]"
                         }`}
                       >
                         {att.matchesMedian ? "≤100 BPS OK" : "DEVIATED"}
@@ -480,8 +480,8 @@ export function OracleClient({ initial }: OracleClientProps) {
       </div>
 
       {/* Disputes Section */}
-      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
-        <h2 className="text-sm font-semibold text-[#F4F4F5]">
+      <div className="border border-[#26262A] bg-[#161618] p-4">
+        <h2 className="text-sm font-semibold text-[#F5F5F7]">
           Disputes for Epoch #{detail.epoch.epochId} ({detail.disputes.length})
         </h2>
         {detail.disputes.length === 0 ? (
@@ -489,16 +489,16 @@ export function OracleClient({ initial }: OracleClientProps) {
             Zero disputes opened for this epoch. Max 1 dispute per epoch prevents finalization griefing.
           </p>
         ) : (
-          <div className="mt-3 divide-y divide-[#232325] font-mono text-xs">
+          <div className="mt-3 divide-y divide-[#1F1F23] font-mono text-xs">
             {detail.disputes.map((d) => {
               const nar = NARRATIVE_BY_ID.get(d.narrativeId);
               const isOpen = d.status.toLowerCase() === "open";
               return (
                 <div key={d.disputeId} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                  <div className="text-[#A1A1AA]">
-                    <span className="text-[#F87171]">DISPUTE #{d.disputeId}</span> ·{" "}
+                  <div className="text-[#71717A]">
+                    <span className="text-[#EF4444]">DISPUTE #{d.disputeId}</span> ·{" "}
                     {nar?.label ?? `Narrative #${d.narrativeId}`} · Claimed I_n{" "}
-                    <span className="text-[#F4F4F5]">{d.claimedIBps} bps</span> · Challenger{" "}
+                    <span className="text-[#F5F5F7]">{d.claimedIBps} bps</span> · Challenger{" "}
                     {truncateHex(d.challenger, 6, 4)}
                   </div>
                   <div className="flex items-center gap-2">
@@ -508,7 +508,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                         type="button"
                         disabled={isBusy}
                         onClick={() => void handleExpireDispute(d.disputeId)}
-                        className="rounded border border-[#232325] bg-[#131314] px-2 py-1 text-[10px] text-[#F4F4F5] hover:border-[#F59E0B]/50 disabled:opacity-40"
+                        className="border border-[#26262A] bg-[#111113] px-2 py-1 text-[10px] text-[#F5F5F7] hover:border-[#F59E0B]/50 disabled:opacity-40"
                       >
                         EXPIRE (6H)
                       </button>
@@ -522,7 +522,7 @@ export function OracleClient({ initial }: OracleClientProps) {
       </div>
 
       {validationError && !disputeModalOpen && (
-        <div className="rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+        <div className="border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
           {validationError}
         </div>
       )}
@@ -534,32 +534,32 @@ export function OracleClient({ initial }: OracleClientProps) {
       {/* Open Dispute Modal */}
       {disputeModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          className="modal-backdrop-enter fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#232325] pb-3">
-              <h3 className="text-sm font-semibold text-[#F87171]">
+          <div className="modal-card-enter w-full max-w-md border border-[#26262A] bg-[#161618] p-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#26262A] pb-3">
+              <h3 className="text-sm font-semibold text-[#EF4444]">
                 Open Oracle Dispute · Epoch #{detail.epoch.epochId}
               </h3>
               <button
                 type="button"
                 onClick={() => setDisputeModalOpen(false)}
-                className="rounded border border-[#232325] bg-[#131314] px-2 py-0.5 font-mono text-[11px] text-[#A1A1AA] hover:text-[#F4F4F5]"
+                className="border border-[#26262A] bg-[#111113] px-2 py-0.5 font-mono text-[11px] text-[#71717A] hover:text-[#F5F5F7]"
               >
                 ESC
               </button>
             </div>
-            <p className="mt-2.5 text-xs leading-relaxed text-[#A1A1AA]">
+            <p className="mt-2.5 text-xs leading-relaxed text-[#71717A]">
               Locks {formatCompactNumber(bondNti)} $NTI bond. If validators confirm &gt;100 bps deviation, bond returns plus slashing reward; otherwise 50% is burned and 50% goes to validators.
             </p>
 
             {/* Bond Balance & Allowance Check */}
-            <div className="mt-3 rounded-md border border-[#232325] bg-[#131314] p-2.5 font-mono text-[11px] tabular-nums">
+            <div className="mt-3 border border-[#26262A] bg-[#111113] p-2.5 font-mono text-[11px] tabular-nums">
               <div className="flex justify-between">
                 <span className="text-[#71717A]">$NTI Balance</span>
-                <span className={hasEnoughBalance ? "text-[#22C55E]" : "text-[#F87171]"}>
+                <span className={hasEnoughBalance ? "text-[#4ADE80]" : "text-[#EF4444]"}>
                   {isConnected
                     ? `${formatCompactNumber(Math.floor(Number(formatEther(balanceWei))))} / ${formatCompactNumber(bondNti)} $NTI`
                     : "Not connected"}
@@ -567,7 +567,7 @@ export function OracleClient({ initial }: OracleClientProps) {
               </div>
               <div className="mt-1 flex justify-between">
                 <span className="text-[#71717A]">Dispute Allowance</span>
-                <span className={!needsApproval ? "text-[#22C55E]" : "text-[#F59E0B]"}>
+                <span className={!needsApproval ? "text-[#4ADE80]" : "text-[#F59E0B]"}>
                   {needsApproval ? "Approval required" : "Approved"}
                 </span>
               </div>
@@ -575,13 +575,13 @@ export function OracleClient({ initial }: OracleClientProps) {
 
             <div className="mt-3 space-y-3">
               <div>
-                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                   Disputed Narrative
                 </label>
                 <select
                   value={disputeNarrativeId}
                   onChange={(e) => setDisputeNarrativeId(Number(e.target.value))}
-                  className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                  className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
                 >
                   {NARRATIVES.map((n) => (
                     <option key={n.id} value={n.id}>
@@ -591,7 +591,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                 </select>
               </div>
               <div>
-                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                   Claimed True I_n (0..10000 bps)
                 </label>
                 <input
@@ -600,11 +600,11 @@ export function OracleClient({ initial }: OracleClientProps) {
                   max="10000"
                   value={claimedIBps}
                   onChange={(e) => setClaimedIBps(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                  className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                   Evidence Hash (0x + 64 hex) or Replay URI
                 </label>
                 <input
@@ -612,12 +612,12 @@ export function OracleClient({ initial }: OracleClientProps) {
                   placeholder="0x... or Arweave replay URI"
                   value={evidenceNote}
                   onChange={(e) => setEvidenceNote(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
+                  className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
                 />
               </div>
 
               {validationError && (
-                <div className="rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+                <div className="border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
                   {validationError}
                 </div>
               )}
@@ -629,7 +629,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                   type="button"
                   disabled={isBusy || !isConnected || !hasEnoughBalance}
                   onClick={() => void handleApproveBond()}
-                  className="w-full rounded-md bg-[#CCFF00] py-2.5 font-mono text-xs font-semibold text-black transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="w-full bg-[#CCFF00] py-2.5 font-mono text-xs font-semibold text-[#0D0D0E] transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {!isConnected
                     ? "CONNECT WALLET TO APPROVE"
@@ -642,7 +642,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                   type="button"
                   disabled={isBusy || !isConnected || !hasEnoughBalance}
                   onClick={() => void handleOpenDispute()}
-                  className="w-full rounded-md border border-[#EF4444]/50 bg-[#EF4444]/15 py-2.5 font-mono text-xs font-semibold text-[#F87171] transition-colors hover:bg-[#EF4444]/25 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="w-full border border-[#EF4444]/50 bg-[#EF4444]/15 py-2.5 font-mono text-xs font-semibold text-[#EF4444] transition-colors hover:bg-[#EF4444]/25 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   2. LOCK {formatCompactNumber(bondNti)} $NTI &amp; OPEN DISPUTE
                 </button>

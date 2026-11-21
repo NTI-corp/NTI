@@ -11,6 +11,7 @@ import { getActiveChainId, getProtocolAddresses, grantsAbi, stakingAbi } from "@
 import { formatCompactNumber, formatCountdown, formatEth, formatBpsPercent, truncateHex } from "@/lib/format";
 import { useChainAction } from "@/lib/useChainAction";
 import type { GrantRoundItem } from "@/lib/types";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 
 interface GrantsClientProps {
   rounds: GrantRoundItem[];
@@ -106,7 +107,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
 
   if (!round) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <EmptyState
           icon={Sprout}
           kicker="Ecosystem grants"
@@ -259,58 +260,53 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
   const recipientInvalid = newRecipient.trim().length > 0 && !isAddress(newRecipient.trim());
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header + Round Tabs */}
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#232325] pb-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#26262A] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
               Public Goods Allocation
             </span>
             {awaitingDeployment && (
-              <span className="rounded border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
+              <span className="border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
                 PREVIEW FALLBACK
               </span>
             )}
             {wrongChain && (
-              <span className="rounded border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
+              <span className="border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
                 AUTO-SWITCHES TO CHAIN {targetChainId} ON TX
               </span>
             )}
           </div>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#F5F5F7]">
             Grants · Round #{round.roundId}
           </h1>
-          <p className="mt-1 text-xs text-[#A1A1AA]">
+          <p className="mt-1 text-xs text-[#71717A]">
             Split snapshot voting power across competing narrative proposals. Non-normalized weights sum up to your IVotes balance at snapshot block #{round.snapshotBlock.toLocaleString("en-US")}.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {rounds.length > 1 && (
-            <div className="flex items-center rounded-md border border-[#232325] bg-[#0E0E0F] p-0.5">
-              {rounds.map((r) => (
-                <button
-                  key={r.roundId}
-                  type="button"
-                  onClick={() => setSelectedRoundId(r.roundId)}
-                  className={`rounded px-2.5 py-1 font-mono text-[11px] transition-colors ${
-                    r.roundId === round.roundId
-                      ? "bg-[#232325] text-[#F4F4F5]"
-                      : "text-[#71717A] hover:text-[#A1A1AA]"
-                  }`}
-                >
-                  Round #{r.roundId}
-                </button>
-              ))}
-            </div>
+            <SegmentedTabs
+              value={String(round.roundId)}
+              onChange={(val) => setSelectedRoundId(Number(val))}
+              options={rounds.map((r) => ({
+                value: String(r.roundId),
+                label: `Round #${r.roundId}`,
+                tone: "lime" as const,
+              }))}
+              className="font-mono text-[11px]"
+              buttonClassName="px-2.5 py-1"
+            />
           )}
 
           <button
             type="button"
             disabled={isBusy || round.status === "finalized"}
             onClick={() => void invokeRoundAction("finalizeRound")}
-            className="rounded-md border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-1.5 font-mono text-[11px] font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-45"
+            className="border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-1.5 font-mono text-[11px] font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-45"
           >
             {round.status === "finalized" ? "ROUND FINALIZED" : `FINALIZE ROUND #${round.roundId}`}
           </button>
@@ -319,58 +315,58 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
 
       {/* Round KPI Strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
+        <div className="border border-[#26262A] bg-[#161618] p-3.5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Round Budget
           </div>
-          <div className="mt-1 font-mono text-lg font-semibold text-[#22C55E] tabular-nums">
+          <div className="mt-1 font-mono text-lg font-semibold text-[#4ADE80] tabular-nums">
             {formatEth(round.budgetEth, 4)}
           </div>
-          <div className="mt-0.5 text-[11px] text-[#A1A1AA]">Escrowed ETH allocation</div>
+          <div className="mt-0.5 text-[11px] text-[#71717A]">Escrowed ETH allocation</div>
         </div>
 
-        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
+        <div className="border border-[#26262A] bg-[#161618] p-3.5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Vote Deadline
           </div>
-          <div className="mt-1 font-mono text-lg font-semibold text-[#F4F4F5] tabular-nums">
+          <div className="mt-1 font-mono text-lg font-semibold text-[#F5F5F7] tabular-nums">
             {formatCountdown(round.voteEnd)}
           </div>
-          <div className="mt-0.5 font-mono text-[11px] uppercase text-[#A1A1AA]">
+          <div className="mt-0.5 font-mono text-[11px] uppercase text-[#71717A]">
             {round.status}
           </div>
         </div>
 
-        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
+        <div className="border border-[#26262A] bg-[#161618] p-3.5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Snapshot Block
           </div>
-          <div className="mt-1 font-mono text-lg font-semibold text-[#F4F4F5] tabular-nums">
+          <div className="mt-1 font-mono text-lg font-semibold text-[#F5F5F7] tabular-nums">
             #{round.snapshotBlock.toLocaleString("en-US")}
           </div>
-          <div className="mt-0.5 text-[11px] text-[#A1A1AA]">IVotes checkpoint</div>
+          <div className="mt-0.5 text-[11px] text-[#71717A]">IVotes checkpoint</div>
         </div>
 
-        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
+        <div className="border border-[#26262A] bg-[#161618] p-3.5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Quorum Progress
           </div>
-          <div className="mt-1 font-mono text-lg font-semibold text-[#F4F4F5] tabular-nums">
+          <div className="mt-1 font-mono text-lg font-semibold text-[#F5F5F7] tabular-nums">
             {quorumPct.toFixed(0)}%
           </div>
-          <div className="mt-0.5 font-mono text-[11px] text-[#A1A1AA] tabular-nums">
+          <div className="mt-0.5 font-mono text-[11px] text-[#71717A] tabular-nums">
             {formatCompactNumber(round.totalVotesNti)} / {formatCompactNumber(round.quorumNti)} $NTI
           </div>
         </div>
 
-        <div className="col-span-2 rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5 sm:col-span-1">
+        <div className="col-span-2 border border-[#26262A] bg-[#161618] p-3.5 sm:col-span-1">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Your Snapshot Power
           </div>
           <div className="mt-1 font-mono text-lg font-semibold text-[#CCFF00] tabular-nums">
             {isConnected ? `${formatCompactNumber(Math.round(votingPowerNti))} $NTI` : "—"}
           </div>
-          <div className="mt-0.5 text-[11px] text-[#A1A1AA]">
+          <div className="mt-0.5 text-[11px] text-[#71717A]">
             {!isConnected
               ? "Connect wallet"
               : hasVoted
@@ -386,12 +382,12 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div className="space-y-3 lg:col-span-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-[#F4F4F5]">
+            <h2 className="text-sm font-semibold text-[#F5F5F7]">
               Active Proposals ({round.proposals.length})
             </h2>
             <span
               className={`font-mono text-xs tabular-nums ${
-                totalWeight === 100 ? "text-[#22C55E]" : "text-[#F59E0B]"
+                totalWeight === 100 ? "text-[#4ADE80]" : "text-[#F59E0B]"
               }`}
             >
               Allocation: {totalWeight}% / 100%
@@ -399,7 +395,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
           </div>
 
           {round.proposals.length === 0 ? (
-            <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-6 text-center text-xs text-[#A1A1AA]">
+            <div className="border border-[#26262A] bg-[#161618] p-6 text-center text-xs text-[#71717A]">
               No proposals submitted for Round #{round.roundId} yet. Submit the first proposal on the right.
             </div>
           ) : (
@@ -409,37 +405,37 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
               return (
                 <div
                   key={p.proposalId}
-                  className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 transition-colors hover:border-[#3A3A3D]"
+                  className="border border-[#26262A] bg-[#161618] p-4 transition-colors hover:border-[#3A3A40]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="max-w-xl">
-                      <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-[#A1A1AA]">
-                        <span className="text-[#F4F4F5]">PROP #{p.proposalId}</span>
+                      <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-[#71717A]">
+                        <span className="text-[#F5F5F7]">PROP #{p.proposalId}</span>
                         {nar && (
-                          <span className="rounded border border-[#232325] bg-[#131314] px-1.5 py-0.5 text-[10px] text-[#CCFF00]">
+                          <span className="border border-[#26262A] bg-[#111113] px-1.5 py-0.5 text-[10px] text-[#CCFF00]">
                             {nar.label}
                           </span>
                         )}
                         <span>Recipient {truncateHex(p.recipient, 6, 4)}</span>
                       </div>
-                      <h3 className="mt-1.5 text-sm font-semibold text-[#F4F4F5]">
+                      <h3 className="mt-1.5 text-sm font-semibold text-[#F5F5F7]">
                         {p.title}
                       </h3>
-                      <p className="mt-1 text-xs leading-relaxed text-[#A1A1AA]">{p.summary}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-[#71717A]">{p.summary}</p>
                     </div>
 
                     <div className="text-right font-mono tabular-nums">
-                      <div className="text-sm font-semibold text-[#22C55E]">
+                      <div className="text-sm font-semibold text-[#4ADE80]">
                         {formatEth(p.projectedEth, 4)}
                       </div>
-                      <div className="text-[11px] text-[#A1A1AA]">
+                      <div className="text-[11px] text-[#71717A]">
                         {formatBpsPercent(p.projectedShareBps, 1)} · {formatCompactNumber(p.votesNti)} votes
                       </div>
                     </div>
                   </div>
 
                   {/* Split weight slider & claim */}
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#232325] pt-3">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#26262A] pt-3">
                     <div className="flex flex-1 items-center gap-3">
                       <span className="font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                         Vote Split
@@ -459,7 +455,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                         }
                         className="h-1.5 flex-1 accent-[#CCFF00] disabled:opacity-40"
                       />
-                      <span className="w-10 text-right font-mono text-xs font-semibold text-[#F4F4F5] tabular-nums">
+                      <span className="w-10 text-right font-mono text-xs font-semibold text-[#F5F5F7] tabular-nums">
                         {myW}%
                       </span>
                     </div>
@@ -468,7 +464,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                       type="button"
                       disabled={isBusy || p.claimed || round.status !== "finalized"}
                       onClick={() => void invokeRoundAction("claim", p.proposalId)}
-                      className="rounded-md border border-[#232325] bg-[#131314] px-3 py-1 font-mono text-[11px] text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="border border-[#26262A] bg-[#111113] px-3 py-1 font-mono text-[11px] text-[#F5F5F7] transition-colors hover:border-[#CCFF00]/50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {p.claimed ? "CLAIMED" : "CLAIM GRANT"}
                     </button>
@@ -478,8 +474,8 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
             })
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
-            <div className="text-xs text-[#A1A1AA]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border border-[#26262A] bg-[#161618] p-3.5">
+            <div className="text-xs text-[#71717A]">
               Allocates your on-chain snapshot balance ({formatCompactNumber(Math.round(votingPowerNti))} $NTI wei) across selected proposals.
             </div>
             <button
@@ -493,14 +489,14 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                 round.proposals.length === 0
               }
               onClick={() => void submitVote()}
-              className="rounded-md bg-[#CCFF00] px-4 py-2 font-mono text-xs font-semibold text-black transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-40"
+              className="bg-[#CCFF00] px-4 py-2 font-mono text-xs font-semibold text-[#0D0D0E] transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {hasVoted ? "ALREADY VOTED" : `CAST SPLIT VOTE (${totalWeight}%)`}
             </button>
           </div>
 
           {validationError && (
-            <div className="rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+            <div className="border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
               {validationError}
             </div>
           )}
@@ -509,18 +505,18 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
         </div>
 
         {/* Submit Proposal Panel */}
-        <div className="h-fit rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 lg:col-span-4">
-          <h2 className="text-sm font-semibold text-[#F4F4F5]">Submit Grant Proposal</h2>
-          <p className="mt-1 text-xs leading-relaxed text-[#A1A1AA]">
+        <div className="h-fit border border-[#26262A] bg-[#161618] p-4 lg:col-span-4">
+          <h2 className="text-sm font-semibold text-[#F5F5F7]">Submit Grant Proposal</h2>
+          <p className="mt-1 text-xs leading-relaxed text-[#71717A]">
             Requires at least {formatCompactNumber(minStakeNti)} $NTI active stake. Metadata is hashed on-chain via keccak256.
           </p>
 
-          <div className="mt-3 rounded-md border border-[#232325] bg-[#131314] px-3 py-2 text-[11px]">
+          <div className="mt-3 border border-[#26262A] bg-[#111113] px-3 py-2 text-[11px]">
             <div className="flex items-center justify-between">
               <span className="text-[#71717A]">Your Active Stake</span>
               <span
                 className={`font-mono font-medium tabular-nums ${
-                  meetsProposalStake ? "text-[#22C55E]" : "text-[#F59E0B]"
+                  meetsProposalStake ? "text-[#4ADE80]" : "text-[#F59E0B]"
                 }`}
               >
                 {isConnected ? `${formatCompactNumber(Math.round(activeStakeNti))} $NTI` : "Not connected"}
@@ -530,7 +526,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
 
           <div className="mt-4 space-y-3">
             <div>
-              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 Proposal Title / IPFS URI
               </label>
               <input
@@ -538,12 +534,12 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                 placeholder="e.g. Open-source Robinhood Chain Validator Kit"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 text-xs text-[#F5F5F7] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 Recipient Address (0x...)
               </label>
               <input
@@ -551,14 +547,14 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                 placeholder="0x..."
                 value={newRecipient}
                 onChange={(e) => setNewRecipient(e.target.value)}
-                className={`mt-1 w-full rounded-md border bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:outline-none ${
+                className={`mt-1 w-full border bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] placeholder-[#52525B] focus:outline-none ${
                   recipientInvalid
                     ? "border-[#EF4444]/60 focus:border-[#EF4444]"
-                    : "border-[#232325] focus:border-[#CCFF00]"
+                    : "border-[#26262A] focus:border-[#CCFF00]"
                 }`}
               />
               {recipientInvalid && (
-                <div className="mt-1 font-mono text-[10px] text-[#F87171]">
+                <div className="mt-1 font-mono text-[10px] text-[#EF4444]">
                   Enter a valid 42-character EVM address.
                 </div>
               )}
@@ -568,7 +564,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
               type="button"
               disabled={isBusy || !isConnected || !meetsProposalStake}
               onClick={() => void submitProposal()}
-              className="w-full rounded-md border border-[#CCFF00]/50 bg-[#CCFF00]/12 py-2.5 font-mono text-xs font-semibold text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-45"
+              className="w-full border border-[#CCFF00]/50 bg-[#CCFF00]/12 py-2.5 font-mono text-xs font-semibold text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {!isConnected
                 ? "CONNECT WALLET TO SUBMIT"

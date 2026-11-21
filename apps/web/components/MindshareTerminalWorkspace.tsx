@@ -2,17 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Activity,
-  ArrowDown,
-  ArrowUp,
-  ArrowUpRight,
-  Coins,
-  Layers,
-  Radar,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight } from "lucide-react";
 import type {
   EpochSummary,
   IndexesSnapshot,
@@ -21,7 +11,6 @@ import type {
 } from "@/lib/types";
 import { formatBpsPercent, formatSignedBps, truncateHex } from "@/lib/format";
 import { IndexChart, type IndexChartSeries } from "./IndexChart";
-import { RadarFeed } from "./RadarFeed";
 import { SectorIcon } from "./landing/NtiLogos";
 import { EpochBadge } from "./EpochBadge";
 import { Sparkline } from "./ui/Sparkline";
@@ -29,7 +18,6 @@ import { sectorColor } from "@/lib/sectors";
 import { CopyContractPill } from "./TacticalFrame";
 import { SegmentedTabs } from "./ui/SegmentedTabs";
 
-type SideTab = "sectors" | "radar" | "actions";
 type CategoryFilter = "all" | "defi" | "infra" | "ai" | "consumer";
 type SortColumn = "iBps" | "vBps" | "mBps" | "sN" | "weightedPosts";
 
@@ -45,7 +33,6 @@ export function MindshareTerminalWorkspace({
   narratives,
   recentSeries,
   combinedSeries,
-  radar,
   activeEpoch,
   oracleAddress,
   pendingFinalization,
@@ -53,12 +40,11 @@ export function MindshareTerminalWorkspace({
   narratives: NarrativeIndexItem[];
   recentSeries: IndexesSnapshot["recentSeries"];
   combinedSeries: IndexChartSeries[];
-  radar: RadarResponse;
+  radar?: RadarResponse;
   activeEpoch: EpochSummary | null;
   oracleAddress: string | null;
   pendingFinalization: boolean;
 }) {
-  const [sideTab, setSideTab] = useState<SideTab>("sectors");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [windowChip, setWindowChip] = useState<"4H" | "24H" | "7D" | "ALL">("4H");
   const [sortCol, setSortCol] = useState<SortColumn>("iBps");
@@ -92,7 +78,7 @@ export function MindshareTerminalWorkspace({
 
   const windowedChartSeries = useMemo(() => {
     if (windowChip === "ALL") return combinedSeries;
-    const limit = windowChip === "4H" ? 6 : windowChip === "24H" ? 12 : 42;
+    const limit = windowChip === "4H" ? 12 : windowChip === "24H" ? 24 : 42;
     return combinedSeries.map((s) => ({
       ...s,
       points: s.points.slice(-limit),
@@ -153,25 +139,29 @@ export function MindshareTerminalWorkspace({
   const renderSortIcon = (col: SortColumn) => {
     if (sortCol !== col) return null;
     return sortAsc ? (
-      <ArrowUp className="inline h-3 w-3 text-[#CCFF00]" />
+      <ArrowUp className="ml-0.5 inline h-3 w-3 text-[#CCFF00]" />
     ) : (
-      <ArrowDown className="inline h-3 w-3 text-[#CCFF00]" />
+      <ArrowDown className="ml-0.5 inline h-3 w-3 text-[#CCFF00]" />
     );
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Header: title, epoch, filters and oracle on one line */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="!text-[1.9rem]">Mindshare</h1>
-          {activeEpoch && <EpochBadge epochId={activeEpoch.epochId} status={activeEpoch.status} />}
-          {pendingFinalization && (
-            <span className="rounded-md border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 text-[11px] font-medium text-[#F59E0B]">
-              2h dispute active
-            </span>
-          )}
+    <div className="flex flex-col gap-5">
+      {/* BELL-style Page Header + Controls */}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-4">
+        <div>
+          <p className="kicker">Analytics · 4h mindshare index</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-3">
+            <h1>Narrative Mindshare</h1>
+            {activeEpoch && <EpochBadge epochId={activeEpoch.epochId} status={activeEpoch.status} />}
+            {pendingFinalization && (
+              <span className="border border-[#E2A856]/50 bg-[#E2A856]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[#E2A856]">
+                2H DISPUTE ACTIVE
+              </span>
+            )}
+          </div>
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <SegmentedTabs
             value={windowChip}
@@ -180,41 +170,40 @@ export function MindshareTerminalWorkspace({
               { value: "4H", label: "4H" },
               { value: "24H", label: "24H" },
               { value: "7D", label: "7D" },
-              { value: "ALL", label: "All" },
+              { value: "ALL", label: "ALL" },
             ]}
-            buttonClassName="px-2.5 py-1 text-xs"
           />
           <SegmentedTabs
             value={category}
             onChange={setCategory}
             options={[
-              { value: "all", label: "All sectors", tone: "lime" },
+              { value: "all", label: "All", tone: "lime" },
               { value: "defi", label: "DeFi", tone: "lime" },
               { value: "ai", label: "AI", tone: "lime" },
               { value: "infra", label: "Infra", tone: "lime" },
               { value: "consumer", label: "Consumer", tone: "lime" },
             ]}
-            className="gap-0.5"
-            buttonClassName="px-2.5 py-1 text-xs"
           />
           {oracleAddress && <CopyContractPill label="Oracle" address={oracleAddress} />}
         </div>
       </div>
 
-      {/* Headline figures */}
+      {/* 4-Column Sharp Institutional KPI Board */}
       <div className="stat-strip stat-strip-compact">
         <div>
           <div className="stat-label">Leader sector</div>
-          <div className="stat-value truncate">{leader?.label ?? "-"}</div>
-          <div className="stat-caption">{leader ? formatBpsPercent(leader.iBps) : "-"} of total mindshare</div>
+          <div className="stat-value truncate">{leader?.label ?? "—"}</div>
+          <div className="stat-caption">
+            {leader ? `${formatBpsPercent(leader.iBps)} of total mindshare` : "—"}
+          </div>
         </div>
         <div>
           <div className="stat-label">Total weight</div>
           <div className="stat-value tabular-nums">
             {totalBps.toLocaleString("en-US")}
-            <span className="ml-1 font-sans text-xs font-medium text-[#8A8A93]">bps</span>
+            <span className="ml-1.5 font-mono text-xs font-normal text-[#71717A]">BPS</span>
           </div>
-          <div className="stat-caption">Always sums to 10,000</div>
+          <div className="stat-caption">Hamilton-rounded, sums to 10,000</div>
         </div>
         <div>
           <div className="stat-label">Fastest mover</div>
@@ -225,230 +214,196 @@ export function MindshareTerminalWorkspace({
         </div>
         <div>
           <div className="stat-label">Dataset root</div>
-          <div className="stat-value truncate !font-mono !text-base !leading-[2.1rem]">
-            {activeEpoch?.datasetHash ? truncateHex(activeEpoch.datasetHash, 6, 4) : "Pending"}
+          <div className="stat-value truncate font-mono text-[15px] leading-[1.6rem]">
+            {activeEpoch?.datasetHash ? truncateHex(activeEpoch.datasetHash, 8, 6) : "Pending"}
           </div>
-          <div className="stat-caption">Committed on-chain</div>
+          <div className="stat-caption">Committed onchain · 2-of-3 quorum</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
-        {/* Left: share mosaic and trajectory */}
-        <div className="flex min-w-0 flex-col gap-3 xl:col-span-8">
-          <div className="rounded-xl border border-[#232325] bg-[#0A0A0B] p-1.5">
-            <div className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-5">
-              {sortedByShare.map((n) => {
-                const color = sectorColor(n.narrativeId);
-                const rising = (n.vBps ?? 0) >= 0;
-                return (
-                  <Link
-                    key={n.narrativeId}
-                    href={`/narratives/${n.narrativeId}`}
-                    style={{
-                      background: "#0F0F11",
-                      borderColor: "#26262A",
-                      borderTopColor: color,
-                      borderTopWidth: 2,
-                    }}
-                    title={`${n.label}: ${formatBpsPercent(n.iBps)}`}
-                    className="relative flex min-h-[78px] min-w-0 flex-col justify-between overflow-hidden rounded-md border px-3 py-2.5 hover:bg-[#131315]"
+      {/* Bloomberg / US Stock 5-Up Sector Quote Board (shared 1px hairline borders, 0px radius) */}
+      <section aria-label="Sector mindshare board">
+        <div className="grid grid-cols-2 border-l border-t border-[#26262A] bg-[#0D0D0E] sm:grid-cols-5">
+          {sortedByShare.map((n) => {
+            const delta = windowDeltaById.get(n.narrativeId) ?? null;
+            const rising = (delta ?? 0) >= 0;
+            const sharePct = (n.iBps / (sortedByShare[0]?.iBps || 1)) * 100;
+            return (
+              <Link
+                key={n.narrativeId}
+                href={`/narratives/${n.narrativeId}`}
+                className="group relative flex min-h-[88px] flex-col justify-between border-b border-r border-[#26262A] bg-[#161618] p-3.5 transition-colors hover:bg-[#1E1E21]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="truncate text-[12px] font-medium text-[#F5F5F7] group-hover:text-[#CCFF00]">
+                    {n.label}
+                  </span>
+                  <span
+                    className={`shrink-0 font-mono text-[10px] tabular-nums ${
+                      delta === null ? "text-[#71717A]" : rising ? "text-[#4ADE80]" : "text-[#EF4444]"
+                    }`}
                   >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="truncate text-xs font-medium text-[#C9C9CF]">{n.label}</span>
-                      <span
-                        className={`shrink-0 font-mono text-[10px] ${
-                          n.vBps === null ? "text-[#62626B]" : rising ? "text-[#22C55E]" : "text-[#EF4444]"
-                        }`}
-                      >
-                        {n.vBps !== null ? formatSignedBps(n.vBps, n.vFlag) : "warming"}
-                      </span>
-                    </span>
-                    <span>
-                      <span className="block font-serif text-lg leading-none tabular-nums text-white">
-                        {(n.iBps / 100).toFixed(2)}
-                        <span className="text-[11px] text-[#8A8A93]">%</span>
-                      </span>
-                      <span className="mt-2 block h-[3px] overflow-hidden rounded-full bg-[#1B1B1E]">
-                        <span
-                          className="block h-full rounded-full"
-                          style={{ width: `${(n.iBps / (sortedByShare[0]?.iBps || 1)) * 100}%`, background: color }}
-                        />
-                      </span>
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+                    {delta !== null ? formatSignedBps(delta, windowChip === "4H" ? n.vFlag : null) : "—"}
+                  </span>
+                </div>
 
-          <div className="h-[400px] xl:h-[460px]">
-            <IndexChart
-              fill
-              series={windowedChartSeries}
-              title={`Top 5 sectors, ${windowChip === "ALL" ? "all epochs" : windowChip}`}
-              subtitle="Share of mindshare per 4h epoch; bars show velocity of the first selected sector"
-              showVelocityBars
-            />
-          </div>
+                <div className="mt-3">
+                  <div className="font-mono text-[19px] font-medium leading-none tabular-nums text-[#F5F5F7]">
+                    {(n.iBps / 100).toFixed(2)}
+                    <span className="ml-0.5 text-[11px] text-[#71717A]">%</span>
+                  </div>
+                  <div className="mt-2.5 h-[2px] w-full bg-[#1F1F23]">
+                    <div
+                      className="h-full"
+                      style={{
+                        width: `${Math.min(100, sharePct)}%`,
+                        backgroundColor: delta !== null && !rising ? "#EF4444" : "#CCFF00",
+                      }}
+                    />
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Full-Width Trajectory Chart Board */}
+      <div className="h-[400px] xl:h-[430px]">
+        <IndexChart
+          fill
+          series={windowedChartSeries}
+          title={`Top 5 sectors · ${windowChip === "ALL" ? "all epochs" : windowChip}`}
+          subtitle="Share of mindshare per 4h epoch · Velocity histogram tracks primary selected sector"
+          showVelocityBars
+        />
+      </div>
+
+      {/* Full-Width Institutional Narratives Table */}
+      <section className="border border-[#26262A] bg-[#161618]">
+        <div className="flex items-center justify-between border-b border-[#26262A] bg-[#0D0D0E] px-4 py-2.5">
+          <h2 className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-[#F5F5F7]">
+            Narratives ({filtered.length})
+          </h2>
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#71717A]">
+            Click column header to sort
+          </span>
         </div>
 
-        {/* Right: sectors, radar and actions in one panel */}
-        <aside className="flex min-w-0 flex-col rounded-xl border border-[#232325] bg-[#0E0E0F] xl:col-span-4">
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#232325] px-3 py-2.5">
-            <SegmentedTabs
-              value={sideTab}
-              onChange={setSideTab}
-              options={[
-                { value: "sectors", label: "Sectors" },
-                { value: "radar", label: "Radar" },
-                { value: "actions", label: "Actions" },
-              ]}
-              buttonClassName="px-3 py-1 text-xs"
-            />
-            {sideTab === "radar" && (
-              <Link href="/radar" className="text-[11px] font-medium text-[#CCFF00] hover:underline">
-                View all
-              </Link>
-            )}
-          </div>
-
-          <div>
-            {sideTab === "sectors" && (
-              <table key="sectors" className="tab-panel-enter w-full text-left text-xs">
-                <thead className="sticky top-0 bg-[#0E0E0F] text-[11px] text-[#71717A]">
-                  <tr className="border-b border-[#232325]">
-                    <th className="w-8 py-2 pl-3 font-medium">#</th>
-                    <th className="py-2 font-medium">Sector</th>
-                    <th className="py-2 text-right font-medium">
-                      <button type="button" onClick={() => handleSort("iBps")} className="cursor-pointer hover:text-white">
-                        Share {renderSortIcon("iBps")}
-                      </button>
-                    </th>
-                    <th className="py-2 pr-3 text-right font-medium">
-                      <button type="button" onClick={() => handleSort("vBps")} className="cursor-pointer hover:text-white">
-                        Change {renderSortIcon("vBps")}
-                      </button>
-                    </th>
-                    <th className="hidden py-2 pr-3 text-right font-medium 2xl:table-cell">Trend</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1B1B1E]">
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-xs text-[#71717A]">
-                        No sectors match this filter.
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-[#26262A] bg-[#111113] font-mono text-[10px] uppercase tracking-[0.1em] text-[#71717A]">
+              <tr>
+                <th className="w-10 py-2.5 pl-4 font-medium">#</th>
+                <th className="py-2.5 font-medium">Narrative</th>
+                <th className="py-2.5 text-right font-medium">
+                  <button type="button" onClick={() => handleSort("iBps")} className="cursor-pointer uppercase hover:text-[#F5F5F7]">
+                    Mindshare{renderSortIcon("iBps")}
+                  </button>
+                </th>
+                <th className="py-2.5 text-right font-medium">
+                  <button type="button" onClick={() => handleSort("vBps")} className="cursor-pointer uppercase hover:text-[#F5F5F7]">
+                    {windowChip === "ALL" ? "Series" : windowChip} Chg{renderSortIcon("vBps")}
+                  </button>
+                </th>
+                <th className="hidden py-2.5 text-right font-medium sm:table-cell">
+                  <button type="button" onClick={() => handleSort("mBps")} className="cursor-pointer uppercase hover:text-[#F5F5F7]">
+                    Raw M_n{renderSortIcon("mBps")}
+                  </button>
+                </th>
+                <th className="hidden py-2.5 text-right font-medium md:table-cell">
+                  <button type="button" onClick={() => handleSort("sN")} className="cursor-pointer uppercase hover:text-[#F5F5F7]">
+                    Decay{renderSortIcon("sN")}
+                  </button>
+                </th>
+                <th className="hidden py-2.5 text-right font-medium lg:table-cell">7D Trend</th>
+                <th className="w-20 py-2.5 pr-4 text-right font-medium">Inspect</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#1F1F23]">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center font-mono text-xs text-[#71717A]">
+                    No narratives match this filter.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((n, idx) => {
+                  const delta = windowDeltaById.get(n.narrativeId) ?? null;
+                  const isPos = (delta ?? 0) >= 0;
+                  return (
+                    <tr key={n.narrativeId} className="group">
+                      <td className="py-3 pl-4 font-mono text-[11px] tabular-nums text-[#71717A]">
+                        {String(idx + 1).padStart(2, "0")}
+                      </td>
+                      <td className="py-3">
+                        <Link href={`/narratives/${n.narrativeId}`} className="flex items-center gap-2.5">
+                          <span className="text-[#71717A] group-hover:text-[#CCFF00]">
+                            <SectorIcon slug={n.slug} className="h-4 w-4" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-[13px] font-medium text-[#F5F5F7] group-hover:text-[#CCFF00]">
+                              {n.label}
+                            </span>
+                            <span className="hidden max-w-[280px] truncate text-[11px] text-[#71717A] xl:block">
+                              {n.description}
+                            </span>
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="py-3 text-right font-mono tabular-nums text-[#F5F5F7]">
+                        <div>{formatBpsPercent(n.iBps)}</div>
+                        <div className="ml-auto mt-1 h-[2px] w-20 bg-[#1F1F23]">
+                          <div
+                            className="h-full"
+                            style={{
+                              width: `${Math.min(100, (n.iBps / (sortedByShare[0]?.iBps || 1)) * 100)}%`,
+                              backgroundColor: sectorColor(n.narrativeId),
+                            }}
+                          />
+                        </div>
+                      </td>
+                      <td className="py-3 text-right font-mono tabular-nums">
+                        {delta !== null ? (
+                          <span className={isPos ? "text-[#4ADE80]" : "text-[#EF4444]"}>
+                            {formatSignedBps(delta, windowChip === "4H" ? n.vFlag : null)}
+                          </span>
+                        ) : (
+                          <span className="text-[#71717A]">—</span>
+                        )}
+                      </td>
+                      <td className="hidden py-3 text-right font-mono tabular-nums text-[#A1A1AA] sm:table-cell">
+                        {formatBpsPercent(n.mBps)}
+                      </td>
+                      <td className="hidden py-3 text-right font-mono tabular-nums text-[#A1A1AA] md:table-cell">
+                        {n.sN.toFixed(1)}
+                      </td>
+                      <td className="hidden py-3 text-right lg:table-cell">
+                        <Sparkline
+                          values={(recentSeries?.[n.narrativeId] ?? []).slice(-24).map((p) => p.iBps)}
+                          color={isPos ? "#4ADE80" : "#EF4444"}
+                          width={84}
+                          height={22}
+                          className="ml-auto"
+                        />
+                      </td>
+                      <td className="py-3 pr-4 text-right">
+                        <Link
+                          href={`/narratives/${n.narrativeId}`}
+                          className="inline-flex items-center gap-1 border border-[#26262A] px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA] transition-colors hover:border-[#CCFF00] hover:text-[#F5F5F7]"
+                        >
+                          <span>OPEN</span>
+                          <ArrowUpRight className="h-3 w-3" />
+                        </Link>
                       </td>
                     </tr>
-                  ) : (
-                    filtered.map((n, idx) => {
-                      const delta = windowDeltaById.get(n.narrativeId) ?? null;
-                      const isPos = (delta ?? 0) >= 0;
-                      return (
-                        <tr key={n.narrativeId}>
-                          <td className="py-2 pl-3 font-mono text-[11px] tabular-nums text-[#62626B]">{idx + 1}</td>
-                          <td className="py-2">
-                            <Link href={`/narratives/${n.narrativeId}`} className="group flex items-center gap-2">
-                              <span style={{ color: sectorColor(n.narrativeId) }}>
-                                <SectorIcon slug={n.slug} className="h-3.5 w-3.5" />
-                              </span>
-                              <span className="truncate font-medium text-[#E4E4E7] group-hover:text-[#CCFF00]">
-                                {n.label}
-                              </span>
-                            </Link>
-                          </td>
-                          <td className="py-2 text-right font-mono tabular-nums text-white">
-                            {formatBpsPercent(n.iBps)}
-                          </td>
-                          <td className="py-2 pr-3 text-right font-mono tabular-nums">
-                            {delta !== null ? (
-                              <span className={isPos ? "text-[#22C55E]" : "text-[#EF4444]"}>
-                                {formatSignedBps(delta, windowChip === "4H" ? n.vFlag : null)}
-                              </span>
-                            ) : (
-                              <span className="text-[#62626B]">warming</span>
-                            )}
-                          </td>
-                          <td className="hidden py-2 pr-3 text-right 2xl:table-cell">
-                            <Sparkline
-                              values={(recentSeries?.[n.narrativeId] ?? []).slice(-24).map((p) => p.iBps)}
-                              color={sectorColor(n.narrativeId)}
-                              width={64}
-                              height={20}
-                              className="ml-auto"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            )}
-
-            {sideTab === "radar" && (
-              <div key="radar" className="tab-panel-enter space-y-4 p-3">
-                <RadarFeed
-                  alerts={radar.alerts}
-                  realtimeUnlocked={radar.realtimeUnlocked}
-                  maxItems={5}
-                  compact
-                />
-                {!radar.realtimeUnlocked && (
-                  <div className="rounded-lg border border-[#232325] bg-[#0B0B0C] p-4">
-                    <div className="text-sm font-medium text-white">Real-time radar</div>
-                    <p className="mt-1 text-xs leading-relaxed text-[#9A9AA3]">
-                      Public feeds are delayed by 60 minutes. Stake 100k $NTI to see velocity breakouts as they
-                      happen.
-                    </p>
-                    <Link
-                      href="/stake"
-                      className="mt-3 inline-flex items-center justify-center rounded-md bg-[#CCFF00] px-3.5 py-1.5 text-xs font-semibold text-black hover:bg-[#B8E600]"
-                    >
-                      Stake $NTI
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {sideTab === "actions" && (
-              <ul key="actions" className="tab-panel-enter divide-y divide-[#1B1B1E]">
-                {[
-                  { href: "/markets", title: "Pair markets", sub: "Parimutuel pools, 0.1% fee", icon: Activity },
-                  { href: "/baskets", title: "Narrative baskets", sub: "Uniswap V3 vaults, 30m TWAP NAV", icon: Layers },
-                  { href: "/stake", title: "Stake $NTI", sub: "Fee discounts and instant radar", icon: Coins },
-                  { href: "/grants", title: "Ecosystem grants", sub: "Vote on funding rounds", icon: Sparkles },
-                  {
-                    href: "/oracle",
-                    title: "Oracle and disputes",
-                    sub: "Attestations and 2h challenge window",
-                    icon: ShieldCheck,
-                  },
-                ].map((act) => {
-                  const Icon = act.icon;
-                  return (
-                    <li key={act.href}>
-                      <Link
-                        href={act.href}
-                        className="flex items-center justify-between gap-3 px-3.5 py-3 hover:bg-white/[0.03]"
-                      >
-                        <span className="flex items-center gap-3">
-                          <Icon className="h-4 w-4 text-[#8A8A93]" />
-                          <span>
-                            <span className="block text-[13px] font-medium text-white">{act.title}</span>
-                            <span className="block text-[11px] text-[#71717A]">{act.sub}</span>
-                          </span>
-                        </span>
-                        <ArrowUpRight className="h-3.5 w-3.5 text-[#62626B]" />
-                      </Link>
-                    </li>
                   );
-                })}
-              </ul>
-            )}
-          </div>
-        </aside>
-      </div>
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

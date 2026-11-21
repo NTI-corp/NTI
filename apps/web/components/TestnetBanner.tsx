@@ -22,12 +22,12 @@ export function TestnetBanner() {
   const isMainnet = chainId === ROBINHOOD_MAINNET_ID;
 
   return (
-    <div role="status" className="border-b border-[#232325] bg-[#0A0A0B]">
-      <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] sm:px-6">
-        <span className="inline-flex items-center gap-2 text-[#F59E0B]">
+    <div role="status" className="border-b border-[#26262A] bg-[#0D0D0E]">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 font-mono text-[9.5px] uppercase tracking-[0.08em] sm:px-7">
+        <span className="inline-flex items-center gap-2 text-[#E2A856]">
           <FlaskConical className="h-3 w-3" aria-hidden="true" />
           {isMainnet ? "Pre-freeze registry" : "Testnet · test token"}
-          <span className="hidden text-[#8A8A93] normal-case tracking-normal sm:inline">
+          <span className="hidden text-[#71717A] normal-case tracking-normal sm:inline">
             Staking, markets and disputes use tNTI until the live $NTI address is locked.
           </span>
         </span>

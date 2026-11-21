@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Activity } from "lucide-react";
 import type { EpochStatus } from "@/lib/types";
 
 interface EpochBadgeProps {
@@ -15,39 +14,39 @@ const STATUS_STYLE: Record<
   { border: string; text: string; bg: string; label: string }
 > = {
   collecting: {
-    border: "border-[#CCFF00]/40",
+    border: "border-[#3A3A40]",
     text: "text-[#CCFF00]",
-    bg: "bg-[#CCFF00]/12",
+    bg: "bg-[#1E1E21]",
     label: "COLLECTING",
   },
   computed: {
-    border: "border-[#CCFF00]/40",
+    border: "border-[#3A3A40]",
     text: "text-[#CCFF00]",
-    bg: "bg-[#CCFF00]/12",
+    bg: "bg-[#1E1E21]",
     label: "COMPUTED",
   },
   committed: {
-    border: "border-[#F59E0B]/40",
-    text: "text-[#F59E0B]",
-    bg: "bg-[#F59E0B]/10",
-    label: "COMMITTED · AWAITING FINAL",
+    border: "border-[#E2A856]/50",
+    text: "text-[#E2A856]",
+    bg: "bg-[#E2A856]/10",
+    label: "COMMITTED",
   },
   disputed: {
-    border: "border-[#EF4444]/40",
-    text: "text-[#F87171]",
+    border: "border-[#EF4444]/50",
+    text: "text-[#EF4444]",
     bg: "bg-[#EF4444]/10",
     label: "DISPUTED",
   },
   final: {
-    border: "border-[#22C55E]/40",
-    text: "text-[#22C55E]",
-    bg: "bg-[#22C55E]/10",
+    border: "border-[#4ADE80]/40",
+    text: "text-[#4ADE80]",
+    bg: "bg-[#4ADE80]/10",
     label: "FINAL",
   },
   incomplete: {
-    border: "border-[#F59E0B]/35",
-    text: "text-[#F59E0B]",
-    bg: "bg-[#F59E0B]/10",
+    border: "border-[#E2A856]/40",
+    text: "text-[#E2A856]",
+    bg: "bg-[#E2A856]/10",
     label: "INCOMPLETE",
   },
 };
@@ -58,10 +57,9 @@ export function EpochBadge({ epochId, status, compact = false }: EpochBadgeProps
     <Link
       href="/oracle"
       title="Inspect oracle epoch timeline, dataset hashes, and validator attestations"
-      className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors hover:border-[#3A3A3D] ${s.border} ${s.bg} ${s.text}`}
+      className={`inline-flex min-h-[24px] items-center gap-1.5 rounded-[2px] border px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.08em] transition-colors hover:border-[#F5F5F7]/40 ${s.border} ${s.bg} ${s.text}`}
     >
-      <Activity className="live-dot h-3 w-3" aria-hidden="true" />
-      {epochId != null && <span className="text-[#F4F4F5] tabular-nums">EP-{epochId}</span>}
+      {epochId != null && <span className="text-[#F5F5F7] tabular-nums">EP-{epochId}</span>}
       <span>{compact ? status.toUpperCase() : s.label}</span>
     </Link>
   );

@@ -17,6 +17,7 @@ import { NARRATIVES } from "@nti/sdk";
 import { formatBpsPercent, formatCountdown, formatEth } from "@/lib/format";
 import { useChainAction } from "@/lib/useChainAction";
 import type { MarketItem } from "@/lib/types";
+import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 
 interface MarketsListClientProps {
   markets: MarketItem[];
@@ -114,44 +115,40 @@ export function MarketsListClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {awaitingDeployment && (
-        <div className="rounded-md border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-2.5 font-mono text-xs text-[#F59E0B]">
+        <div className="border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-2.5 font-mono text-xs text-[#F59E0B]">
           <strong>PREVIEW MARKETS</strong> · NarrativeMarket contract returned 0 markets. Showing parimutuel market structure with live contract hooks ready.
         </div>
       )}
 
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#232325] pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-4">
         <div>
           <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
             Narrative Markets · Fixed-Horizon Parimutuel
           </span>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#F5F5F7]">
             Pair Markets
           </h1>
-          <p className="mt-1 max-w-2xl text-xs text-[#A1A1AA]">
+          <p className="mt-1 max-w-2xl text-xs text-[#71717A]">
             Settled purely by finalized on-chain oracle index Δ = I_A(settle)/I_A(base) − I_B(settle)/I_B(base). Zero leverage, 5 ETH pool cap, 0.10% fee (up to 50% staker discount), full gross refund on tie or incomplete epoch.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
-          <div className="flex items-center rounded-md border border-[#232325] bg-[#0E0E0F] p-0.5">
-            {(["all", "open", "locked", "settled"] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setFilter(tab)}
-                className={`rounded px-2.5 py-1 uppercase transition-colors ${
-                  filter === tab
-                    ? "bg-[#232325] text-[#F4F4F5]"
-                    : "text-[#71717A] hover:text-[#A1A1AA]"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+          <SegmentedTabs
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "all", label: "ALL" },
+              { value: "open", label: "OPEN", tone: "green" },
+              { value: "locked", label: "LOCKED", tone: "amber" },
+              { value: "settled", label: "SETTLED", tone: "lime" },
+            ]}
+            className="text-[11px]"
+            buttonClassName="px-2.5 py-1 uppercase"
+          />
 
           <button
             type="button"
@@ -159,7 +156,7 @@ export function MarketsListClient({
               setCreateOpen((v) => !v);
               setCreateErr(null);
             }}
-            className="rounded-md border border-[#CCFF00]/50 bg-[#CCFF00]/12 px-3 py-1.5 font-semibold text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22"
+            className="border border-[#CCFF00]/50 bg-[#CCFF00]/12 px-3 py-1.5 font-semibold text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22"
           >
             {createOpen ? "CLOSE CREATOR" : "+ CREATE MARKET"}
           </button>
@@ -174,10 +171,10 @@ export function MarketsListClient({
         <button
           type="button"
           onClick={() => setNarrativeFilter(null)}
-          className={`rounded-md border px-2.5 py-1 transition-colors ${
+          className={`border px-2.5 py-1 transition-colors ${
             narrativeFilter === null
-              ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
-              : "border-[#232325] bg-[#0E0E0F] text-[#A1A1AA] hover:text-[#F4F4F5]"
+              ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F5F5F7]"
+              : "border-[#26262A] bg-[#161618] text-[#71717A] hover:text-[#F5F5F7]"
           }`}
         >
           All ({markets.length})
@@ -189,10 +186,10 @@ export function MarketsListClient({
               key={n.id}
               type="button"
               onClick={() => setNarrativeFilter(active ? null : n.id)}
-              className={`rounded-md border px-2.5 py-1 transition-colors ${
+              className={`border px-2.5 py-1 transition-colors ${
                 active
-                  ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
-                  : "border-[#232325] bg-[#0E0E0F] text-[#71717A] hover:border-[#3A3A3D] hover:text-[#F4F4F5]"
+                  ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F5F5F7]"
+                  : "border-[#26262A] bg-[#161618] text-[#71717A] hover:border-[#3A3A40] hover:text-[#F5F5F7]"
               }`}
             >
               {n.label}
@@ -203,13 +200,13 @@ export function MarketsListClient({
 
       {/* Permissionless Market Creator */}
       {createOpen && (
-        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#232325] pb-3">
+        <div className="drawer-enter border border-[#26262A] bg-[#161618] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#26262A] pb-3">
             <div>
-              <h2 className="text-sm font-semibold text-[#F4F4F5]">
+              <h2 className="text-sm font-semibold text-[#F5F5F7]">
                 Launch Permissionless Pair Market
               </h2>
-              <p className="mt-0.5 text-xs text-[#A1A1AA]">
+              <p className="mt-0.5 text-xs text-[#71717A]">
                 Anchored to latest finalized OracleCommit epoch #{liveFinalEpoch || "—"}. Anyone can open a 24H (6 epochs) or 7D (42 epochs) market.
               </p>
             </div>
@@ -223,7 +220,7 @@ export function MarketsListClient({
               <select
                 value={newNarA}
                 onChange={(e) => setNewNarA(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
               >
                 {NARRATIVES.map((n) => (
                   <option key={n.id} value={n.id}>
@@ -240,7 +237,7 @@ export function MarketsListClient({
               <select
                 value={newNarB}
                 onChange={(e) => setNewNarB(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
               >
                 <option value={0}>0 Market Average</option>
                 {NARRATIVES.map((n) => (
@@ -258,7 +255,7 @@ export function MarketsListClient({
               <select
                 value={horizonEpochs}
                 onChange={(e) => setHorizonEpochs(Number(e.target.value) === 42 ? 42 : 6)}
-                className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
               >
                 <option value={6}>24H (6 epochs · E{liveFinalEpoch + 6})</option>
                 <option value={42}>7D (42 epochs · E{liveFinalEpoch + 42})</option>
@@ -270,7 +267,7 @@ export function MarketsListClient({
                 type="button"
                 disabled={isBusy || !isConnected || liveFinalEpoch <= 0}
                 onClick={() => void handleCreateMarket()}
-                className="w-full rounded-md bg-[#CCFF00] py-2 font-mono text-xs font-semibold text-black transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-45"
+                className="w-full bg-[#CCFF00] py-2 font-mono text-xs font-semibold text-[#0D0D0E] transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {!isConnected ? "CONNECT WALLET" : "DEPLOY MARKET"}
               </button>
@@ -278,7 +275,7 @@ export function MarketsListClient({
           </div>
 
           {createErr && (
-            <div className="mt-3 rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+            <div className="mt-3 border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
               {createErr}
             </div>
           )}
@@ -303,13 +300,16 @@ export function MarketsListClient({
               setFilter("all");
               setNarrativeFilter(null);
             }}
-            className="rounded-md border border-[#2E2E31] bg-[#131314] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] hover:border-[#CCFF00]/50"
+            className="border border-[#26262A] bg-[#111113] px-3 py-1.5 font-mono text-xs text-[#F5F5F7] hover:border-[#CCFF00]/50"
           >
             RESET FILTERS
           </button>
         </EmptyState>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div
+          key={`${filter}-${narrativeFilter ?? "all"}`}
+          className="tab-panel-enter grid grid-cols-1 gap-4 lg:grid-cols-2"
+        >
           {visible.map((m) => {
             const totalPool = m.poolAEth + m.poolBEth;
             const pctA = totalPool > 0 ? Math.round((m.poolAEth / totalPool) * 100) : 50;
@@ -321,20 +321,20 @@ export function MarketsListClient({
             return (
               <div
                 key={m.marketId}
-                className="flex flex-col justify-between rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 transition-colors hover:border-[#3A3A3D]"
+                className="flex flex-col justify-between border border-[#26262A] bg-[#161618] p-4 transition-colors hover:border-[#3A3A40]"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
                     <div className="flex items-center gap-2">
                       <span className="text-[#71717A]">MKT #{m.marketId}</span>
-                      <span className="rounded border border-[#232325] bg-[#131314] px-1.5 py-0.5 text-[10px] text-[#A1A1AA]">
+                      <span className="border border-[#26262A] bg-[#111113] px-1.5 py-0.5 text-[10px] text-[#71717A]">
                         {m.horizonLabel}
                       </span>
                     </div>
                     <span
-                      className={`rounded border px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                      className={`border px-2 py-0.5 text-[10px] font-semibold uppercase ${
                         m.status === "open"
-                          ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
+                          ? "border-[#4ADE80]/40 bg-[#4ADE80]/10 text-[#4ADE80]"
                           : m.status === "locked"
                             ? "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]"
                             : "border-[#CCFF00]/40 bg-[#CCFF00]/10 text-[#CCFF00]"
@@ -346,7 +346,7 @@ export function MarketsListClient({
 
                   <Link
                     href={`/markets/${m.marketId}`}
-                    className="mt-2.5 block text-lg font-semibold text-[#F4F4F5] transition-colors hover:text-[#CCFF00]"
+                    className="mt-2.5 block text-lg font-semibold text-[#F5F5F7] transition-colors hover:text-[#CCFF00]"
                   >
                     {m.narrativeALabel}{" "}
                     <span className="font-mono text-xs font-normal text-[#71717A]">vs</span>{" "}
@@ -354,12 +354,12 @@ export function MarketsListClient({
                   </Link>
 
                   {/* Live relative delta telemetry */}
-                  <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-[11px] tabular-nums">
+                  <div className="mt-2.5 grid grid-cols-3 gap-2 border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-[11px] tabular-nums">
                     <div>
                       <div className="text-[10px] text-[#71717A]">
                         SIDE A ({m.narrativeALabel.slice(0, 10)})
                       </div>
-                      <div className="text-[#F4F4F5]">
+                      <div className="text-[#F5F5F7]">
                         {formatBpsPercent(m.baseIA, 1)} → {formatBpsPercent(m.currentIA, 1)}
                       </div>
                     </div>
@@ -367,7 +367,7 @@ export function MarketsListClient({
                       <div className="text-[10px] text-[#71717A]">
                         SIDE B ({m.narrativeBLabel.slice(0, 10)})
                       </div>
-                      <div className="text-[#F4F4F5]">
+                      <div className="text-[#F5F5F7]">
                         {formatBpsPercent(m.baseIB, 1)} → {formatBpsPercent(m.currentIB, 1)}
                       </div>
                     </div>
@@ -376,10 +376,10 @@ export function MarketsListClient({
                       <div
                         className={
                           delta > 0
-                            ? "font-semibold text-[#22C55E]"
+                            ? "font-semibold text-[#4ADE80]"
                             : delta < 0
                               ? "font-semibold text-[#CCFF00]"
-                              : "text-[#A1A1AA]"
+                              : "text-[#71717A]"
                         }
                       >
                         {delta >= 0 ? "+" : ""}
@@ -391,7 +391,7 @@ export function MarketsListClient({
                   {/* Pool Split Bar */}
                   <div className="mt-3">
                     <div className="mb-1 flex justify-between font-mono text-[11px] tabular-nums">
-                      <span className="text-[#22C55E]">
+                      <span className="text-[#4ADE80]">
                         A: {formatEth(m.poolAEth, 3)} ({pctA}%)
                       </span>
                       <span className="text-[#71717A]">
@@ -401,15 +401,15 @@ export function MarketsListClient({
                         B: {formatEth(m.poolBEth, 3)} ({pctB}%)
                       </span>
                     </div>
-                    <div className="flex h-2 w-full overflow-hidden rounded-full bg-[#232325]">
-                      <div className="bg-[#22C55E]" style={{ width: `${pctA}%` }} />
+                    <div className="flex h-2 w-full overflow-hidden bg-[#232325]">
+                      <div className="bg-[#4ADE80]" style={{ width: `${pctA}%` }} />
                       <div className="bg-[#CCFF00]" style={{ width: `${pctB}%` }} />
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#232325] pt-3 font-mono text-[11px]">
-                  <span className="text-[#A1A1AA] tabular-nums">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#26262A] pt-3 font-mono text-[11px]">
+                  <span className="text-[#71717A] tabular-nums">
                     {m.status === "open"
                       ? `Cutoff in ${formatCountdown(m.cutoffAt)} · Settle E${m.settleEpoch}`
                       : m.status === "locked"
@@ -421,14 +421,14 @@ export function MarketsListClient({
                       <button
                         type="button"
                         onClick={() => setActiveBetMarket({ market: m, side: 0 })}
-                        className="rounded-md bg-[#22C55E] px-3 py-1.5 text-[11px] font-semibold text-[#090909] transition-colors hover:bg-[#16A34A]"
+                        className="bg-[#4ADE80] px-3 py-1.5 text-[11px] font-semibold text-[#0D0D0E] transition-colors hover:bg-[#22C55E]"
                       >
                         BET NOW
                       </button>
                     )}
                     <Link
                       href={`/markets/${m.marketId}`}
-                      className="rounded-md border border-[#232325] bg-[#131314] px-3 py-1.5 text-[11px] text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50"
+                      className="border border-[#26262A] bg-[#111113] px-3 py-1.5 text-[11px] text-[#F5F5F7] transition-colors hover:border-[#CCFF00]/50"
                     >
                       DETAIL →
                     </Link>

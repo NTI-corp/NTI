@@ -1,11 +1,13 @@
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { getSiweSessionState, SIWE_SESSION_COOKIE } from "@/lib/siwe";
 import { fetchIndexesSnapshot, fetchRadarAlerts } from "@/lib/supabase";
 import { RadarClient } from "@/components/RadarClient";
+import { InstantRouteShell } from "@/components/InstantRouteShell";
 
 export const dynamic = "force-dynamic";
 
-export default async function RadarPage() {
+async function RadarContent() {
   const cookieStore = await cookies();
   const session = await getSiweSessionState(cookieStore.get(SIWE_SESSION_COOKIE)?.value);
 
@@ -19,5 +21,17 @@ export default async function RadarPage() {
     fetchIndexesSnapshot(),
   ]);
 
-  return <RadarClient initialData={initialData} sectors={snapshot.narratives} />;
+  return (
+    <div className="tab-panel-enter">
+      <RadarClient initialData={initialData} sectors={snapshot.narratives} />
+    </div>
+  );
+}
+
+export default function RadarPage() {
+  return (
+    <Suspense fallback={<InstantRouteShell path="/radar" />}>
+      <RadarContent />
+    </Suspense>
+  );
 }

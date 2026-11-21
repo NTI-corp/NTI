@@ -8,7 +8,6 @@ import {
   BookOpen,
   ChevronsLeft,
   ChevronsRight,
-  ExternalLink,
   Grid3x3,
   Landmark,
   Layers,
@@ -30,7 +29,7 @@ import { getActiveChainId, getChain } from "@/lib/contracts";
 import type { EpochStatus, IndexesSnapshot, NarrativeIndexItem } from "@/lib/types";
 import { NtiBrandMark } from "@/components/landing/NtiLogos";
 import { RobinhoodMark, XIcon } from "@/components/ui/Icons";
-import AppLoading from "@/app/(app)/loading";
+import { InstantRouteShell } from "@/components/InstantRouteShell";
 
 type IconType = React.ComponentType<{ className?: string }>;
 
@@ -38,6 +37,7 @@ interface NavItem {
   href: string;
   label: string;
   hint: string;
+  group: string;
   icon: IconType;
 }
 
@@ -46,44 +46,44 @@ interface NavGroup {
   items: readonly NavItem[];
 }
 
-/** Sidebar navigation: grouped by what a visitor wants to do, so nothing piles up in the top bar. */
 const NAV_GROUPS: readonly NavGroup[] = [
   {
     title: "Analytics",
     items: [
-      { href: "/terminal", label: "Mindshare", hint: "Sector share of attention", icon: BarChart3 },
-      { href: "/radar", label: "Radar", hint: "Velocity and new tokens", icon: Radar },
-      { href: "/heatmap", label: "Heatmap", hint: "Attention vs builders", icon: Grid3x3 },
+      { href: "/terminal", label: "Mindshare", hint: "Sector attention share", group: "Analytics", icon: BarChart3 },
+      { href: "/radar", label: "Radar", hint: "Velocity and new tokens", group: "Analytics", icon: Radar },
+      { href: "/heatmap", label: "Heatmap", hint: "Attention vs builders", group: "Analytics", icon: Grid3x3 },
     ],
   },
   {
     title: "Trade",
     items: [
-      { href: "/markets", label: "Markets", hint: "Narrative pair markets", icon: Swords },
-      { href: "/baskets", label: "Baskets", hint: "Spot narrative vaults", icon: Layers },
+      { href: "/markets", label: "Markets", hint: "Narrative pair pools", group: "Trade", icon: Swords },
+      { href: "/baskets", label: "Baskets", hint: "TWAP spot vaults", group: "Trade", icon: Layers },
     ],
   },
   {
     title: "Protocol",
     items: [
-      { href: "/grants", label: "Grants", hint: "Ecosystem funding", icon: Sprout },
-      { href: "/stake", label: "Stake", hint: "Tiers and governance", icon: Landmark },
-      { href: "/oracle", label: "Oracle", hint: "Epochs and attestations", icon: ShieldCheck },
+      { href: "/grants", label: "Grants", hint: "Ecosystem funding", group: "Protocol", icon: Sprout },
+      { href: "/stake", label: "Stake", hint: "Tiers and governance", group: "Protocol", icon: Landmark },
+      { href: "/oracle", label: "Oracle", hint: "Epochs and attestations", group: "Protocol", icon: ShieldCheck },
     ],
   },
   {
-    title: "Resources",
-    items: [{ href: "/methodology", label: "Docs", hint: "Methodology and formulas", icon: BookOpen }],
+    title: "Reference",
+    items: [
+      { href: "/methodology", label: "Methodology", hint: "Formulas and replay", group: "Reference", icon: BookOpen },
+    ],
   },
 ];
 
 const NAV: readonly NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
-const SIDEBAR_FULL = 248;
-const SIDEBAR_RAIL = 72;
+const SIDEBAR_FULL = 244;
+const SIDEBAR_RAIL = 60;
 const COLLAPSE_KEY = "nti.sidebar.collapsed";
 
-/** Spinner shown on the link while its page is still loading (must render inside the Link). */
 function PendingSpinner({ className = "" }: { className?: string }) {
   const { pending } = useLinkStatus();
   if (!pending) return null;
@@ -104,15 +104,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  // Optimistic navigation: highlight the target at once; show the skeleton only if the server takes >120ms.
   const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
-  const [showSkeleton, setShowSkeleton] = useState(false);
 
   useEffect(() => {
     try {
       setCollapsed(window.localStorage.getItem(COLLAPSE_KEY) === "1");
     } catch {
-      // storage unavailable: stay expanded
+      // ignore
     }
   }, []);
 
@@ -129,16 +127,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Warm every dashboard right after the shell mounts so the first click is never cold.
     const ids: number[] = [];
     NAV.forEach((item, i) => {
-      ids.push(window.setTimeout(() => router.prefetch(item.href), 150 + i * 120));
+      ids.push(window.setTimeout(() => router.prefetch(item.href), 150 + i * 110));
     });
     return () => ids.forEach((id) => window.clearTimeout(id));
   }, [router]);
 
   useEffect(() => {
-    // Any in-app link (cards, tables, "open narrative" buttons) shows the skeleton on click, too.
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const a = (e.target as Element | null)?.closest?.("a");
@@ -154,20 +150,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setOptimisticPath(null);
-    setShowSkeleton(false);
     setDrawerOpen(false);
     setSearchFocused(false);
     setQuery("");
   }, [pathname]);
 
   useEffect(() => {
-    if (!optimisticPath || optimisticPath === pathname) {
-      setShowSkeleton(false);
-      return;
-    }
-    const id = window.setTimeout(() => setShowSkeleton(true), 120);
+    if (!optimisticPath) return;
+    const id = window.setTimeout(() => setOptimisticPath(null), 12_000);
     return () => window.clearTimeout(id);
-  }, [optimisticPath, pathname]);
+  }, [optimisticPath]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -176,14 +168,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
-      if (e.key === "Escape") setDrawerOpen(false);
+      if (e.key === "Escape") {
+        setDrawerOpen(false);
+        setSearchFocused(false);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   useEffect(() => {
-    // Lock page scroll behind the mobile drawer.
     if (!drawerOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -204,7 +198,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (target) setEpochMeta({ epochId: target.epochId, status: target.status });
         if (Array.isArray(data.narratives)) setSectors(data.narratives);
       } catch {
-        // transient poll failure: keep the last known epoch
+        // ignore transient poll failures
       }
     };
     void loadEpoch();
@@ -242,125 +236,143 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return all.filter((r) => r.label.toLowerCase().includes(q)).slice(0, 8);
   }, [query]);
 
-  /** Sidebar body, shared by the desktop rail and the mobile drawer. */
+  /** NTI Pure Graphite Sidebar: 52px header aligned with topbar, full-height balanced nav + docked footer. */
   const renderSidebar = (rail: boolean) => (
-    <div className="flex h-full flex-col">
-      <div className={`flex h-14 shrink-0 items-center border-b border-[#232325] ${rail ? "justify-center" : "px-4"}`}>
-        <Link href="/" className="flex items-center gap-2.5" aria-label="NTI home">
-          <NtiBrandMark className="h-7 w-7" />
+    <div className="flex h-full flex-col overflow-hidden bg-[#111113]">
+      {/* 52px Brand Header — pixel-aligned with sticky topbar border */}
+      <div
+        className={`flex h-[52px] shrink-0 items-center border-b border-[#26262A] ${
+          rail ? "justify-center px-2" : "justify-between px-4"
+        }`}
+      >
+        <Link href="/" className="inline-flex items-center gap-2.5 text-[#F5F5F7]" aria-label="NTI home">
+          <NtiBrandMark className="h-6 w-6 shrink-0" />
           {!rail && (
-            <span className="flex flex-col leading-none">
-              <span className="font-display text-[15px] font-extrabold uppercase tracking-[0.04em] text-white">
+            <span className="leading-none">
+              <span className="block text-[15px] font-semibold tracking-[-0.03em] text-[#F5F5F7]">
                 NTI
               </span>
-              <span className="mt-1 font-mono text-[8.5px] uppercase tracking-[0.2em] text-[#71717A]">
-                Narrative Index
+              <span className="mt-0.5 block font-mono text-[8px] uppercase tracking-[0.14em] text-[#71717A]">
+                MINDSHARE TERMINAL
               </span>
             </span>
           )}
         </Link>
       </div>
 
-      <nav aria-label="Dashboards" className="flex-1 overflow-y-auto px-3 py-4">
-        {NAV_GROUPS.map((group, gi) => (
-          <div key={group.title} className={gi > 0 ? "mt-5" : ""}>
+      {/* Main Nav — fills viewport height cleanly with balanced rhythm */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-3">
+        {NAV_GROUPS.map((group) => (
+          <section key={group.title} aria-label={group.title} className="mt-4 first:mt-0.5">
             {rail ? (
-              gi > 0 && <div className="mx-2 mb-3 h-px bg-[#1B1B1D]" />
+              <div className="mx-1.5 mb-2 h-px bg-[#26262A]" />
             ) : (
-              <div className="mb-1 px-2.5 text-[11px] font-medium text-[#62626B]">
+              <p className="mb-1.5 px-2 font-mono text-[9px] uppercase tracking-[0.14em] text-[#71717A]">
                 {group.title}
-              </div>
+              </p>
             )}
-            <ul className="space-y-0.5">
+            <nav className="grid gap-1" aria-label={`${group.title} navigation`}>
               {group.items.map((item) => {
                 const active = currentNavHref === item.href;
                 const Icon = item.icon;
                 return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      prefetch
-                      title={rail ? item.label : undefined}
-                      onPointerDown={() => router.prefetch(item.href)}
-                      onClick={(e) => {
-                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-                        if (item.href !== pathname) setOptimisticPath(item.href);
-                      }}
-                      aria-current={active ? "page" : undefined}
-                      className={`group relative flex items-center rounded-md transition-colors ${
-                        rail ? "h-10 justify-center" : "h-9 gap-3 px-2.5"
-                      } ${
-                        active
-                          ? "bg-white/[0.06] text-white"
-                          : "text-[#9A9AA3] hover:bg-white/[0.035] hover:text-white"
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch
+                    title={rail ? `${item.label} - ${item.hint}` : undefined}
+                    onPointerDown={() => router.prefetch(item.href)}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                      setDrawerOpen(false);
+                      if (item.href !== pathname) setOptimisticPath(item.href);
+                    }}
+                    aria-current={active ? "page" : undefined}
+                    className={`group relative flex items-center border-l-2 transition-colors ${
+                      rail ? "h-10 justify-center px-0" : "min-h-[44px] gap-2.5 px-2.5 py-1.5"
+                    } ${
+                      active
+                        ? "border-l-[#CCFF00] bg-[#1E1E21] text-[#F5F5F7]"
+                        : "border-l-transparent text-[#A1A1AA] hover:bg-[#161618] hover:text-[#F5F5F7]"
+                    }`}
+                  >
+                    <Icon
+                      className={`h-[15px] w-[15px] shrink-0 ${
+                        active ? "text-[#CCFF00]" : "text-[#71717A] group-hover:text-[#F5F5F7]"
                       }`}
-                    >
-                      {active && (
-                        <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-[#CCFF00]" />
-                      )}
-                      <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? "text-[#CCFF00]" : ""}`} />
-                      {!rail && (
-                        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{item.label}</span>
-                      )}
-                      <PendingSpinner className={rail ? "absolute right-1 top-1 h-3 w-3" : "h-3.5 w-3.5"} />
-                    </Link>
-                  </li>
+                    />
+                    {!rail && (
+                      <span className="grid min-w-0 flex-1 gap-0.5">
+                        <b className="truncate text-[12px] font-medium leading-tight">
+                          {item.label}
+                        </b>
+                        <small
+                          className={`truncate text-[10px] leading-tight ${
+                            active ? "text-[#A1A1AA]" : "text-[#71717A]"
+                          }`}
+                        >
+                          {item.hint}
+                        </small>
+                      </span>
+                    )}
+                    <PendingSpinner
+                      className={rail ? "absolute right-1 top-1 h-2.5 w-2.5" : "h-3 w-3"}
+                    />
+                  </Link>
                 );
               })}
-            </ul>
-          </div>
+            </nav>
+          </section>
         ))}
-      </nav>
-
-      <div className="shrink-0 border-t border-[#232325] p-3">
-        {!rail && (
-          <div className="mb-3">
-            <EpochBadge epochId={epochMeta.epochId} status={epochMeta.status} />
-          </div>
-        )}
-        <div className={`flex items-center gap-1.5 ${rail ? "flex-col" : ""}`}>
-          <a
-            href="https://x.com/NTI_Index"
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label="NTI on X"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#232325] text-[#8A8A93] transition-colors hover:border-[#3A3A3D] hover:text-white"
-          >
-            <XIcon className="h-3.5 w-3.5" />
-          </a>
-          <a
-            href={explorerUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label="Block explorer"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#232325] text-[#8A8A93] transition-colors hover:border-[#3A3A3D] hover:text-white"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-          {!rail && (
-            <Link
-              href="/"
-              className="ml-auto font-mono text-[10px] uppercase tracking-[0.16em] text-[#71717A] transition-colors hover:text-white"
-            >
-              Landing
-            </Link>
-          )}
-        </div>
-        {!rail && (
-          <div className="mt-3 flex items-center gap-2 font-mono text-[9.5px] uppercase tracking-[0.16em] text-[#52525B]">
-            <RobinhoodMark className="h-3 w-auto opacity-70" />
-            Chain {chainId}
-          </div>
-        )}
       </div>
+
+      {/* Bottom Docked Epoch + Network Footer */}
+      {!rail && (
+        <div className="shrink-0 space-y-2 border-t border-[#26262A] px-3 py-2.5">
+          <div
+            className="flex items-center justify-between gap-2 border border-[#26262A] bg-[#161618] px-2.5 py-1.5"
+            aria-label="Oracle epoch state"
+          >
+            <EpochBadge epochId={epochMeta.epochId} status={epochMeta.status} compact />
+            <span className="font-mono text-[8.5px] uppercase tracking-[0.08em] text-[#71717A]">
+              4H · 2/3
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between px-0.5 text-[#A1A1AA]">
+            <span className="inline-flex items-center gap-1.5 text-[#F5F5F7]">
+              <RobinhoodMark className="h-3 w-auto opacity-90" />
+              <span className="font-mono text-[9.5px] text-[#A1A1AA]">Chain {chainId}</span>
+            </span>
+            <span className="flex items-center gap-2.5 font-mono text-[9.5px] text-[#71717A]">
+              <a
+                href={explorerUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="transition-colors hover:text-[#F5F5F7]"
+              >
+                Explorer ↗
+              </a>
+              <a
+                href="https://x.com/NTI_Index"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1 transition-colors hover:text-[#F5F5F7]"
+              >
+                <XIcon className="h-2.5 w-2.5" />
+              </a>
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 
   return (
-    <div className="app-root min-h-screen bg-[#060607] text-[#F4F4F5]">
-      {/* Desktop sidebar */}
+    <div className="app-root min-h-screen bg-[#0D0D0E] text-[#F5F5F7]">
+      {/* Fixed Full-Viewport Left Sidebar */}
       <aside
-        className="fixed inset-y-0 left-0 z-40 hidden border-r border-[#232325] bg-[#08080A] transition-[width] duration-200 ease-out lg:block"
+        className="fixed bottom-0 left-0 top-0 z-40 hidden h-screen border-r border-[#26262A] bg-[#111113] transition-[width] duration-200 ease-out lg:block"
         style={{ width: collapsed ? SIDEBAR_RAIL : SIDEBAR_FULL }}
       >
         {renderSidebar(collapsed)}
@@ -368,28 +380,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           type="button"
           onClick={toggleCollapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute -right-3 top-[68px] z-50 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-[#2E2E31] bg-[#0C0C0D] text-[#8A8A93] transition-colors hover:border-[#CCFF00]/50 hover:text-white"
+          className="absolute -right-3 top-[54px] z-50 flex h-6 w-6 cursor-pointer items-center justify-center rounded-[2px] border border-[#3A3A40] bg-[#161618] text-[#A1A1AA] transition-colors hover:border-[#CCFF00] hover:text-[#F5F5F7]"
         >
           {collapsed ? <ChevronsRight className="h-3 w-3" /> : <ChevronsLeft className="h-3 w-3" />}
         </button>
       </aside>
 
-      {/* Mobile drawer */}
+      {/* Mobile Drawer */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             aria-label="Close menu"
             onClick={() => setDrawerOpen(false)}
-            className="absolute inset-0 cursor-pointer bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0 cursor-pointer bg-black/75 backdrop-blur-sm"
           />
-          <aside className="drawer-enter absolute inset-y-0 left-0 w-[284px] max-w-[86vw] border-r border-[#232325] bg-[#08080A] shadow-2xl">
+          <aside className="drawer-enter absolute inset-y-0 left-0 w-[264px] max-w-[86vw] border-r border-[#26262A] bg-[#0D0D0E] shadow-2xl">
             {renderSidebar(false)}
             <button
               type="button"
               onClick={() => setDrawerOpen(false)}
               aria-label="Close menu"
-              className="absolute right-3 top-3 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-[#232325] text-[#A1A1AA]"
+              className="absolute right-3 top-3 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-[2px] border border-[#3A3A40] text-[#F5F5F7]"
             >
               <X className="h-4 w-4" />
             </button>
@@ -397,19 +409,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
+      {/* Workspace Column */}
       <div
-        className="min-h-screen transition-[padding] duration-200 ease-out lg:pl-[var(--sb)]"
+        className="flex min-h-screen flex-col transition-[padding] duration-200 ease-out lg:pl-[var(--sb)]"
         style={{ ["--sb" as string]: `${collapsed ? SIDEBAR_RAIL : SIDEBAR_FULL}px` }}
       >
-        <header className="sticky top-0 z-30 border-b border-[#232325] bg-[#060607]/90 backdrop-blur-md">
-          <div className="mx-auto flex h-14 max-w-[1480px] items-center justify-between gap-3 px-4 sm:px-6">
+        {/* 52px Sticky Terminal Bar (aligned with sidebar header) */}
+        <header className="sticky top-0 z-30 border-b border-[#26262A] bg-[#111113]/95 backdrop-blur-sm">
+          <div className="flex h-[52px] items-center justify-between gap-4 px-4 sm:px-7">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 onClick={() => setDrawerOpen(true)}
                 aria-label="Open menu"
                 aria-expanded={drawerOpen}
-                className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[#232325] text-[#A1A1AA] lg:hidden"
+                className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[2px] border border-[#3A3A40] text-[#F5F5F7] lg:hidden"
               >
                 <Menu className="h-4 w-4" />
               </button>
@@ -417,16 +431,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <NtiBrandMark className="h-6 w-6" />
               </Link>
               {currentItem && (
-                <div className="hidden min-w-0 items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A] sm:flex">
-                  <currentItem.icon className="h-3.5 w-3.5 text-[#CCFF00]" />
-                  <span className="truncate text-[#D4D4D8]">{currentItem.label}</span>
-                </div>
+                <p className="hidden min-w-0 items-center gap-2 text-[12px] text-[#71717A] sm:flex">
+                  <span>{currentItem.group}</span>
+                  <span aria-hidden="true">/</span>
+                  <b className="truncate font-medium text-[#F5F5F7]">{currentItem.label}</b>
+                </p>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <div className="relative hidden md:block">
-                <div className="flex items-center gap-2 rounded-md border border-[#232325] bg-[#0C0C0D] px-2.5 py-1.5 focus-within:border-[#CCFF00]/60">
+                <div className="flex h-9 items-center gap-2 rounded-[2px] border border-[#26262A] bg-[#161618] px-2.5 focus-within:border-[#CCFF00]">
                   <Search className="h-3.5 w-3.5 text-[#71717A]" />
                   <input
                     ref={searchInputRef}
@@ -437,29 +452,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && results[0]) {
+                        if (results[0].href !== pathname) setOptimisticPath(results[0].href);
                         router.push(results[0].href);
                         setSearchFocused(false);
                       }
                     }}
                     placeholder="Search sectors, pages"
                     aria-label="Search sectors and pages"
-                    className="w-36 bg-transparent text-xs text-[#F4F4F5] placeholder-[#52525B] outline-none lg:w-52"
+                    className="w-36 bg-transparent text-xs text-[#F5F5F7] placeholder-[#71717A] outline-none lg:w-52"
                   />
-                  <kbd className="rounded border border-[#2E2E31] px-1.5 font-mono text-[10px] text-[#71717A]">
+                  <kbd className="rounded-[2px] border border-[#3A3A40] px-1.5 font-mono text-[9.5px] text-[#71717A]">
                     /
                   </kbd>
                 </div>
                 {searchFocused && results.length > 0 && (
-                  <div className="pop-enter absolute right-0 top-[calc(100%+6px)] z-50 w-72 overflow-hidden rounded-md border border-[#2E2E31] bg-[#0C0C0D] py-1 shadow-2xl">
+                  <div className="pop-enter absolute right-0 top-[calc(100%+6px)] z-50 w-72 overflow-hidden border border-[#3A3A40] bg-[#161618] py-1 shadow-2xl">
                     {results.map((r) => (
                       <button
                         key={`${r.kind}-${r.href}`}
                         type="button"
-                        onMouseDown={() => router.push(r.href)}
-                        className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2 text-left text-xs transition-colors hover:bg-[#151516]"
+                        onMouseDown={() => {
+                          if (r.href !== pathname) setOptimisticPath(r.href);
+                          router.push(r.href);
+                        }}
+                        className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2 text-left text-xs transition-colors hover:bg-[#1E1E21]"
                       >
-                        <span className="font-medium text-[#F4F4F5]">{r.label}</span>
-                        <span className="font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+                        <span className="font-medium text-[#F5F5F7]">{r.label}</span>
+                        <span className="font-mono text-[9.5px] uppercase tracking-wider text-[#71717A]">
                           {r.kind}
                         </span>
                       </button>
@@ -468,7 +487,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )}
               </div>
 
-              <div className="hidden sm:block lg:hidden xl:block">
+              <div className="hidden xl:block">
                 <EpochBadge epochId={epochMeta.epochId} status={epochMeta.status} compact />
               </div>
 
@@ -480,49 +499,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <LiveTickerBar narratives={sectors} epochId={epochMeta.epochId} />
         <TestnetBanner />
 
-        <div className="relative">
-          <main className="app-main relative mx-auto min-h-[70vh] w-full max-w-[1480px] px-4 pb-16 pt-8 sm:px-6">
-            {showSkeleton && optimisticPath && optimisticPath !== pathname ? (
-              <div className="tab-panel-enter">
-                <AppLoading />
-              </div>
-            ) : (
-              <div
-                className={`transition-[opacity,transform] duration-150 ease-out ${
-                  optimisticPath && optimisticPath !== pathname
-                    ? "translate-y-[4px] opacity-65"
-                    : "translate-y-0 opacity-100"
-                }`}
-              >
-                {children}
-              </div>
-            )}
-          </main>
-        </div>
+        <main className="app-main mx-auto w-full max-w-[1440px] flex-1 px-4 pb-14 pt-6 sm:px-7">
+          {optimisticPath && optimisticPath !== pathname ? (
+            <InstantRouteShell path={optimisticPath} />
+          ) : (
+            children
+          )}
+        </main>
 
-        <footer className="border-t border-[#232325]">
-          <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-3 px-4 py-4 font-mono text-[10px] uppercase tracking-[0.16em] text-[#71717A] sm:px-6">
-            <span className="inline-flex items-center gap-2">
-              <RobinhoodMark className="h-3.5 w-auto opacity-80" />
-              Robinhood Chain · {chainId}
-            </span>
+        <footer className="border-t border-[#26262A] bg-[#0D0D0E]">
+          <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-4 font-mono text-[10px] uppercase tracking-[0.1em] text-[#71717A] sm:px-7">
+            <span>Robinhood Chain · {chainId}</span>
             <span className="flex items-center gap-5">
-              <a
-                href={explorerUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="inline-flex items-center gap-1 hover:text-white"
-              >
-                Explorer <ExternalLink className="h-3 w-3" />
+              <a href={explorerUrl} target="_blank" rel="noreferrer noopener" className="hover:text-[#F5F5F7]">
+                Explorer ↗
               </a>
-              <a
-                href="https://x.com/NTI_Index"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="hover:text-white"
-              >
-                @NTI_Index
+              <a href="https://x.com/NTI_Index" target="_blank" rel="noreferrer noopener" className="hover:text-[#F5F5F7]">
+                @NTI_Index ↗
               </a>
+              <Link href="/" className="hover:text-[#F5F5F7]">
+                Landing
+              </Link>
             </span>
           </div>
         </footer>

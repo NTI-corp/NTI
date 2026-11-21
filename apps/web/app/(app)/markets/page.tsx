@@ -1,10 +1,12 @@
+import { Suspense } from "react";
 import { NARRATIVE_BY_ID, NARRATIVE_BY_SLUG } from "@nti/sdk";
 import { fetchMarketsData, fetchIndexesSnapshot } from "@/lib/supabase";
 import { MarketsListClient } from "@/components/MarketsListClient";
+import { InstantRouteShell } from "@/components/InstantRouteShell";
 
 export const dynamic = "force-dynamic";
 
-export default async function MarketsPage({
+async function MarketsContent({
   searchParams,
 }: {
   searchParams: Promise<{ narrative?: string }>;
@@ -27,11 +29,25 @@ export default async function MarketsPage({
   }
 
   return (
-    <MarketsListClient
-      markets={data.markets}
-      awaitingDeployment={data.awaitingDeployment}
-      initialNarrativeId={initialNarrativeId}
-      latestFinalEpoch={indexes.latestFinalEpoch?.epochId ?? null}
-    />
+    <div className="tab-panel-enter">
+      <MarketsListClient
+        markets={data.markets}
+        awaitingDeployment={data.awaitingDeployment}
+        initialNarrativeId={initialNarrativeId}
+        latestFinalEpoch={indexes.latestFinalEpoch?.epochId ?? null}
+      />
+    </div>
+  );
+}
+
+export default function MarketsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ narrative?: string }>;
+}) {
+  return (
+    <Suspense fallback={<InstantRouteShell path="/markets" />}>
+      <MarketsContent searchParams={searchParams} />
+    </Suspense>
   );
 }

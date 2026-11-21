@@ -1,8 +1,23 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AreaSeries,
+  ColorType,
+  CrosshairMode,
+  HistogramSeries,
+  LineSeries,
+  LineStyle,
+  LineType,
+  createChart,
+  type IChartApi,
+  type ISeriesApi,
+  type MouseEventParams,
+  type SeriesType,
+  type Time,
+  type UTCTimestamp,
+} from "lightweight-charts";
 import { formatBpsPercent, formatSignedBps } from "@/lib/format";
-import { SectorGlyph } from "@/components/ui/Visuals";
 import type { VFlag } from "@/lib/types";
 
 export interface IndexChartSeries {
@@ -26,499 +41,599 @@ interface IndexChartProps {
   subtitle?: string;
   showVelocityBars?: boolean;
   height?: number;
-  /** Fill the parent: the plot is measured and drawn 1:1 so it always uses the space it is given. */
   fill?: boolean;
 }
 
 export const NARRATIVE_CHART_COLORS = [
-  "#22C55E",
   "#CCFF00",
-  "#F4F4F5",
-  "#9AAA2E",
+  "#38BDF8",
+  "#F59E0B",
+  "#EF4444",
+  "#A78BFA",
+  "#4ADE80",
+  "#FB923C",
+  "#2DD4BF",
+  "#F472B6",
   "#A1A1AA",
-  "#E6FF6B",
-  "#71717A",
-  "#B6CC2B",
-  "#D4D4D8",
-  "#7B8A22",
 ] as const;
+
+const EPOCH_SECONDS = 14_400; // 4h cadence
+
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return `rgba(204, 255, 0, ${alpha})`;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function formatEpochTimeUtc(epochId: number): string {
+  const ms = epochId * EPOCH_SECONDS * 1000;
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return `E#${epochId}`;
+  const mon = d.toLocaleString("en-US", { month: "short", timeZone: "UTC" });
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const hr = String(d.getUTCHours()).padStart(2, "0");
+  return `${mon} ${day} · ${hr}:00 UTC`;
+}
+
+interface HoverData {
+  epochId: number;
+  rows: Array<{
+    id: number;
+    label: string;
+    color: string;
+    iBps: number;
+    vBps: number | null;
+    vFlag: VFlag;
+  }>;
+}
 
 export function IndexChart({
   series,
-  title = "Narrative Index Trajectory (I_n) & Velocity (V_n)",
-  subtitle = "Finalized 4h epochs · Hamilton bps (Σ I_n = 10,000)",
-  showVelocityBars = true,
-  height: heightProp = 290,
+  title = "Mindshare trajectory",
+  subtitle = "Finalized 4h epochs · Hamilton bps share",
+  showVelocityBars = false,
+  height: heightProp = 360,
   fill = false,
 }: IndexChartProps) {
-  const boxRef = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState({ w: 920, h: heightProp });
-  useEffect(() => {
-    if (!fill || !boxRef.current || typeof ResizeObserver === "undefined") return;
-    const el = boxRef.current;
-    const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) setBox({ w: Math.round(r.width), h: Math.max(180, Math.round(r.height)) });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [fill]);
-  const height = fill ? box.h : heightProp;
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [hiddenIds, setHiddenIds] = useState<Set<number>>(new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const lastEpochRef = useRef<number | null>(null);
+  const sizeRef = useRef({ w: 960, h: heightProp });
+  const posRef = useRef({
+    visible: false,
+    initialized: false,
+    curX: 16,
+    curY: 12,
+    targetX: 16,
+    targetY: 12,
+  });
 
-  const visibleSeries = useMemo(
-    () => series.filter((s) => !hiddenIds.has(s.id) && s.points.length > 0),
-    [series, hiddenIds],
+  const [hiddenIds, setHiddenIds] = useState<Set<number>>(new Set());
+  const [curved, setCurved] = useState(true);
+  const [hoverData, setHoverData] = useState<HoverData | null>(null);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+
+  const coloredSeries = useMemo(
+    () =>
+      series.map((s, idx) => ({
+        ...s,
+        color: NARRATIVE_CHART_COLORS[idx % NARRATIVE_CHART_COLORS.length]!,
+      })),
+    [series],
   );
 
-  const primary = visibleSeries[0] ?? series[0];
-  const epochs = useMemo(() => {
-    if (!primary) return [];
-    return primary.points.map((p) => p.epochId);
-  }, [primary]);
+  const visibleSeries = useMemo(
+    () => coloredSeries.filter((s) => !hiddenIds.has(s.id) && s.points.length > 0),
+    [coloredSeries, hiddenIds],
+  );
 
-  const width = fill ? Math.max(320, box.w) : 920;
-  const padLeft = 56;
-  const padRight = 20;
-  const padTop = 24;
-  const indexPlotH = showVelocityBars ? Math.round(height * 0.62) : height - 56;
-  const velGap = showVelocityBars ? 26 : 0;
-  const velPlotH = showVelocityBars ? height - indexPlotH - velGap - padTop - 28 : 0;
-  const plotW = width - padLeft - padRight;
-
-  const { minI, maxI } = useMemo(() => {
-    let min = Number.POSITIVE_INFINITY;
-    let max = 0;
-    for (const s of visibleSeries) {
+  // Lookup map: timestamp -> seriesId -> point
+  const pointLookup = useMemo(() => {
+    const byTime = new Map<
+      number,
+      Map<
+        number,
+        {
+          epochId: number;
+          iBps: number;
+          vBps: number | null;
+          vFlag: VFlag;
+          seriesId: number;
+        }
+      >
+    >();
+    for (const s of coloredSeries) {
       for (const p of s.points) {
         if (p.incomplete) continue;
-        if (p.iBps < min) min = p.iBps;
-        if (p.iBps > max) max = p.iBps;
+        const ts = p.epochId * EPOCH_SECONDS;
+        let inner = byTime.get(ts);
+        if (!inner) {
+          inner = new Map();
+          byTime.set(ts, inner);
+        }
+        inner.set(s.id, {
+          epochId: p.epochId,
+          iBps: p.iBps,
+          vBps: p.vBps,
+          vFlag: p.vFlag,
+          seriesId: p.seriesId,
+        });
       }
     }
-    if (!Number.isFinite(min) || max === 0) return { minI: 0, maxI: 2500 };
-    const pad = Math.max(120, Math.round((max - min) * 0.15));
-    return { minI: Math.max(0, min - pad), maxI: max + pad };
-  }, [visibleSeries]);
+    return byTime;
+  }, [coloredSeries]);
 
-  const maxAbsV = useMemo(() => {
-    if (!primary) return 2000;
-    let m = 1000;
-    for (const p of primary.points) {
-      if (p.vBps !== null) m = Math.max(m, Math.abs(p.vBps));
+  const latestEpochId = useMemo(() => {
+    let maxEp = 0;
+    for (const s of visibleSeries) {
+      const last = s.points[s.points.length - 1];
+      if (last && last.epochId > maxEp) maxEp = last.epochId;
     }
-    return m;
-  }, [primary]);
-
-  const xAt = (idx: number) => {
-    if (epochs.length <= 1) return padLeft + plotW / 2;
-    return padLeft + (idx / (epochs.length - 1)) * plotW;
-  };
-
-  const yAtI = (iBps: number) => {
-    const ratio = (iBps - minI) / Math.max(1, maxI - minI);
-    return padTop + indexPlotH - ratio * indexPlotH;
-  };
-
-  const velTop = padTop + indexPlotH + velGap;
-  const velMid = velTop + velPlotH / 2;
+    return maxEp || null;
+  }, [visibleSeries]);
 
   const toggleSeries = (id: number) => {
     setHiddenIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
-      } else if (series.length - next.size > 1) {
+      } else if (coloredSeries.length - next.size > 1) {
         next.add(id);
       }
       return next;
     });
   };
 
-  const markers = useMemo(() => {
-    if (!primary) return [];
-    const out: Array<{ idx: number; kind: "series_break" | "incomplete"; epochId: number }> = [];
-    for (let i = 0; i < primary.points.length; i++) {
-      const pt = primary.points[i]!;
-      const prev = i > 0 ? primary.points[i - 1] : null;
-      if (pt.incomplete) {
-        out.push({ idx: i, kind: "incomplete", epochId: pt.epochId });
-      } else if (pt.seriesBreak || (prev && prev.seriesId !== pt.seriesId)) {
-        out.push({ idx: i, kind: "series_break", epochId: pt.epochId });
+  const handleResetView = useCallback(() => {
+    chartRef.current?.timeScale().fitContent();
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const initialW = Math.max(320, el.clientWidth || 960);
+    const initialH = fill ? Math.max(220, el.clientHeight || heightProp) : heightProp;
+    sizeRef.current = { w: initialW, h: initialH };
+
+    const chart = createChart(el, {
+      width: initialW,
+      height: initialH,
+      layout: {
+        background: { type: ColorType.Solid, color: "#0D0D0E" },
+        textColor: "#71717A",
+        fontFamily:
+          "var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 10.5,
+        attributionLogo: false,
+      },
+      grid: {
+        vertLines: {
+          color: "rgba(38, 38, 42, 0.26)",
+          style: LineStyle.Dotted,
+        },
+        horzLines: {
+          color: "rgba(38, 38, 42, 0.42)",
+          style: LineStyle.Dotted,
+        },
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: {
+          color: "rgba(245, 245, 247, 0.34)",
+          width: 1,
+          style: LineStyle.Dashed,
+          labelBackgroundColor: "#1E1E21",
+        },
+        horzLine: {
+          color: "rgba(245, 245, 247, 0.22)",
+          width: 1,
+          style: LineStyle.Dashed,
+          labelBackgroundColor: "#1E1E21",
+        },
+      },
+      rightPriceScale: {
+        borderColor: "#1F1F23",
+        scaleMargins: {
+          top: 0.1,
+          bottom: showVelocityBars ? 0.22 : 0.1,
+        },
+        autoScale: true,
+      },
+      timeScale: {
+        borderColor: "#1F1F23",
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 1,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+      },
+      localization: {
+        priceFormatter: (price: number) => `${price.toFixed(1)}%`,
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true,
+      },
+    });
+
+    chartRef.current = chart;
+
+    const addedSeries: ISeriesApi<SeriesType>[] = [];
+    const primary = visibleSeries[0];
+    const lineType = curved ? LineType.Curved : LineType.Simple;
+
+    // Optional bottom velocity histogram for primary sector
+    if (showVelocityBars && primary) {
+      const velData = primary.points
+        .filter((p) => !p.incomplete && p.vBps !== null)
+        .map((p) => ({
+          time: (p.epochId * EPOCH_SECONDS) as UTCTimestamp,
+          value: p.vBps! / 100,
+          color:
+            p.vBps! >= 0
+              ? "rgba(74, 222, 128, 0.34)"
+              : "rgba(239, 68, 68, 0.34)",
+        }))
+        .sort((a, b) => (a.time as number) - (b.time as number));
+
+      // Deduplicate by timestamp
+      const dedupVel = velData.filter(
+        (pt, i, arr) => i === 0 || pt.time !== arr[i - 1]!.time,
+      );
+
+      if (dedupVel.length > 0) {
+        const hist = chart.addSeries(HistogramSeries, {
+          priceScaleId: "velocity",
+          priceLineVisible: false,
+          lastValueVisible: false,
+          base: 0,
+        });
+        chart.priceScale("velocity").applyOptions({
+          scaleMargins: { top: 0.84, bottom: 0 },
+          visible: false,
+        });
+        hist.setData(dedupVel);
+        addedSeries.push(hist);
       }
     }
-    return out;
-  }, [primary]);
 
-  const activeIdx =
-    hoveredIdx !== null && hoveredIdx < epochs.length ? hoveredIdx : epochs.length - 1;
+    // Add visible sector curves (primary as AreaSeries, others as LineSeries)
+    visibleSeries.forEach((s, idx) => {
+      const sorted = s.points
+        .filter((p) => !p.incomplete)
+        .map((p) => ({
+          time: (p.epochId * EPOCH_SECONDS) as UTCTimestamp,
+          value: Number((p.iBps / 100).toFixed(2)),
+        }))
+        .sort((a, b) => (a.time as number) - (b.time as number));
+
+      const dedup = sorted.filter(
+        (pt, i, arr) => i === 0 || pt.time !== arr[i - 1]!.time,
+      );
+      if (dedup.length === 0) return;
+
+      if (idx === 0) {
+        const area = chart.addSeries(AreaSeries, {
+          lineColor: s.color,
+          topColor: hexToRgba(s.color, 0.2),
+          bottomColor: hexToRgba(s.color, 0.0),
+          lineWidth: 2,
+          lineType,
+          crosshairMarkerVisible: true,
+          crosshairMarkerRadius: 4,
+          crosshairMarkerBorderColor: "#0D0D0E",
+          crosshairMarkerBorderWidth: 1.5,
+          crosshairMarkerBackgroundColor: s.color,
+          lastValueVisible: true,
+          priceLineVisible: true,
+          priceLineColor: hexToRgba(s.color, 0.45),
+          priceLineStyle: LineStyle.Dotted,
+        });
+        area.setData(dedup);
+        addedSeries.push(area);
+      } else {
+        const line = chart.addSeries(LineSeries, {
+          color: s.color,
+          lineWidth: 2,
+          lineType,
+          crosshairMarkerVisible: true,
+          crosshairMarkerRadius: 3.5,
+          crosshairMarkerBorderColor: "#0D0D0E",
+          crosshairMarkerBorderWidth: 1.5,
+          crosshairMarkerBackgroundColor: s.color,
+          lastValueVisible: true,
+          priceLineVisible: false,
+        });
+        line.setData(dedup);
+        addedSeries.push(line);
+      }
+    });
+
+    chart.timeScale().fitContent();
+
+    // GPU-composited silky lerp loop for floating tooltip (zero React re-renders per pixel)
+    let rafId = 0;
+    const tick = () => {
+      const p = posRef.current;
+      const tip = tooltipRef.current;
+      if (tip && p.visible) {
+        p.curX += (p.targetX - p.curX) * 0.24;
+        p.curY += (p.targetY - p.curY) * 0.24;
+        tip.style.transform = `translate3d(${p.curX.toFixed(1)}px, ${p.curY.toFixed(1)}px, 0)`;
+      }
+      rafId = window.requestAnimationFrame(tick);
+    };
+    rafId = window.requestAnimationFrame(tick);
+
+    // Smooth crosshair subscription: React state updates ONLY when hovered epoch changes
+    const onCrosshairMove = (param: MouseEventParams<Time>) => {
+      if (
+        !param.point ||
+        param.point.x < 0 ||
+        param.point.y < 0 ||
+        typeof param.time !== "number"
+      ) {
+        if (posRef.current.visible) {
+          posRef.current.visible = false;
+          posRef.current.initialized = false;
+          lastEpochRef.current = null;
+          setTooltipVisible(false);
+          setHoverData(null);
+        }
+        return;
+      }
+
+      const ts = param.time as number;
+      const bucket = pointLookup.get(ts);
+      if (!bucket) {
+        if (posRef.current.visible) {
+          posRef.current.visible = false;
+          posRef.current.initialized = false;
+          lastEpochRef.current = null;
+          setTooltipVisible(false);
+          setHoverData(null);
+        }
+        return;
+      }
+
+      const { w, h } = sizeRef.current;
+      const tipW = 240;
+      const tipH = 176;
+      const flipLeft = param.point.x > w - tipW - 76;
+      const nextX = flipLeft
+        ? Math.max(12, param.point.x - tipW - 18)
+        : Math.min(w - tipW - 60, param.point.x + 18);
+      const nextY = Math.max(12, Math.min(h - tipH - 36, param.point.y - 28));
+
+      const p = posRef.current;
+      p.targetX = nextX;
+      p.targetY = nextY;
+      if (!p.initialized) {
+        p.curX = nextX;
+        p.curY = nextY;
+        p.initialized = true;
+        if (tooltipRef.current) {
+          tooltipRef.current.style.transform = `translate3d(${nextX.toFixed(1)}px, ${nextY.toFixed(1)}px, 0)`;
+        }
+      }
+      if (!p.visible) {
+        p.visible = true;
+        setTooltipVisible(true);
+      }
+
+      const epochId = Math.round(ts / EPOCH_SECONDS);
+      if (lastEpochRef.current === epochId) return;
+      lastEpochRef.current = epochId;
+
+      const rows = visibleSeries
+        .map((s) => {
+          const pt = bucket.get(s.id);
+          if (!pt) return null;
+          return {
+            id: s.id,
+            label: s.label,
+            color: s.color,
+            iBps: pt.iBps,
+            vBps: pt.vBps,
+            vFlag: pt.vFlag,
+          };
+        })
+        .filter((r): r is NonNullable<typeof r> => r !== null)
+        .sort((a, b) => b.iBps - a.iBps);
+
+      if (rows.length > 0) {
+        setHoverData({ epochId, rows });
+      }
+    };
+
+    chart.subscribeCrosshairMove(onCrosshairMove);
+
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const w = Math.max(300, Math.round(entry.contentRect.width));
+      const h = fill
+        ? Math.max(220, Math.round(entry.contentRect.height))
+        : heightProp;
+      sizeRef.current = { w, h };
+      chart.applyOptions({ width: w, height: h });
+      chart.timeScale().fitContent();
+    });
+    ro.observe(el);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      ro.disconnect();
+      chart.unsubscribeCrosshairMove(onCrosshairMove);
+      chart.remove();
+      chartRef.current = null;
+      posRef.current.visible = false;
+      posRef.current.initialized = false;
+      lastEpochRef.current = null;
+      void addedSeries;
+    };
+  }, [visibleSeries, showVelocityBars, curved, fill, heightProp, pointLookup]);
+
+  const activeEpochDisplay = hoverData?.epochId ?? latestEpochId;
 
   return (
     <div
-      className={`rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 ${fill ? "flex h-full min-h-0 flex-col" : ""}`}
+      className={`border border-[#26262A] bg-[#161618] ${
+        fill ? "flex h-full min-h-0 flex-col" : ""
+      }`}
     >
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold tracking-tight text-[#F4F4F5]">
-            {title}
-          </h2>
-          <p className="mt-0.5 font-mono text-[11px] text-[#A1A1AA]">{subtitle}</p>
+      {/* Crisp Terminal Chart Header + Controls + Live Legend */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-[#1F1F23] bg-[#111113] px-4 py-2.5">
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2.5">
+            <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-[#F5F5F7]">
+              {title}
+            </h2>
+            {activeEpochDisplay && (
+              <span className="font-mono text-[10px] tabular-nums text-[#71717A]">
+                E#{activeEpochDisplay} · {formatEpochTimeUtc(activeEpochDisplay)}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-[11px] text-[#71717A]">{subtitle}</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          {series.map((s) => {
-            const hidden = hiddenIds.has(s.id);
-            const pt = s.points[activeIdx];
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => toggleSeries(s.id)}
-                className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono text-[11px] transition-opacity ${
-                  hidden
-                    ? "border-[#232325] text-[#71717A] opacity-45"
-                    : "border-[#232325] bg-[#131314] text-[#F4F4F5]"
-                }`}
-              >
-                <SectorGlyph id={s.id} className="h-3 w-3" />
-                <span>{s.label}</span>
-                {pt && !pt.incomplete && (
-                  <span className="text-[#A1A1AA] tabular-nums">
-                    {formatBpsPercent(pt.iBps, 1)}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          {/* Interactive Sector Legend */}
+          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1">
+            {coloredSeries.map((s) => {
+              const hidden = hiddenIds.has(s.id);
+              const hoveredRow = hoverData?.rows.find((r) => r.id === s.id);
+              const fallbackPt = s.points[s.points.length - 1];
+              const displayBps =
+                hoveredRow?.iBps ??
+                (fallbackPt && !fallbackPt.incomplete ? fallbackPt.iBps : null);
+
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => toggleSeries(s.id)}
+                  className={`inline-flex cursor-pointer items-center gap-1.5 text-[11px] transition-opacity ${
+                    hidden
+                      ? "text-[#52525B] line-through opacity-45"
+                      : "text-[#F5F5F7] hover:opacity-85"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="h-[2.5px] w-3 shrink-0"
+                    style={{ backgroundColor: s.color }}
+                  />
+                  <span className="font-medium">{s.label}</span>
+                  {displayBps !== null && (
+                    <span className="font-mono text-[10.5px] tabular-nums text-[#A1A1AA]">
+                      {formatBpsPercent(displayBps, 1)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Minimal Chart Controls */}
+          <div className="flex items-center gap-1 border-l border-[#1F1F23] pl-3">
+            <button
+              type="button"
+              onClick={() => setCurved((v) => !v)}
+              title="Toggle smooth curve vs linear"
+              className={`cursor-pointer border px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.08em] transition-colors ${
+                curved
+                  ? "border-[#3A3A40] bg-[#1E1E21] text-[#F5F5F7]"
+                  : "border-[#1F1F23] bg-transparent text-[#71717A] hover:text-[#F5F5F7]"
+              }`}
+            >
+              {curved ? "Smooth" : "Linear"}
+            </button>
+            <button
+              type="button"
+              onClick={handleResetView}
+              title="Reset zoom and fit all epochs"
+              className="cursor-pointer border border-[#1F1F23] bg-transparent px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.08em] text-[#71717A] transition-colors hover:border-[#3A3A40] hover:text-[#F5F5F7]"
+            >
+              Fit
+            </button>
+          </div>
         </div>
       </div>
 
-      {primary && primary.points[activeIdx] && (
-        <div className="mb-2 flex flex-wrap items-center gap-4 rounded-md border border-[#232325] bg-[#090909] px-3 py-1.5 font-mono text-[11px] tabular-nums">
-          <span className="text-[#A1A1AA]">
-            EPOCH <strong className="text-[#F4F4F5]">#{primary.points[activeIdx]!.epochId}</strong>
-          </span>
-          <span className="text-[#A1A1AA]">
-            SERIES <strong className="text-[#F4F4F5]">S{primary.points[activeIdx]!.seriesId}</strong>
-          </span>
-          {primary.points[activeIdx]!.incomplete ? (
-            <span className="text-[#F59E0B]">INCOMPLETE EPOCH · EXCLUDED FROM EMA</span>
-          ) : (
+      {/* TradingView Lightweight-Charts HTML5 Canvas Container */}
+      <div
+        className={`relative w-full bg-[#0D0D0E] ${
+          fill ? "min-h-0 flex-1 overflow-hidden" : ""
+        }`}
+      >
+        <div
+          ref={containerRef}
+          className="h-full w-full"
+          style={fill ? undefined : { height: `${heightProp}px` }}
+        />
+
+        {/* Floating Bloomberg Crosshair Tooltip (GPU-composited lerp) */}
+        <div
+          ref={tooltipRef}
+          className={`pointer-events-none absolute left-0 top-0 z-20 w-60 border border-[#3A3A40] bg-[#161618]/95 p-2.5 shadow-xl backdrop-blur-sm will-change-transform transition-opacity duration-150 ${
+            tooltipVisible && hoverData ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          {hoverData && (
             <>
-              <span className="text-[#A1A1AA]">
-                I_n{" "}
-                <strong className="text-[#F4F4F5]">
-                  {primary.points[activeIdx]!.iBps.toLocaleString("en-US")} bps (
-                  {formatBpsPercent(primary.points[activeIdx]!.iBps)})
-                </strong>
-              </span>
-              <span className="text-[#A1A1AA]">
-                V_n{" "}
-                <strong
-                  className={
-                    primary.points[activeIdx]!.vBps === null
-                      ? "text-[#F59E0B]"
-                      : (primary.points[activeIdx]!.vBps ?? 0) >= 0
-                        ? "text-[#22C55E]"
-                        : "text-[#EF4444]"
-                  }
-                >
-                  {formatSignedBps(
-                    primary.points[activeIdx]!.vBps,
-                    primary.points[activeIdx]!.vFlag,
-                  )}
-                </strong>
-              </span>
+              <div className="mb-1.5 flex items-center justify-between border-b border-[#1F1F23] pb-1 font-mono text-[9.5px] uppercase tracking-[0.08em] text-[#71717A]">
+                <span>Epoch #{hoverData.epochId}</span>
+                <span>{formatEpochTimeUtc(hoverData.epochId)}</span>
+              </div>
+              <div className="space-y-1 font-mono text-[10.5px] tabular-nums">
+                {hoverData.rows.map((row) => (
+                  <div
+                    key={row.id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5 text-[#F5F5F7]">
+                      <span
+                        className="h-[2.5px] w-2.5 shrink-0"
+                        style={{ backgroundColor: row.color }}
+                      />
+                      <span className="truncate font-sans text-[11px]">
+                        {row.label}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="text-[#F5F5F7]">
+                        {formatBpsPercent(row.iBps, 2)}
+                      </span>
+                      {row.vBps !== null && (
+                        <span
+                          className={`text-[9.5px] ${
+                            row.vBps >= 0 ? "text-[#4ADE80]" : "text-[#EF4444]"
+                          }`}
+                        >
+                          {formatSignedBps(row.vBps, row.vFlag)}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </>
           )}
         </div>
-      )}
-
-      <div ref={boxRef} className={`w-full ${fill ? "min-h-0 flex-1 overflow-hidden" : "overflow-x-auto"}`}>
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className={`select-none ${fill ? "block h-full w-full" : "h-auto w-full min-w-[540px]"}`}
-          role="img"
-          aria-label={title}
-          onMouseLeave={() => setHoveredIdx(null)}
-        >
-          <defs>
-            <pattern
-              id="incompleteHatch"
-              width="6"
-              height="6"
-              patternTransform="rotate(45 0 0)"
-              patternUnits="userSpaceOnUse"
-            >
-              <line x1="0" y1="0" x2="0" y2="6" stroke="#F59E0B" strokeOpacity="0.35" strokeWidth="2" />
-            </pattern>
-          </defs>
-
-          {[0, 0.25, 0.5, 0.75, 1].map((t) => {
-            const val = Math.round(minI + t * (maxI - minI));
-            const y = yAtI(val);
-            return (
-              <g key={t}>
-                <line
-                  x1={padLeft}
-                  x2={width - padRight}
-                  y1={y}
-                  y2={y}
-                  stroke="#232325"
-                  strokeWidth="1"
-                />
-                <text
-                  x={padLeft - 8}
-                  y={y + 3}
-                  textAnchor="end"
-                  fill="#71717A"
-                  fontSize="10"
-                  fontFamily="var(--font-ibm-plex-mono), monospace"
-                >
-                  {(val / 100).toFixed(1)}%
-                </text>
-              </g>
-            );
-          })}
-
-          {markers.map((m) => {
-            const cx = xAt(m.idx);
-            if (m.kind === "incomplete") {
-              const colW = epochs.length > 1 ? Math.max(14, plotW / epochs.length) : 20;
-              return (
-                <g key={`inc-${m.epochId}`}>
-                  <rect
-                    x={cx - colW / 2}
-                    y={padTop}
-                    width={colW}
-                    height={indexPlotH}
-                    fill="url(#incompleteHatch)"
-                  />
-                  <text
-                    x={cx}
-                    y={padTop + 11}
-                    textAnchor="middle"
-                    fill="#F59E0B"
-                    fontSize="9"
-                    fontFamily="var(--font-jetbrains-mono), monospace"
-                  >
-                    INCOMPLETE
-                  </text>
-                </g>
-              );
-            }
-            return (
-              <g key={`brk-${m.epochId}`}>
-                <line
-                  x1={cx}
-                  x2={cx}
-                  y1={padTop}
-                  y2={padTop + indexPlotH}
-                  stroke="#CCFF00"
-                  strokeDasharray="3 3"
-                  strokeWidth="1.25"
-                />
-                <rect
-                  x={cx - 34}
-                  y={padTop - 16}
-                  width="68"
-                  height="14"
-                  rx="2"
-                  fill="#0E0E0F"
-                  stroke="#CCFF00"
-                  strokeOpacity="0.6"
-                />
-                <text
-                  x={cx}
-                  y={padTop - 6}
-                  textAnchor="middle"
-                  fill="#CCFF00"
-                  fontSize="8.5"
-                  fontFamily="var(--font-ibm-plex-mono), monospace"
-                >
-                  NEW SERIES
-                </text>
-              </g>
-            );
-          })}
-
-          {visibleSeries.map((s) => {
-            const segments: string[] = [];
-            let current: string[] = [];
-
-            s.points.forEach((p, idx) => {
-              const prev = idx > 0 ? s.points[idx - 1] : null;
-              const isBreak = p.seriesBreak || (prev && prev.seriesId !== p.seriesId);
-              if (p.incomplete) {
-                if (current.length > 0) {
-                  segments.push(current.join(" "));
-                  current = [];
-                }
-                return;
-              }
-              if (isBreak && current.length > 0) {
-                segments.push(current.join(" "));
-                current = [];
-              }
-              current.push(`${current.length === 0 ? "M" : "L"} ${xAt(idx).toFixed(1)} ${yAtI(p.iBps).toFixed(1)}`);
-            });
-            if (current.length > 0) segments.push(current.join(" "));
-
-            const baseY = padTop + indexPlotH;
-            const isPrimary = primary && s.id === primary.id;
-            return (
-              <g key={s.id}>
-                {isPrimary && (
-                  <defs>
-                    <linearGradient id={`area-${s.id}`} x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor={s.color} stopOpacity="0.22" />
-                      <stop offset="100%" stopColor={s.color} stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                )}
-                {isPrimary &&
-                  segments.map((d, segIdx) => {
-                    const nums = d.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
-                    if (nums.length < 4) return null;
-                    const x0 = nums[0]!;
-                    const x1 = nums[nums.length - 2]!;
-                    return (
-                      <path
-                        key={`area-${segIdx}`}
-                        d={`${d} L ${x1} ${baseY} L ${x0} ${baseY} Z`}
-                        fill={`url(#area-${s.id})`}
-                      />
-                    );
-                  })}
-                {segments.map((d, segIdx) => (
-                  <path
-                    key={segIdx}
-                    d={d}
-                    fill="none"
-                    stroke={s.color}
-                    strokeWidth={visibleSeries.length === 1 ? 2.4 : isPrimary ? 2.4 : 1.7}
-                    strokeLinejoin="round"
-                  />
-                ))}
-                {s.points[activeIdx] && !s.points[activeIdx]!.incomplete && (
-                  <line
-                    x1={xAt(activeIdx)}
-                    x2={xAt(activeIdx)}
-                    y1={yAtI(s.points[activeIdx]!.iBps) - 7}
-                    y2={yAtI(s.points[activeIdx]!.iBps) + 7}
-                    stroke={s.color}
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                  />
-                )}
-              </g>
-            );
-          })}
-
-          {showVelocityBars && primary && (
-            <g>
-              <line
-                x1={padLeft}
-                x2={width - padRight}
-                y1={velMid}
-                y2={velMid}
-                stroke="#3A3A3D"
-                strokeWidth="1"
-              />
-              <text
-                x={padLeft - 8}
-                y={velMid + 3}
-                textAnchor="end"
-                fill="#71717A"
-                fontSize="9"
-                fontFamily="var(--font-ibm-plex-mono), monospace"
-              >
-                V_n 0
-              </text>
-
-              {primary.points.map((p, idx) => {
-                const cx = xAt(idx);
-                const barW = Math.max(6, Math.min(20, (plotW / Math.max(1, epochs.length)) * 0.55));
-                if (p.vBps === null) {
-                  if (p.vFlag === "too_small") {
-                    return (
-                      <text
-                        key={p.epochId}
-                        x={cx}
-                        y={velMid - 4}
-                        textAnchor="middle"
-                        fill="#F59E0B"
-                        fontSize="7.5"
-                        fontFamily="var(--font-ibm-plex-mono), monospace"
-                      >
-                        too small
-                      </text>
-                    );
-                  }
-                  return null;
-                }
-                const barH = Math.max(2, (Math.abs(p.vBps) / maxAbsV) * (velPlotH / 2 - 4));
-                const isUp = p.vBps >= 0;
-                return (
-                  <rect
-                    key={p.epochId}
-                    x={cx - barW / 2}
-                    y={isUp ? velMid - barH : velMid}
-                    width={barW}
-                    height={barH}
-                    rx="1"
-                    fill={isUp ? "#22C55E" : "#EF4444"}
-                    fillOpacity={idx === activeIdx ? 0.95 : 0.6}
-                  />
-                );
-              })}
-            </g>
-          )}
-
-          {epochs.map((ep, idx) => {
-            const cx = xAt(idx);
-            const showLabel =
-              epochs.length <= 10 || idx % Math.ceil(epochs.length / 8) === 0 || idx === epochs.length - 1;
-            const hitW = epochs.length > 1 ? plotW / (epochs.length - 1) : plotW;
-            return (
-              <g key={ep}>
-                {idx === activeIdx && (
-                  <line
-                    x1={cx}
-                    x2={cx}
-                    y1={padTop}
-                    y2={height - 20}
-                    stroke="#F4F4F5"
-                    strokeOpacity="0.2"
-                    strokeDasharray="2 2"
-                  />
-                )}
-                {showLabel && (
-                  <text
-                    x={cx}
-                    y={height - 6}
-                    textAnchor="middle"
-                    fill="#71717A"
-                    fontSize="9.5"
-                    fontFamily="var(--font-ibm-plex-mono), monospace"
-                  >
-                    E{ep}
-                  </text>
-                )}
-                <rect
-                  x={cx - hitW / 2}
-                  y={padTop}
-                  width={hitW}
-                  height={height - padTop - 16}
-                  fill="transparent"
-                  className="cursor-crosshair"
-                  onMouseEnter={() => setHoveredIdx(idx)}
-                />
-              </g>
-            );
-          })}
-        </svg>
       </div>
     </div>
   );

@@ -218,9 +218,9 @@ export function WalletButton() {
             setError(null);
             setModalOpen(true);
           }}
-          className="inline-flex min-h-[34px] cursor-pointer items-center whitespace-nowrap rounded-md bg-[#CCFF00] px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-black transition-colors hover:bg-[#B8E600]"
+          className="inline-flex h-[36px] cursor-pointer items-center whitespace-nowrap rounded-[2px] border border-[#3A3A40] bg-[#161618] px-3.5 font-mono text-[10px] font-medium uppercase tracking-[0.06em] text-[#F5F5F7] transition-colors hover:border-[#CCFF00] hover:bg-[#1E1E21]"
         >
-          <span>{isConnecting ? "Connecting..." : "Connect Wallet"}</span>
+          <span>{isConnecting ? "Connecting..." : "Connect wallet"}</span>
         </button>
       ) : (
         <>

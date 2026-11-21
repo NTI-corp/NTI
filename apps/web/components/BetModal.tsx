@@ -187,13 +187,13 @@ export function BetModal({
   };
 
   const content = (
-    <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 shadow-2xl">
-      <div className="mb-3 flex items-center justify-between border-b border-[#232325] pb-3">
+    <div className="border border-[#26262A] bg-[#161618] p-4 shadow-2xl">
+      <div className="mb-3 flex items-center justify-between border-b border-[#26262A] pb-3">
         <div>
-          <h3 className="text-sm font-semibold text-[#F4F4F5]">
+          <h3 className="text-sm font-semibold text-[#F5F5F7]">
             Place Parimutuel Bet · Market #{market.marketId}
           </h3>
-          <p className="mt-0.5 font-mono text-[11px] text-[#A1A1AA]">
+          <p className="mt-0.5 font-mono text-[11px] text-[#71717A]">
             {market.narrativeALabel} vs {market.narrativeBLabel} · {market.horizonLabel}
           </p>
         </div>
@@ -201,7 +201,7 @@ export function BetModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded border border-[#232325] bg-[#131314] px-2 py-1 font-mono text-[11px] text-[#A1A1AA] hover:text-[#F4F4F5]"
+            className="border border-[#26262A] bg-[#111113] px-2 py-1 font-mono text-[11px] text-[#71717A] hover:text-[#F5F5F7]"
           >
             ESC
           </button>
@@ -209,20 +209,20 @@ export function BetModal({
       </div>
 
       {wrongChain && (
-        <div className="mb-3 rounded-md border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 font-mono text-[11px] text-[#F59E0B]">
+        <div className="mb-3 border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 font-mono text-[11px] text-[#F59E0B]">
           Wallet will auto-switch to Chain {targetChainId} when submitting bet.
         </div>
       )}
 
       {/* Cutoff status */}
       {cutoffPassed ? (
-        <div className="mb-3 rounded-md border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 font-mono text-[11px] text-[#F59E0B]">
+        <div className="mb-3 border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-3 py-2 font-mono text-[11px] text-[#F59E0B]">
           BETTING LOCKED · Pre-settlement cutoff has passed. New bets are rejected by contract.
         </div>
       ) : (
-        <div className="mb-3 flex items-center justify-between rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-[11px]">
-          <span className="text-[#A1A1AA]">BETTING CUTOFF IN</span>
-          <span className="font-semibold text-[#22C55E] tabular-nums">
+        <div className="mb-3 flex items-center justify-between border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-[11px]">
+          <span className="text-[#71717A]">BETTING CUTOFF IN</span>
+          <span className="font-semibold text-[#4ADE80] tabular-nums">
             {formatCountdown(market.cutoffAt)}
           </span>
         </div>
@@ -233,19 +233,19 @@ export function BetModal({
         <button
           type="button"
           onClick={() => setSide(0)}
-          className={`rounded-md border px-3 py-2.5 text-left transition-colors ${
+          className={`border px-3 py-2.5 text-left transition-colors ${
             side === 0
-              ? "border-[#22C55E]/60 bg-[#22C55E]/12 text-[#F4F4F5]"
-              : "border-[#232325] bg-[#090909] text-[#A1A1AA] hover:border-[#3A3A3D]"
+              ? "border-[#4ADE80]/60 bg-[#4ADE80]/12 text-[#F5F5F7]"
+              : "border-[#26262A] bg-[#0D0D0E] text-[#71717A] hover:border-[#3A3A40]"
           }`}
         >
-          <div className="font-mono text-[10px] font-medium text-[#22C55E]">
+          <div className="font-mono text-[10px] font-medium text-[#4ADE80]">
             SIDE A OUTPERFORMS
           </div>
-          <div className="mt-0.5 text-xs font-semibold text-[#F4F4F5]">
+          <div className="mt-0.5 text-xs font-semibold text-[#F5F5F7]">
             {market.narrativeALabel}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-[#A1A1AA] tabular-nums">
+          <div className="mt-1 font-mono text-[10px] text-[#71717A] tabular-nums">
             Pool: {formatEth(market.poolAEth, 4)}
           </div>
         </button>
@@ -253,19 +253,19 @@ export function BetModal({
         <button
           type="button"
           onClick={() => setSide(1)}
-          className={`rounded-md border px-3 py-2.5 text-left transition-colors ${
+          className={`border px-3 py-2.5 text-left transition-colors ${
             side === 1
-              ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
-              : "border-[#232325] bg-[#090909] text-[#A1A1AA] hover:border-[#3A3A3D]"
+              ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F5F5F7]"
+              : "border-[#26262A] bg-[#0D0D0E] text-[#71717A] hover:border-[#3A3A40]"
           }`}
         >
           <div className="font-mono text-[10px] font-medium text-[#CCFF00]">
             SIDE B OUTPERFORMS
           </div>
-          <div className="mt-0.5 text-xs font-semibold text-[#F4F4F5]">
+          <div className="mt-0.5 text-xs font-semibold text-[#F5F5F7]">
             {market.narrativeBLabel}
           </div>
-          <div className="mt-1 font-mono text-[10px] text-[#A1A1AA] tabular-nums">
+          <div className="mt-1 font-mono text-[10px] text-[#71717A] tabular-nums">
             Pool: {formatEth(market.poolBEth, 4)}
           </div>
         </button>
@@ -273,7 +273,7 @@ export function BetModal({
 
       {/* Amount Input */}
       <div className="mt-3">
-        <div className="flex items-center justify-between font-mono text-[11px] text-[#A1A1AA]">
+        <div className="flex items-center justify-between font-mono text-[11px] text-[#71717A]">
           <label htmlFor={`bet-amt-${market.marketId}`}>GROSS STAKE (ETH)</label>
           <span className="tabular-nums">
             {isConnected
@@ -290,7 +290,7 @@ export function BetModal({
             value={amountInput}
             onChange={(e) => setAmountInput(e.target.value)}
             disabled={cutoffPassed}
-            className="w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#CCFF00] focus:outline-none disabled:opacity-50"
+            className="w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-sm text-[#F5F5F7] tabular-nums focus:border-[#CCFF00] focus:outline-none disabled:opacity-50"
           />
           {["0.005", "0.02", "0.1"].map((preset) => (
             <button
@@ -298,7 +298,7 @@ export function BetModal({
               type="button"
               disabled={cutoffPassed}
               onClick={() => setAmountInput(preset)}
-              className="rounded-md border border-[#232325] bg-[#131314] px-2.5 py-2 font-mono text-xs text-[#A1A1AA] hover:text-[#F4F4F5] disabled:opacity-40"
+              className="border border-[#26262A] bg-[#111113] px-2.5 py-2 font-mono text-xs text-[#71717A] hover:text-[#F5F5F7] disabled:opacity-40"
             >
               {preset}
             </button>
@@ -307,37 +307,37 @@ export function BetModal({
       </div>
 
       {/* Fee, Discount & Parimutuel Breakdown */}
-      <div className="mt-3 space-y-1.5 rounded-md border border-[#232325] bg-[#090909] p-3 font-mono text-[11px] tabular-nums">
+      <div className="mt-3 space-y-1.5 border border-[#26262A] bg-[#0D0D0E] p-3 font-mono text-[11px] tabular-nums">
         <div className="flex justify-between">
           <span className="text-[#71717A]">Gross stake</span>
-          <span className="text-[#F4F4F5]">{formatEth(grossEth, 4)}</span>
+          <span className="text-[#F5F5F7]">{formatEth(grossEth, 4)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-[#71717A]">
             Protocol fee (0.10% base · {(discountBps / 100).toFixed(0)}% staker discount)
           </span>
-          <span className="text-[#F4F4F5]">
+          <span className="text-[#F5F5F7]">
             {formatEth(math.feeEth, 5)} ({(math.effectiveFeeBps / 100).toFixed(3)}%)
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-[#71717A]">Net pool stake</span>
-          <span className="text-[#F4F4F5]">{formatEth(math.netEth, 4)}</span>
+          <span className="text-[#F5F5F7]">{formatEth(math.netEth, 4)}</span>
         </div>
-        <div className="flex justify-between border-t border-[#232325] pt-1.5">
+        <div className="flex justify-between border-t border-[#26262A] pt-1.5">
           <span className="text-[#71717A]">Est. parimutuel payout (if side wins)</span>
-          <span className="font-semibold text-[#22C55E]">
+          <span className="font-semibold text-[#4ADE80]">
             {formatEth(math.estPayout, 4)} ({math.impliedMultiple.toFixed(2)}x)
           </span>
         </div>
         {gasEstimate && (
-          <div className="flex justify-between border-t border-[#232325] pt-1.5">
+          <div className="flex justify-between border-t border-[#26262A] pt-1.5">
             <span className="text-[#71717A]">
               Est. gas ({gasEstimate.gasPriceGwei} gwei · {gasEstimate.gasLimit} units)
             </span>
             <span
               className={
-                gasEstimate.elevatedFeeWarning ? "text-[#F59E0B]" : "text-[#A1A1AA]"
+                gasEstimate.elevatedFeeWarning ? "text-[#F59E0B]" : "text-[#71717A]"
               }
             >
               ~{gasEstimate.estimatedCostEth} ETH
@@ -353,7 +353,7 @@ export function BetModal({
       )}
 
       {validationError && (
-        <div className="mt-2.5 rounded-md border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#F87171]">
+        <div className="mt-2.5 border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
           {validationError}
         </div>
       )}
@@ -366,7 +366,7 @@ export function BetModal({
         type="button"
         disabled={cutoffPassed || isBusy || math.exceedsCap || insufficientBalance}
         onClick={() => void handleSubmit()}
-        className="mt-3 w-full rounded-md bg-[#22C55E] py-2.5 font-mono text-xs font-semibold text-[#090909] transition-colors hover:bg-[#16A34A] disabled:cursor-not-allowed disabled:opacity-45"
+        className="mt-3 w-full bg-[#4ADE80] py-2.5 font-mono text-xs font-semibold text-[#0D0D0E] transition-colors hover:bg-[#22C55E] disabled:cursor-not-allowed disabled:opacity-45"
       >
         {cutoffPassed
           ? "BETTING CLOSED"
@@ -387,11 +387,11 @@ export function BetModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      className="modal-backdrop-enter fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-md">{content}</div>
+      <div className="modal-card-enter w-full max-w-md">{content}</div>
     </div>
   );
 }

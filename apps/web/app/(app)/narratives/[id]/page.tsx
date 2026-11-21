@@ -31,18 +31,18 @@ export default async function NarrativeDetailPage({
   const matchingBasket = basketsData.baskets.find((b) => b.narrativeId === meta.id) ?? null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {data.awaitingFirstEpoch && <AwaitingEpochBanner />}
 
       {/* Breadcrumb & Narrative Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#232325] pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#26262A] pb-4">
         <div>
           <div className="flex items-center gap-2 font-mono text-[11px] text-[#71717A]">
-            <Link href="/terminal" className="hover:text-[#F4F4F5]">
+            <Link href="/terminal" className="hover:text-[#F5F5F7]">
               TERMINAL
             </Link>
             <span>/</span>
-            <span className="text-[#A1A1AA]">NARRATIVE #{meta.id}</span>
+            <span className="text-[#71717A]">NARRATIVE #{meta.id}</span>
           </div>
           <h1 className="mt-1.5 flex items-center gap-3">
             <span
@@ -59,13 +59,13 @@ export default async function NarrativeDetailPage({
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/markets?narrative=${meta.id}`}
-            className="rounded-md border border-[#22C55E]/40 bg-[#22C55E]/10 px-3 py-2 font-mono text-xs font-medium text-[#22C55E] transition-colors hover:bg-[#22C55E]/20"
+            className="border border-[#4ADE80]/40 bg-[#4ADE80]/10 px-3 py-2 font-mono text-xs font-medium text-[#4ADE80] transition-colors hover:bg-[#4ADE80]/20"
           >
             TRADE PAIR MARKETS →
           </Link>
           <Link
             href={matchingBasket ? `/baskets/${matchingBasket.id}` : "/baskets"}
-            className="rounded-md border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-2 font-mono text-xs font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22"
+            className="border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-2 font-mono text-xs font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22"
           >
             {matchingBasket ? `OPEN ${matchingBasket.symbol} VAULT →` : "EXPLORE BASKETS →"}
           </Link>
@@ -78,9 +78,9 @@ export default async function NarrativeDetailPage({
           <Link
             key={n.id}
             href={`/narratives/${n.id}`}
-            className={`rounded border px-2.5 py-1 font-mono text-[11px] transition-colors ${
+            className={`border px-2.5 py-1 font-mono text-[11px] transition-colors ${
               n.id === meta.id
-                ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
+                ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F5F5F7]"
                 : "border-[#1B2028] bg-[#0E1117] text-[#8A8A93] hover:border-[#2A3342] hover:text-[#EDF1F7]"
             }`}
           >
@@ -91,7 +91,7 @@ export default async function NarrativeDetailPage({
 
       {/* KPI Strip */}
       <div className="grid grid-cols-2 gap-3 font-mono tabular-nums sm:grid-cols-4">
-        <div className="panel-surface rounded-md p-3.5">
+        <div className="panel-surface p-3.5">
           <div className="text-[10px] text-[#556173]">OFFICIAL INDEX I_n</div>
           <div className="mt-1 text-xl font-semibold text-[#EDF1F7]">
             {latest ? formatBpsPercent(latest.iBps) : "—"}
@@ -101,7 +101,7 @@ export default async function NarrativeDetailPage({
           </div>
         </div>
 
-        <div className="panel-surface rounded-md p-3.5">
+        <div className="panel-surface p-3.5">
           <div className="text-[10px] text-[#556173]">24H VELOCITY V_n</div>
           <div
             className={`mt-1 text-xl font-semibold ${
@@ -117,7 +117,7 @@ export default async function NarrativeDetailPage({
           <div className="text-[11px] text-[#8A8A93]">6-epoch lag (24h)</div>
         </div>
 
-        <div className="panel-surface rounded-md p-3.5">
+        <div className="panel-surface p-3.5">
           <div className="text-[10px] text-[#556173]">RAW MINDSHARE M_n</div>
           <div className="mt-1 text-xl font-semibold text-[#CCFF00]">
             {latest ? formatBpsPercent(latest.mBps) : "—"}
@@ -125,7 +125,7 @@ export default async function NarrativeDetailPage({
           <div className="text-[11px] text-[#8A8A93]">Before α = 0.3 EMA</div>
         </div>
 
-        <div className="panel-surface rounded-md p-3.5">
+        <div className="panel-surface p-3.5">
           <div className="text-[10px] text-[#556173]">24H WEIGHTED POSTS</div>
           <div className="mt-1 text-xl font-semibold text-[#EDF1F7]">
             {latest ? Math.round(latest.weightedPosts).toLocaleString("en-US") : "—"}
@@ -160,7 +160,7 @@ export default async function NarrativeDetailPage({
           />
         </div>
 
-        <div className="panel-surface rounded-md lg:col-span-5">
+        <div className="panel-surface lg:col-span-5">
           <div className="border-b border-[#1B2028] px-4 py-3">
             <h3 className="font-display text-sm font-semibold text-[#EDF1F7]">
               Related On-Chain Tokens
