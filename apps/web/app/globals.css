@@ -216,7 +216,7 @@ body {
 /* ---------- Motion: page entrance, staggered sections, panel hover ---------- */
 @keyframes page-in {
   from {
-    opacity: 0;
+    opacity: 0.8; /* never fully transparent: a throttled or paused tab must not look blank */
     transform: translateY(10px);
   }
   to {

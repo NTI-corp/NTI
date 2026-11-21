@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { Donut } from "@/components/ui/Donut";
 import { fetchBasketsData } from "@/lib/supabase";
 import { formatBpsPercent, formatEth, formatRelativeTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+const HOLDING_COLORS = ["#CCFF00", "#38BDF8", "#F59E0B", "#A78BFA", "#EC4899", "#34D399"] as const;
 
 export default async function BasketsPage() {
   const { baskets, awaitingDeployment } = await fetchBasketsData();
@@ -73,29 +76,44 @@ export default async function BasketsPage() {
                     </div>
                   </div>
 
-                  {/* Composition Bars */}
+                  {/* Composition: donut + legend */}
+                  {b.holdings.length > 0 && (
+                    <div className="mt-3 flex items-center gap-4 rounded-md border border-[#232325] bg-[#090909] p-3">
+                      <Donut
+                        size={104}
+                        thickness={14}
+                        centerLabel="Weights"
+                        centerValue={`${b.holdings.length}`}
+                        slices={b.holdings.map((h, i) => ({
+                          id: h.address,
+                          label: `$${h.symbol}`,
+                          value: h.weightBps,
+                          color: HOLDING_COLORS[i % HOLDING_COLORS.length]!,
+                        }))}
+                      />
+                      <ul className="min-w-0 flex-1 space-y-1.5 font-mono text-[11px] tabular-nums">
+                        {b.holdings.map((h, i) => (
+                          <li key={h.address} className="flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-1.5 text-[#E4E4E7]">
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-sm"
+                                style={{ background: HOLDING_COLORS[i % HOLDING_COLORS.length] }}
+                              />
+                              <span className="truncate">${h.symbol}</span>
+                            </span>
+                            <span className="text-[#A1A1AA]">{formatBpsPercent(h.weightBps, 0)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <div className="mt-3 space-y-1.5">
                     {b.holdings.length === 0 ? (
                       <div className="rounded border border-[#232325] bg-[#090909] px-2.5 py-2 text-[11px] text-[#71717A]">
                         Constituent allocation pending governance setup
                       </div>
                     ) : (
-                      b.holdings.map((h) => (
-                        <div key={h.address} className="font-mono text-[11px] tabular-nums">
-                          <div className="flex justify-between">
-                            <span className="text-[#F4F4F5]">${h.symbol}</span>
-                            <span className="text-[#A1A1AA]">
-                              {formatBpsPercent(h.weightBps, 0)}
-                            </span>
-                          </div>
-                          <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-[#232325]">
-                            <div
-                              className="h-full rounded-full bg-[#CCFF00]"
-                              style={{ width: `${Math.min(100, h.weightBps / 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))
+                      null
                     )}
                   </div>
                 </div>

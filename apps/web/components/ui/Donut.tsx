@@ -57,10 +57,16 @@ export function Donut({ slices, size = 220, thickness = 26, centerLabel, centerV
         })}
       </svg>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#71717A]">
+        <span
+          className="font-mono uppercase tracking-[0.16em] text-[#71717A]"
+          style={{ fontSize: size < 140 ? 8 : 10 }}
+        >
           {active ? active.label : centerLabel}
         </span>
-        <span className="mt-1 font-display text-3xl font-extrabold tracking-tight text-white">
+        <span
+          className="mt-0.5 font-display font-extrabold tracking-tight text-white"
+          style={{ fontSize: Math.max(16, Math.round(size * 0.16)) }}
+        >
           {active ? `${((active.value / total) * 100).toFixed(1)}%` : centerValue}
         </span>
       </div>
