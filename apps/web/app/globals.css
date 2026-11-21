@@ -302,7 +302,15 @@ body {
 }
 
 .drawer-enter {
-  animation: drawer-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: drawer-slide 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes drawer-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
 }
 
 .modal-backdrop-enter {
