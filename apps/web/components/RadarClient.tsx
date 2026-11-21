@@ -44,20 +44,20 @@ export function RadarClient({ initialData }: { initialData: RadarResponse }) {
     <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
       {data.awaitingFirstEpoch && <AwaitingEpochBanner />}
 
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#24242C] pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#232325] pb-4">
         <div>
-          <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
+          <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
             Emerging Radar · Velocity &amp; On-Chain Token Discovery
           </span>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
-            Real-Time Narrative Signal Feed
+            Emerging Radar
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#A1A1AA]">
             Velocity spikes trigger when finalized V_n exceeds +5,000 bps (excluding too_small / series_break / incomplete_gap). New-token signals trigger on Pons V1/V2 &amp; Uniswap launches with ≥1 ETH liquidity inside rising narratives.
           </p>
         </div>
 
-        <div className="flex items-center rounded-md border border-[#24242C] bg-[#131317] p-0.5 font-mono text-[11px]">
+        <div className="flex items-center rounded-md border border-[#232325] bg-[#0E0E0F] p-0.5 font-mono text-[11px]">
           {(["all", "velocity", "new_token"] as const).map((tab) => (
             <button
               key={tab}
@@ -65,7 +65,7 @@ export function RadarClient({ initialData }: { initialData: RadarResponse }) {
               onClick={() => setFilter(tab)}
               className={`rounded px-3 py-1 uppercase transition-colors ${
                 filter === tab
-                  ? "bg-[#24242C] text-[#F4F4F5]"
+                  ? "bg-[#232325] text-[#F4F4F5]"
                   : "text-[#71717A] hover:text-[#A1A1AA]"
               }`}
             >
@@ -80,7 +80,7 @@ export function RadarClient({ initialData }: { initialData: RadarResponse }) {
         className={`flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4 ${
           data.realtimeUnlocked
             ? "border-[#22C55E]/40 bg-[#22C55E]/10"
-            : "border-[#F59E0B]/35 bg-[#131317]"
+            : "border-[#F59E0B]/35 bg-[#0E0E0F]"
         }`}
       >
         <div>

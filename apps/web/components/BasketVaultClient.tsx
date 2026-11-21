@@ -255,7 +255,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
       </div>
 
       {/* Vault Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#24242C] pb-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#232325] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
             <span className="rounded border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-2 py-0.5 text-[#CCFF00]">
@@ -315,8 +315,8 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left: Whitelisted Holdings */}
         <div className="space-y-4 lg:col-span-7">
-          <div className="rounded-lg border border-[#24242C] bg-[#131317]">
-            <div className="border-b border-[#24242C] px-4 py-3">
+          <div className="rounded-lg border border-[#232325] bg-[#0E0E0F]">
+            <div className="border-b border-[#232325] px-4 py-3">
               <h2 className="text-sm font-semibold text-[#F4F4F5]">
                 Whitelisted Constituents (Uniswap V3 TWAP Priced)
               </h2>
@@ -327,14 +327,14 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-[#24242C] bg-[#19191F] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+                  <tr className="border-b border-[#232325] bg-[#131314] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                     <th className="px-4 py-2.5">Token</th>
                     <th className="px-4 py-2.5 text-right">Target Weight</th>
                     <th className="px-4 py-2.5 text-right">30m TWAP</th>
                     <th className="px-4 py-2.5 text-right">V3 Pool Depth</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#24242C] font-mono tabular-nums">
+                <tbody className="divide-y divide-[#232325] font-mono tabular-nums">
                   {basket.holdings.length === 0 ? (
                     <tr>
                       <td
@@ -347,7 +347,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                     </tr>
                   ) : (
                     basket.holdings.map((h) => (
-                      <tr key={h.address} className="transition-colors hover:bg-[#19191F]/60">
+                      <tr key={h.address} className="transition-colors hover:bg-[#131314]/60">
                         <td className="px-4 py-3">
                           <div className="font-semibold text-[#F4F4F5]">${h.symbol}</div>
                           <div className="text-[10px] text-[#71717A]">
@@ -373,8 +373,8 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
         </div>
 
         {/* Right: Deposit / Redeem Form */}
-        <div className="h-fit rounded-lg border border-[#24242C] bg-[#131317] p-4 lg:col-span-5">
-          <div className="grid grid-cols-2 gap-1 rounded-md border border-[#24242C] bg-[#0B0B0E] p-1 font-mono text-xs">
+        <div className="h-fit rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 lg:col-span-5">
+          <div className="grid grid-cols-2 gap-1 rounded-md border border-[#232325] bg-[#090909] p-1 font-mono text-xs">
             <button
               type="button"
               onClick={() => {
@@ -435,7 +435,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                 step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="mt-1.5 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1.5 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#CCFF00] focus:outline-none"
               />
             </div>
 
@@ -451,7 +451,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                   max="300"
                   value={slippageBps}
                   onChange={(e) => setSlippageBps(e.target.value)}
-                  className="w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] tabular-nums focus:border-[#CCFF00] focus:outline-none"
+                  className="w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] tabular-nums focus:border-[#CCFF00] focus:outline-none"
                 />
                 {["50", "150", "300"].map((b) => (
                   <button
@@ -461,7 +461,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                     className={`rounded-md border px-2.5 py-1.5 font-mono text-[11px] transition-colors ${
                       slippageBps === b
                         ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
-                        : "border-[#24242C] bg-[#19191F] text-[#A1A1AA] hover:text-[#F4F4F5]"
+                        : "border-[#232325] bg-[#131314] text-[#A1A1AA] hover:text-[#F4F4F5]"
                     }`}
                   >
                     {(Number(b) / 100).toFixed(1)}%
@@ -470,7 +470,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
               </div>
             </div>
 
-            <div className="space-y-1.5 rounded-md border border-[#24242C] bg-[#0B0B0E] p-3 font-mono text-[11px] tabular-nums">
+            <div className="space-y-1.5 rounded-md border border-[#232325] bg-[#090909] p-3 font-mono text-[11px] tabular-nums">
               {mode === "deposit" ? (
                 <>
                   <div className="flex justify-between">
@@ -503,7 +503,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                 </>
               )}
               {gasEst && (
-                <div className="flex justify-between border-t border-[#24242C] pt-1.5">
+                <div className="flex justify-between border-t border-[#232325] pt-1.5">
                   <span className="text-[#71717A]">Est. gas ({gasEst.gasPriceGwei} gwei)</span>
                   <span className="text-[#A1A1AA]">~{gasEst.estimatedCostEth} ETH</span>
                 </div>
@@ -524,7 +524,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
               onClick={() => void handleExecute()}
               className={`w-full rounded-md py-2.5 font-mono text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
                 mode === "deposit"
-                  ? "bg-[#22C55E] text-[#0B0B0E] hover:bg-[#16A34A]"
+                  ? "bg-[#22C55E] text-[#090909] hover:bg-[#16A34A]"
                   : "bg-[#CCFF00] text-black hover:bg-[#B8E600]"
               }`}
             >

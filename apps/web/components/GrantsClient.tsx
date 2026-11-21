@@ -105,13 +105,13 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
   if (!round) {
     return (
       <div className="mx-auto max-w-[1440px] px-4 py-6 lg:px-6">
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-8 text-center">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-8 text-center">
           <div className="font-mono text-xs uppercase tracking-wider text-[#71717A]">
             Ecosystem Grants
           </div>
-          <h1 className="mt-2 text-lg font-semibold text-[#F4F4F5]">
+          <h2 className="mt-2 text-lg font-semibold text-[#F4F4F5]">
             No grant rounds configured yet
-          </h1>
+          </h2>
           <p className="mt-1 text-xs text-[#A1A1AA]">
             Awaiting governance round initialization on Robinhood Chain.
           </p>
@@ -263,10 +263,10 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
   return (
     <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
       {/* Header + Round Tabs */}
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#24242C] pb-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#232325] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
+            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
               Public Goods Allocation
             </span>
             {awaitingDeployment && (
@@ -281,7 +281,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
             )}
           </div>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
-            Ecosystem Grants · Round #{round.roundId}
+            Grants · Round #{round.roundId}
           </h1>
           <p className="mt-1 text-xs text-[#A1A1AA]">
             Split snapshot voting power across competing narrative proposals. Non-normalized weights sum up to your IVotes balance at snapshot block #{round.snapshotBlock.toLocaleString("en-US")}.
@@ -290,7 +290,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
 
         <div className="flex flex-wrap items-center gap-2">
           {rounds.length > 1 && (
-            <div className="flex items-center rounded-md border border-[#24242C] bg-[#131317] p-0.5">
+            <div className="flex items-center rounded-md border border-[#232325] bg-[#0E0E0F] p-0.5">
               {rounds.map((r) => (
                 <button
                   key={r.roundId}
@@ -298,7 +298,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                   onClick={() => setSelectedRoundId(r.roundId)}
                   className={`rounded px-2.5 py-1 font-mono text-[11px] transition-colors ${
                     r.roundId === round.roundId
-                      ? "bg-[#24242C] text-[#F4F4F5]"
+                      ? "bg-[#232325] text-[#F4F4F5]"
                       : "text-[#71717A] hover:text-[#A1A1AA]"
                   }`}
                 >
@@ -321,7 +321,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
 
       {/* Round KPI Strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Round Budget
           </div>
@@ -331,7 +331,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
           <div className="mt-0.5 text-[11px] text-[#A1A1AA]">Escrowed ETH allocation</div>
         </div>
 
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Vote Deadline
           </div>
@@ -343,7 +343,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
           </div>
         </div>
 
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Snapshot Block
           </div>
@@ -353,7 +353,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
           <div className="mt-0.5 text-[11px] text-[#A1A1AA]">IVotes checkpoint</div>
         </div>
 
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Quorum Progress
           </div>
@@ -365,7 +365,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
           </div>
         </div>
 
-        <div className="col-span-2 rounded-lg border border-[#24242C] bg-[#131317] p-3.5 sm:col-span-1">
+        <div className="col-span-2 rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5 sm:col-span-1">
           <div className="text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Your Snapshot Power
           </div>
@@ -401,7 +401,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
           </div>
 
           {round.proposals.length === 0 ? (
-            <div className="rounded-lg border border-[#24242C] bg-[#131317] p-6 text-center text-xs text-[#A1A1AA]">
+            <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-6 text-center text-xs text-[#A1A1AA]">
               No proposals submitted for Round #{round.roundId} yet. Submit the first proposal on the right.
             </div>
           ) : (
@@ -411,14 +411,14 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
               return (
                 <div
                   key={p.proposalId}
-                  className="rounded-lg border border-[#24242C] bg-[#131317] p-4 transition-colors hover:border-[#32323D]"
+                  className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 transition-colors hover:border-[#3A3A3D]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="max-w-xl">
                       <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-[#A1A1AA]">
                         <span className="text-[#F4F4F5]">PROP #{p.proposalId}</span>
                         {nar && (
-                          <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[10px] text-[#CCFF00]">
+                          <span className="rounded border border-[#232325] bg-[#131314] px-1.5 py-0.5 text-[10px] text-[#CCFF00]">
                             {nar.label}
                           </span>
                         )}
@@ -441,7 +441,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                   </div>
 
                   {/* Split weight slider & claim */}
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#24242C] pt-3">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[#232325] pt-3">
                     <div className="flex flex-1 items-center gap-3">
                       <span className="font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                         Vote Split
@@ -470,7 +470,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                       type="button"
                       disabled={isBusy || p.claimed || round.status !== "finalized"}
                       onClick={() => void invokeRoundAction("claim", p.proposalId)}
-                      className="rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1 font-mono text-[11px] text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-md border border-[#232325] bg-[#131314] px-3 py-1 font-mono text-[11px] text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {p.claimed ? "CLAIMED" : "CLAIM GRANT"}
                     </button>
@@ -480,7 +480,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
             })
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
             <div className="text-xs text-[#A1A1AA]">
               Allocates your on-chain snapshot balance ({formatCompactNumber(Math.round(votingPowerNti))} $NTI wei) across selected proposals.
             </div>
@@ -511,13 +511,13 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
         </div>
 
         {/* Submit Proposal Panel */}
-        <div className="h-fit rounded-lg border border-[#24242C] bg-[#131317] p-4 lg:col-span-4">
+        <div className="h-fit rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 lg:col-span-4">
           <h2 className="text-sm font-semibold text-[#F4F4F5]">Submit Grant Proposal</h2>
           <p className="mt-1 text-xs leading-relaxed text-[#A1A1AA]">
             Requires at least {formatCompactNumber(minStakeNti)} $NTI active stake. Metadata is hashed on-chain via keccak256.
           </p>
 
-          <div className="mt-3 rounded-md border border-[#24242C] bg-[#19191F] px-3 py-2 text-[11px]">
+          <div className="mt-3 rounded-md border border-[#232325] bg-[#131314] px-3 py-2 text-[11px]">
             <div className="flex items-center justify-between">
               <span className="text-[#71717A]">Your Active Stake</span>
               <span
@@ -540,7 +540,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                 placeholder="e.g. Open-source Robinhood Chain Validator Kit"
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
               />
             </div>
 
@@ -553,10 +553,10 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                 placeholder="0x..."
                 value={newRecipient}
                 onChange={(e) => setNewRecipient(e.target.value)}
-                className={`mt-1 w-full rounded-md border bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:outline-none ${
+                className={`mt-1 w-full rounded-md border bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:outline-none ${
                   recipientInvalid
                     ? "border-[#EF4444]/60 focus:border-[#EF4444]"
-                    : "border-[#24242C] focus:border-[#CCFF00]"
+                    : "border-[#232325] focus:border-[#CCFF00]"
                 }`}
               />
               {recipientInvalid && (

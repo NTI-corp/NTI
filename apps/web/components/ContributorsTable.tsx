@@ -12,8 +12,8 @@ export function ContributorsTable({
   narrativeLabel,
 }: ContributorsTableProps) {
   return (
-    <div className="rounded-lg border border-[#24242C] bg-[#131317]">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#24242C] px-4 py-3">
+    <div className="rounded-lg border border-[#232325] bg-[#0E0E0F]">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#232325] px-4 py-3">
         <div>
           <h3 className="text-sm font-semibold text-[#F4F4F5]">
             Top KOL Contributors · {narrativeLabel}
@@ -22,7 +22,7 @@ export function ContributorsTable({
             Effective KOL cap = 10% (if N_active ≥ 11) or min(1, 1.5 / N_active) for smaller narratives
           </p>
         </div>
-        <span className="rounded border border-[#24242C] bg-[#19191F] px-2 py-0.5 font-mono text-[10px] text-[#A1A1AA]">
+        <span className="rounded border border-[#232325] bg-[#131314] px-2 py-0.5 font-mono text-[10px] text-[#A1A1AA]">
           {contributors.length} ACTIVE KOLS
         </span>
       </div>
@@ -35,7 +35,7 @@ export function ContributorsTable({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#24242C] bg-[#19191F] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+              <tr className="border-b border-[#232325] bg-[#131314] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 <th className="px-4 py-2.5">Rank</th>
                 <th className="px-4 py-2.5">Handle</th>
                 <th className="px-4 py-2.5 text-right">Followers</th>
@@ -43,13 +43,13 @@ export function ContributorsTable({
                 <th className="px-4 py-2.5 text-right">Cap Guard</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#24242C] font-mono tabular-nums">
+            <tbody className="divide-y divide-[#232325] font-mono tabular-nums">
               {contributors.map((c, idx) => {
                 const cleanHandle = c.handle.replace(/^@/, "");
                 return (
                   <tr
                     key={`${c.userId}-${idx}`}
-                    className="transition-colors hover:bg-[#19191F]/60"
+                    className="transition-colors hover:bg-[#131314]/60"
                   >
                     <td className="px-4 py-2.5 text-[#71717A]">
                       {String(idx + 1).padStart(2, "0")}

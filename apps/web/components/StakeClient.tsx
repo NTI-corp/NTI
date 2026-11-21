@@ -333,10 +333,10 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-6 lg:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#24242C] pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#232325] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
+            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
               Staking &amp; Governance · IVotes Checkpointed
             </span>
             {wrongChain && (
@@ -346,7 +346,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
             )}
           </div>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
-            Stake $NTI · ETH Yield, Radar Access &amp; Governance
+            Stake $NTI
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#A1A1AA]">
             Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and govern NTIGovernor (4% quorum, 3d vote, 48h Timelock).
@@ -369,7 +369,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
 
       {/* Position Summary Strip */}
       <div className="grid grid-cols-2 gap-3 font-mono tabular-nums lg:grid-cols-5">
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
           <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Wallet $NTI
           </div>
@@ -379,7 +379,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
           <div className="mt-0.5 font-sans text-[11px] text-[#A1A1AA]">Liquid balance</div>
         </div>
 
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
           <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Your Active Stake
           </div>
@@ -389,7 +389,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
           <div className="mt-0.5 font-sans text-[11px] text-[#22C55E]">{tier.tierName}</div>
         </div>
 
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
           <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Cooldown (7-Day Lock)
           </div>
@@ -405,7 +405,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
           </div>
         </div>
 
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-3.5">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5">
           <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Claimable ETH Rewards
           </div>
@@ -422,7 +422,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
           </button>
         </div>
 
-        <div className="col-span-2 rounded-lg border border-[#24242C] bg-[#131317] p-3.5 lg:col-span-1">
+        <div className="col-span-2 rounded-lg border border-[#232325] bg-[#0E0E0F] p-3.5 lg:col-span-1">
           <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
             Protocol Total Staked
           </div>
@@ -437,8 +437,8 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
 
       {/* Main Split: Stake / Unstake Form + Tier Ladder */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4 lg:col-span-5">
-          <div className="grid grid-cols-2 gap-1 rounded-md border border-[#24242C] bg-[#0B0B0E] p-1 font-mono text-xs">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 lg:col-span-5">
+          <div className="grid grid-cols-2 gap-1 rounded-md border border-[#232325] bg-[#090909] p-1 font-mono text-xs">
             <button
               type="button"
               onClick={() => {
@@ -496,7 +496,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                 step="10000"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
-                className="mt-1.5 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1.5 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-sm text-[#F4F4F5] tabular-nums focus:border-[#CCFF00] focus:outline-none"
               />
               <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[10px]">
                 {["10000", "100000", "1000000", "5000000"].map((v) => (
@@ -504,7 +504,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                     key={v}
                     type="button"
                     onClick={() => setAmountInput(v)}
-                    className="rounded border border-[#24242C] bg-[#19191F] px-2 py-1 text-[#A1A1AA] hover:text-[#F4F4F5]"
+                    className="rounded border border-[#232325] bg-[#131314] px-2 py-1 text-[#A1A1AA] hover:text-[#F4F4F5]"
                   >
                     {Number(v).toLocaleString("en-US")}
                   </button>
@@ -513,7 +513,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
             </div>
 
             {gasEst && (
-              <div className="flex justify-between rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-[11px] text-[#A1A1AA] tabular-nums">
+              <div className="flex justify-between rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-[11px] text-[#A1A1AA] tabular-nums">
                 <span>Est. gas ({gasEst.gasPriceGwei} gwei)</span>
                 <span>~{gasEst.estimatedCostEth} ETH</span>
               </div>
@@ -531,7 +531,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                     !needsApproval
                   }
                   onClick={() => void runAction("approve")}
-                  className="rounded-md border border-[#24242C] bg-[#19191F] py-2.5 font-mono text-xs font-semibold text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="rounded-md border border-[#232325] bg-[#131314] py-2.5 font-mono text-xs font-semibold text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {!needsApproval && hasValidAmount ? "1. APPROVED ✓" : "1. APPROVE"}
                 </button>
@@ -545,7 +545,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                     needsApproval
                   }
                   onClick={() => void runAction("stake")}
-                  className="rounded-md bg-[#22C55E] py-2.5 font-mono text-xs font-semibold text-[#0B0B0E] transition-colors hover:bg-[#16A34A] disabled:cursor-not-allowed disabled:opacity-45"
+                  className="rounded-md bg-[#22C55E] py-2.5 font-mono text-xs font-semibold text-[#090909] transition-colors hover:bg-[#16A34A] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {insufficientWalletBalance ? "INSUFFICIENT $NTI" : "2. STAKE $NTI"}
                 </button>
@@ -584,7 +584,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
         </div>
 
         {/* Tier Access & Fee Discount Ladder */}
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4 lg:col-span-7">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 lg:col-span-7">
           <h2 className="text-sm font-semibold text-[#F4F4F5]">
             Staker Access &amp; Fee Discount Tiers
           </h2>
@@ -601,7 +601,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                   className={`rounded-md border p-3.5 font-mono ${
                     unlocked
                       ? "border-[#22C55E]/50 bg-[#22C55E]/10"
-                      : "border-[#24242C] bg-[#0B0B0E]"
+                      : "border-[#232325] bg-[#090909]"
                   }`}
                 >
                   <div className="flex items-center justify-between text-[10px]">
@@ -625,8 +625,8 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
       </div>
 
       {/* NTIGovernor Proposals */}
-      <section className="rounded-lg border border-[#24242C] bg-[#131317]">
-        <div className="border-b border-[#24242C] px-4 py-3">
+      <section className="rounded-lg border border-[#232325] bg-[#0E0E0F]">
+        <div className="border-b border-[#232325] px-4 py-3">
           <h2 className="text-sm font-semibold text-[#F4F4F5]">
             NTIGovernor Proposals (4% Quorum · 3d Voting · 48h Timelock)
           </h2>
@@ -640,7 +640,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
             No NTIGovernor proposals indexed yet. Submit on-chain proposals once governance voting weights reach quorum.
           </div>
         ) : (
-          <div className="divide-y divide-[#24242C]">
+          <div className="divide-y divide-[#232325]">
             {proposals.map((p) => {
               const totalVotes = p.forVotesNti + p.againstVotesNti + p.abstainVotesNti;
               const forPct =
@@ -650,7 +650,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="max-w-2xl">
                       <div className="flex flex-wrap items-center gap-2 font-mono text-[10px]">
-                        <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[#CCFF00]">
+                        <span className="rounded border border-[#232325] bg-[#131314] px-1.5 py-0.5 text-[#CCFF00]">
                           {p.category.toUpperCase()}
                         </span>
                         <span
@@ -659,7 +659,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                               ? "border-[#22C55E]/40 bg-[#22C55E]/10 text-[#22C55E]"
                               : p.status === "Queued"
                                 ? "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]"
-                                : "border-[#24242C] text-[#A1A1AA]"
+                                : "border-[#232325] text-[#A1A1AA]"
                           }`}
                         >
                           {p.status.toUpperCase()}
@@ -694,7 +694,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
                           type="button"
                           disabled={isBusy}
                           onClick={() => void castGovVote(p.proposalId, 2)}
-                          className="rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 text-[#A1A1AA] hover:text-[#F4F4F5] disabled:opacity-45"
+                          className="rounded-md border border-[#232325] bg-[#131314] px-3 py-1.5 text-[#A1A1AA] hover:text-[#F4F4F5] disabled:opacity-45"
                         >
                           ABSTAIN
                         </button>

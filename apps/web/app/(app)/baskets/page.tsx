@@ -15,12 +15,12 @@ export default async function BasketsPage() {
         </div>
       )}
 
-      <div className="border-b border-[#24242C] pb-4">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
+      <div className="border-b border-[#232325] pb-4">
+        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
           Narrative Baskets · ERC-20 Spot Vaults
         </span>
         <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
-          Whitelisted Narrative Token Baskets
+          Baskets
         </h1>
         <p className="mt-1 max-w-2xl text-xs text-[#A1A1AA]">
           Each basket holds governance-whitelisted tokens with Uniswap V3 pools (≥20 ETH depth, 30-minute TWAP cardinality verified). Max 40% single-token weight, 20% daily turnover cap, 0.50% annual management fee routed to FeeRouter, and emergency-open redeem even when paused.
@@ -28,7 +28,7 @@ export default async function BasketsPage() {
       </div>
 
       {baskets.length === 0 ? (
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-8 text-center text-xs text-[#A1A1AA]">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-8 text-center text-xs text-[#A1A1AA]">
           No narrative baskets deployed yet.
         </div>
       ) : (
@@ -40,7 +40,7 @@ export default async function BasketsPage() {
               <Link
                 key={b.id}
                 href={`/baskets/${b.id}`}
-                className="group flex flex-col justify-between rounded-lg border border-[#24242C] bg-[#131317] p-4 transition-colors hover:border-[#CCFF00]/50 hover:bg-[#19191F]"
+                className="group flex flex-col justify-between rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 transition-colors hover:border-[#CCFF00]/50 hover:bg-[#131314]"
               >
                 <div>
                   <div className="flex items-center justify-between font-mono text-[11px]">
@@ -54,7 +54,7 @@ export default async function BasketsPage() {
                     {b.name}
                   </h2>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-[#24242C] bg-[#0B0B0E] p-2.5 font-mono text-xs tabular-nums">
+                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-md border border-[#232325] bg-[#090909] p-2.5 font-mono text-xs tabular-nums">
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
                         TWAP NAV / TVL
@@ -76,7 +76,7 @@ export default async function BasketsPage() {
                   {/* Composition Bars */}
                   <div className="mt-3 space-y-1.5">
                     {b.holdings.length === 0 ? (
-                      <div className="rounded border border-[#24242C] bg-[#0B0B0E] px-2.5 py-2 text-[11px] text-[#71717A]">
+                      <div className="rounded border border-[#232325] bg-[#090909] px-2.5 py-2 text-[11px] text-[#71717A]">
                         Constituent allocation pending governance setup
                       </div>
                     ) : (
@@ -88,7 +88,7 @@ export default async function BasketsPage() {
                               {formatBpsPercent(h.weightBps, 0)}
                             </span>
                           </div>
-                          <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-[#24242C]">
+                          <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-[#232325]">
                             <div
                               className="h-full rounded-full bg-[#CCFF00]"
                               style={{ width: `${Math.min(100, h.weightBps / 100)}%` }}
@@ -100,14 +100,14 @@ export default async function BasketsPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 border-t border-[#24242C] pt-3 font-mono text-[11px] text-[#A1A1AA] tabular-nums">
+                <div className="mt-4 border-t border-[#232325] pt-3 font-mono text-[11px] text-[#A1A1AA] tabular-nums">
                   <div className="flex justify-between">
                     <span>
                       TVL CAP: {formatEth(b.tvlEth, 2)} / {b.tvlCapEth} ETH
                     </span>
                     <span>{capPct.toFixed(0)}%</span>
                   </div>
-                  <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[#24242C]">
+                  <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[#232325]">
                     <div
                       className="h-full bg-[#22C55E]"
                       style={{ width: `${capPct}%` }}

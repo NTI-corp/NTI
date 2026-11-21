@@ -111,7 +111,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-6 lg:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#24242C] pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#232325] pb-4">
         <div>
           <div className="flex items-center gap-2 font-mono text-[11px] text-[#71717A]">
             <Link href="/markets" className="hover:text-[#F4F4F5]">
@@ -145,26 +145,26 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left: Pool State, Settlement Formula & Actions */}
         <div className="space-y-5 lg:col-span-7">
-          <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+          <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
             <h2 className="text-sm font-semibold text-[#F4F4F5]">
               Parimutuel Pool Breakdown
             </h2>
             <div className="mt-3 grid grid-cols-3 gap-3 font-mono tabular-nums">
-              <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+              <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
                 <div className="text-[10px] text-[#22C55E]">SIDE A POOL</div>
                 <div className="mt-1 text-base font-semibold text-[#F4F4F5]">
                   {formatEth(liveMarket.poolAEth, 4)}
                 </div>
                 <div className="text-[10px] text-[#A1A1AA]">{pctA}% of total</div>
               </div>
-              <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+              <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
                 <div className="text-[10px] text-[#CCFF00]">SIDE B POOL</div>
                 <div className="mt-1 text-base font-semibold text-[#F4F4F5]">
                   {formatEth(liveMarket.poolBEth, 4)}
                 </div>
                 <div className="text-[10px] text-[#A1A1AA]">{pctB}% of total</div>
               </div>
-              <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+              <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
                 <div className="text-[10px] text-[#71717A]">POOL CAP USAGE</div>
                 <div className="mt-1 text-base font-semibold text-[#F4F4F5]">
                   {formatEth(totalPool, 4)}
@@ -173,12 +173,12 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
               </div>
             </div>
 
-            <div className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-[#24242C]">
+            <div className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-[#232325]">
               <div className="bg-[#22C55E]" style={{ width: `${pctA}%` }} />
               <div className="bg-[#CCFF00]" style={{ width: `${pctB}%` }} />
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[#24242C] pt-3 font-mono text-xs tabular-nums">
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-[#232325] pt-3 font-mono text-xs tabular-nums">
               <div>
                 <span className="text-[#71717A]">BETTING CUTOFF</span>
                 <div className="mt-0.5 text-[#F4F4F5]">
@@ -199,7 +199,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
           </div>
 
           {/* Your On-Chain Position */}
-          <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+          <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
             <h2 className="text-sm font-semibold text-[#F4F4F5]">Your Position</h2>
             {!isConnected ? (
               <p className="mt-2 text-xs text-[#A1A1AA]">
@@ -211,19 +211,19 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
               </p>
             ) : (
               <div className="mt-3 grid grid-cols-3 gap-3 font-mono text-xs tabular-nums">
-                <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+                <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
                   <div className="text-[10px] text-[#71717A]">SIDE A STAKE</div>
                   <div className="mt-1 text-sm font-semibold text-[#22C55E]">
                     {formatEth(posGross0, 4)}
                   </div>
                 </div>
-                <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+                <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
                   <div className="text-[10px] text-[#71717A]">SIDE B STAKE</div>
                   <div className="mt-1 text-sm font-semibold text-[#CCFF00]">
                     {formatEth(posGross1, 4)}
                   </div>
                 </div>
-                <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+                <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
                   <div className="text-[10px] text-[#71717A]">PAYOUT STATUS</div>
                   <div className="mt-1 text-sm font-semibold text-[#F4F4F5]">
                     {posClaimed ? "Claimed" : settledOnChain ? "Ready to Claim" : "Pending Settle"}
@@ -234,13 +234,13 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
           </div>
 
           {/* Relative Index Spread Tracker */}
-          <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+          <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
             <h2 className="text-sm font-semibold text-[#F4F4F5]">Settlement Spread Formula</h2>
             <p className="mt-1 font-mono text-xs text-[#A1A1AA]">
               Δ = I_A(E{market.settleEpoch}) / I_A(E{market.baseEpoch}) − I_B(E
               {market.settleEpoch}) / I_B(E{market.baseEpoch})
             </p>
-            <div className="mt-3 grid grid-cols-3 gap-3 rounded-md border border-[#24242C] bg-[#0B0B0E] p-3 font-mono text-xs tabular-nums">
+            <div className="mt-3 grid grid-cols-3 gap-3 rounded-md border border-[#232325] bg-[#090909] p-3 font-mono text-xs tabular-nums">
               <div>
                 <div className="text-[10px] text-[#71717A]">{market.narrativeALabel}</div>
                 <div className="mt-0.5 text-[#F4F4F5]">
@@ -273,7 +273,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
           </div>
 
           {/* Permissionless Settle & Pull Claim */}
-          <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+          <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
             <h2 className="text-sm font-semibold text-[#F4F4F5]">
               Permissionless Settlement &amp; Payout Claim
             </h2>

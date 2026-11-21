@@ -120,13 +120,13 @@ export function MarketsListClient({
       )}
 
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#24242C] pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#232325] pb-4">
         <div>
-          <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
+          <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
             Narrative Markets · Fixed-Horizon Parimutuel
           </span>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
-            Relative Mindshare Pair Markets
+            Pair Markets
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#A1A1AA]">
             Settled purely by finalized on-chain oracle index Δ = I_A(settle)/I_A(base) − I_B(settle)/I_B(base). Zero leverage, 5 ETH pool cap, 0.10% fee (up to 50% staker discount), full gross refund on tie or incomplete epoch.
@@ -134,7 +134,7 @@ export function MarketsListClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
-          <div className="flex items-center rounded-md border border-[#24242C] bg-[#131317] p-0.5">
+          <div className="flex items-center rounded-md border border-[#232325] bg-[#0E0E0F] p-0.5">
             {(["all", "open", "locked", "settled"] as const).map((tab) => (
               <button
                 key={tab}
@@ -142,7 +142,7 @@ export function MarketsListClient({
                 onClick={() => setFilter(tab)}
                 className={`rounded px-2.5 py-1 uppercase transition-colors ${
                   filter === tab
-                    ? "bg-[#24242C] text-[#F4F4F5]"
+                    ? "bg-[#232325] text-[#F4F4F5]"
                     : "text-[#71717A] hover:text-[#A1A1AA]"
                 }`}
               >
@@ -175,7 +175,7 @@ export function MarketsListClient({
           className={`rounded-md border px-2.5 py-1 transition-colors ${
             narrativeFilter === null
               ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
-              : "border-[#24242C] bg-[#131317] text-[#A1A1AA] hover:text-[#F4F4F5]"
+              : "border-[#232325] bg-[#0E0E0F] text-[#A1A1AA] hover:text-[#F4F4F5]"
           }`}
         >
           All ({markets.length})
@@ -190,7 +190,7 @@ export function MarketsListClient({
               className={`rounded-md border px-2.5 py-1 transition-colors ${
                 active
                   ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
-                  : "border-[#24242C] bg-[#131317] text-[#71717A] hover:border-[#32323D] hover:text-[#F4F4F5]"
+                  : "border-[#232325] bg-[#0E0E0F] text-[#71717A] hover:border-[#3A3A3D] hover:text-[#F4F4F5]"
               }`}
             >
               {n.label}
@@ -201,8 +201,8 @@ export function MarketsListClient({
 
       {/* Permissionless Market Creator */}
       {createOpen && (
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#24242C] pb-3">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#232325] pb-3">
             <div>
               <h2 className="text-sm font-semibold text-[#F4F4F5]">
                 Launch Permissionless Pair Market
@@ -221,7 +221,7 @@ export function MarketsListClient({
               <select
                 value={newNarA}
                 onChange={(e) => setNewNarA(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
               >
                 {NARRATIVES.map((n) => (
                   <option key={n.id} value={n.id}>
@@ -238,7 +238,7 @@ export function MarketsListClient({
               <select
                 value={newNarB}
                 onChange={(e) => setNewNarB(Number(e.target.value))}
-                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
               >
                 <option value={0}>0 Market Average</option>
                 {NARRATIVES.map((n) => (
@@ -256,7 +256,7 @@ export function MarketsListClient({
               <select
                 value={horizonEpochs}
                 onChange={(e) => setHorizonEpochs(Number(e.target.value) === 42 ? 42 : 6)}
-                className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
               >
                 <option value={6}>24H (6 epochs · E{liveFinalEpoch + 6})</option>
                 <option value={42}>7D (42 epochs · E{liveFinalEpoch + 42})</option>
@@ -288,7 +288,7 @@ export function MarketsListClient({
 
       {/* Market Grid or Empty State */}
       {visible.length === 0 ? (
-        <div className="rounded-lg border border-[#24242C] bg-[#131317] p-8 text-center">
+        <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-8 text-center">
           <div className="text-sm font-semibold text-[#F4F4F5]">
             No markets match the selected filter
           </div>
@@ -301,7 +301,7 @@ export function MarketsListClient({
               setFilter("all");
               setNarrativeFilter(null);
             }}
-            className="mt-3 rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] hover:border-[#CCFF00]/50"
+            className="mt-3 rounded-md border border-[#232325] bg-[#131314] px-3 py-1.5 font-mono text-xs text-[#F4F4F5] hover:border-[#CCFF00]/50"
           >
             RESET FILTERS
           </button>
@@ -319,13 +319,13 @@ export function MarketsListClient({
             return (
               <div
                 key={m.marketId}
-                className="flex flex-col justify-between rounded-lg border border-[#24242C] bg-[#131317] p-4 transition-colors hover:border-[#32323D]"
+                className="flex flex-col justify-between rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 transition-colors hover:border-[#3A3A3D]"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
                     <div className="flex items-center gap-2">
                       <span className="text-[#71717A]">MKT #{m.marketId}</span>
-                      <span className="rounded border border-[#24242C] bg-[#19191F] px-1.5 py-0.5 text-[10px] text-[#A1A1AA]">
+                      <span className="rounded border border-[#232325] bg-[#131314] px-1.5 py-0.5 text-[10px] text-[#A1A1AA]">
                         {m.horizonLabel}
                       </span>
                     </div>
@@ -352,7 +352,7 @@ export function MarketsListClient({
                   </Link>
 
                   {/* Live relative delta telemetry */}
-                  <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-[11px] tabular-nums">
+                  <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-[11px] tabular-nums">
                     <div>
                       <div className="text-[10px] text-[#71717A]">
                         SIDE A ({m.narrativeALabel.slice(0, 10)})
@@ -399,14 +399,14 @@ export function MarketsListClient({
                         B: {formatEth(m.poolBEth, 3)} ({pctB}%)
                       </span>
                     </div>
-                    <div className="flex h-2 w-full overflow-hidden rounded-full bg-[#24242C]">
+                    <div className="flex h-2 w-full overflow-hidden rounded-full bg-[#232325]">
                       <div className="bg-[#22C55E]" style={{ width: `${pctA}%` }} />
                       <div className="bg-[#CCFF00]" style={{ width: `${pctB}%` }} />
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#24242C] pt-3 font-mono text-[11px]">
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#232325] pt-3 font-mono text-[11px]">
                   <span className="text-[#A1A1AA] tabular-nums">
                     {m.status === "open"
                       ? `Cutoff in ${formatCountdown(m.cutoffAt)} · Settle E${m.settleEpoch}`
@@ -419,14 +419,14 @@ export function MarketsListClient({
                       <button
                         type="button"
                         onClick={() => setActiveBetMarket({ market: m, side: 0 })}
-                        className="rounded-md bg-[#22C55E] px-3 py-1.5 text-[11px] font-semibold text-[#0B0B0E] transition-colors hover:bg-[#16A34A]"
+                        className="rounded-md bg-[#22C55E] px-3 py-1.5 text-[11px] font-semibold text-[#090909] transition-colors hover:bg-[#16A34A]"
                       >
                         BET NOW
                       </button>
                     )}
                     <Link
                       href={`/markets/${m.marketId}`}
-                      className="rounded-md border border-[#24242C] bg-[#19191F] px-3 py-1.5 text-[11px] text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50"
+                      className="rounded-md border border-[#232325] bg-[#131314] px-3 py-1.5 text-[11px] text-[#F4F4F5] transition-colors hover:border-[#CCFF00]/50"
                     >
                       DETAIL →
                     </Link>

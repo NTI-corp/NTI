@@ -218,7 +218,7 @@ export function WalletButton() {
             setError(null);
             setModalOpen(true);
           }}
-          className="inline-flex min-h-[34px] cursor-pointer items-center rounded-lg bg-[#CCFF00] px-3.5 py-1.5 text-xs font-semibold text-black transition-colors hover:bg-[#B8E600]"
+          className="inline-flex min-h-[34px] cursor-pointer items-center whitespace-nowrap rounded-md bg-[#CCFF00] px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-black transition-colors hover:bg-[#B8E600]"
         >
           <span>{isConnecting ? "Connecting..." : "Connect Wallet"}</span>
         </button>
@@ -240,7 +240,7 @@ export function WalletButton() {
               className={`hidden min-h-[34px] items-center rounded-lg border px-2.5 py-1.5 text-[11px] font-medium sm:inline-flex ${
                 session.hasRadarAccess
                   ? "border-[#10B981]/40 bg-[#10B981]/10 text-[#34D399]"
-                  : "border-[#26262E] bg-[#141418] text-[#A1A1AA]"
+                  : "border-[#26262E] bg-[#131314] text-[#A1A1AA]"
               }`}
             >
               {session.hasRadarAccess ? "RT Radar" : "SIWE"}
@@ -253,8 +253,8 @@ export function WalletButton() {
             onClick={() => setMenuOpen((v) => !v)}
             className={`inline-flex min-h-[34px] cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 font-mono text-xs transition-colors ${
               wrongChain
-                ? "border-[#F59E0B]/50 bg-[#141418] text-[#F59E0B]"
-                : "border-[#26262E] bg-[#141418] text-[#F4F4F5] hover:border-[#3F3F4C]"
+                ? "border-[#F59E0B]/50 bg-[#131314] text-[#F59E0B]"
+                : "border-[#26262E] bg-[#131314] text-[#F4F4F5] hover:border-[#3A3A3D]"
             }`}
           >
             {activeIcon && (
@@ -271,9 +271,9 @@ export function WalletButton() {
         <div
           role="dialog"
           aria-label="Connected wallet details"
-          className="absolute top-[calc(100%+8px)] right-0 z-50 w-76 overflow-hidden rounded-xl border border-[#24242C] bg-[#131317] shadow-2xl"
+          className="absolute top-[calc(100%+8px)] right-0 z-50 w-76 overflow-hidden rounded-xl border border-[#232325] bg-[#0E0E0F] shadow-2xl"
         >
-          <div className="flex items-center justify-between border-b border-[#24242C] px-4 py-3">
+          <div className="flex items-center justify-between border-b border-[#232325] px-4 py-3">
             <div className="flex items-center gap-2.5">
               {activeIcon && (
                 <img src={activeIcon} alt="" className="h-5 w-5 shrink-0 object-contain" />
@@ -292,7 +292,7 @@ export function WalletButton() {
             </span>
           </div>
 
-          <div className="divide-y divide-[#24242C] font-mono text-[11px]">
+          <div className="divide-y divide-[#232325] font-mono text-[11px]">
             <div className="flex items-center justify-between px-4 py-2.5">
               <span className="text-[10px] uppercase text-[#71717A]">NETWORK</span>
               <span className={wrongChain ? "text-[#F59E0B]" : "text-[#22C55E]"}>
@@ -331,12 +331,12 @@ export function WalletButton() {
           </div>
 
           {wrongChain && (
-            <div className="border-t border-[#24242C] p-3">
+            <div className="border-t border-[#232325] p-3">
               <button
                 type="button"
                 disabled={isSwitching}
                 onClick={() => void handleSwitchChain()}
-                className="w-full cursor-pointer rounded-md bg-[#F59E0B] py-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#0B0B0E] hover:bg-[#fbbf24]"
+                className="w-full cursor-pointer rounded-md bg-[#F59E0B] py-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#090909] hover:bg-[#fbbf24]"
               >
                 Switch to {targetChain.name}
               </button>
@@ -349,11 +349,11 @@ export function WalletButton() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 border-t border-[#24242C] font-mono text-[10px] uppercase">
+          <div className="grid grid-cols-3 border-t border-[#232325] font-mono text-[10px] uppercase">
             <button
               type="button"
               onClick={() => void handleCopyAddress()}
-              className="cursor-pointer border-r border-[#24242C] py-2.5 text-[#A1A1AA] transition-colors hover:bg-[#19191F] hover:text-[#F4F4F5]"
+              className="cursor-pointer border-r border-[#232325] py-2.5 text-[#A1A1AA] transition-colors hover:bg-[#131314] hover:text-[#F4F4F5]"
             >
               {copied ? "COPIED ✓" : "COPY"}
             </button>
@@ -361,7 +361,7 @@ export function WalletButton() {
               href={`${explorerBase}/address/${address}`}
               target="_blank"
               rel="noreferrer noopener"
-              className="flex items-center justify-center border-r border-[#24242C] py-2.5 text-[#A1A1AA] transition-colors hover:bg-[#19191F] hover:text-[#CCFF00]"
+              className="flex items-center justify-center border-r border-[#232325] py-2.5 text-[#A1A1AA] transition-colors hover:bg-[#131314] hover:text-[#CCFF00]"
             >
               EXPLORER ↗
             </a>
@@ -395,9 +395,9 @@ export function WalletButton() {
               aria-modal="true"
               aria-labelledby="nti-wallet-modal-title"
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md overflow-hidden rounded-xl border border-[#24242C] bg-[#131317] shadow-2xl"
+              className="w-full max-w-md overflow-hidden rounded-xl border border-[#232325] bg-[#0E0E0F] shadow-2xl"
             >
-              <header className="flex items-start justify-between border-b border-[#24242C] px-5 py-4">
+              <header className="flex items-start justify-between border-b border-[#232325] px-5 py-4">
                 <div>
                   <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#CCFF00]">
                     CONNECT TO NTI TERMINAL
@@ -414,17 +414,17 @@ export function WalletButton() {
                   aria-label="Close wallet picker"
                   disabled={Boolean(pendingConnectorId)}
                   onClick={() => setModalOpen(false)}
-                  className="cursor-pointer rounded border border-[#24242C] bg-[#0B0B0E] px-2.5 py-1 font-mono text-xs text-[#A1A1AA] hover:border-[#32323D] hover:text-[#F4F4F5]"
+                  className="cursor-pointer rounded border border-[#232325] bg-[#090909] px-2.5 py-1 font-mono text-xs text-[#A1A1AA] hover:border-[#3A3A3D] hover:text-[#F4F4F5]"
                 >
                   ESC
                 </button>
               </header>
 
-              <p className="border-b border-[#24242C] bg-[#0B0B0E] px-5 py-2.5 font-mono text-[11px] text-[#A1A1AA]">
+              <p className="border-b border-[#232325] bg-[#090909] px-5 py-2.5 font-mono text-[11px] text-[#A1A1AA]">
                 Connect via EIP-6963 or WalletConnect. Target network: {targetChain.name} ({targetChainId}).
               </p>
 
-              <div className="max-h-[60vh] divide-y divide-[#24242C] overflow-y-auto">
+              <div className="max-h-[60vh] divide-y divide-[#232325] overflow-y-auto">
                 {availableConnectors.map((connector) => {
                   const logo = iconForConnector(connector);
                   const isBusy = pendingConnectorId === connector.uid;
@@ -434,10 +434,10 @@ export function WalletButton() {
                       type="button"
                       disabled={Boolean(pendingConnectorId)}
                       onClick={() => void handleSelectConnector(connector)}
-                      className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-[#19191F] disabled:opacity-60"
+                      className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-[#131314] disabled:opacity-60"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#24242C] bg-[#0B0B0E]">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#232325] bg-[#090909]">
                           {logo ? (
                             <img src={logo} alt="" className="h-5 w-5 object-contain" />
                           ) : (
@@ -466,10 +466,10 @@ export function WalletButton() {
                     href={kw.installUrl}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="flex items-center justify-between px-5 py-3 opacity-75 transition-colors hover:bg-[#19191F] hover:opacity-100"
+                    className="flex items-center justify-between px-5 py-3 opacity-75 transition-colors hover:bg-[#131314] hover:opacity-100"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#24242C] bg-[#0B0B0E]">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#232325] bg-[#090909]">
                         <img src={kw.logo} alt="" className="h-5 w-5 object-contain grayscale" />
                       </div>
                       <span className="text-sm text-[#A1A1AA]">{kw.name}</span>
@@ -490,7 +490,7 @@ export function WalletButton() {
                 </div>
               )}
 
-              <footer className="flex items-center justify-between border-t border-[#24242C] bg-[#0B0B0E] px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+              <footer className="flex items-center justify-between border-t border-[#232325] bg-[#090909] px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 <span>{targetChain.name}</span>
                 <span className="tabular-nums">CHAIN ID {targetChainId}</span>
               </footer>

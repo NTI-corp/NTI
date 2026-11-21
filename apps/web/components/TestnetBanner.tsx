@@ -4,6 +4,7 @@ import { useReadContract } from "wagmi";
 import { getActiveChainId, getProtocolAddresses, ntiRegistryAbi } from "@/lib/contracts";
 import { ROBINHOOD_MAINNET_ID } from "@nti/sdk";
 
+/** Slim notice while the registry still points at the test token. Hidden once `registry.frozen`. */
 export function TestnetBanner() {
   const chainId = getActiveChainId();
   const addresses = getProtocolAddresses(chainId);
@@ -12,34 +13,24 @@ export function TestnetBanner() {
     address: addresses.registry ?? undefined,
     abi: ntiRegistryAbi,
     functionName: "frozen",
-    query: {
-      enabled: Boolean(addresses.registry),
-      staleTime: 60_000,
-    },
+    query: { enabled: Boolean(addresses.registry), staleTime: 60_000 },
   });
 
-  // Only hide once registry.frozen === true on mainnet.
   if (frozen === true) return null;
 
   const isMainnet = chainId === ROBINHOOD_MAINNET_ID;
 
   return (
-    <div
-      role="status"
-      className="border-b border-[#F59E0B]/30 bg-[#F59E0B]/10 px-4 py-1.5 text-[11px] font-mono text-[#F59E0B]"
-    >
-      <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="font-semibold tracking-wider">
-            {isMainnet ? "PRE-FREEZE REGISTRY MODE" : "TESTNET MODE · NTITestToken"}
+    <div role="status" className="border-b border-[#232325] bg-[#0A0A0B]">
+      <div className="mx-auto flex max-w-[1480px] flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] sm:px-6">
+        <span className="inline-flex items-center gap-2 text-[#F59E0B]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#F59E0B]" />
+          {isMainnet ? "Pre-freeze registry" : "Testnet · test token"}
+          <span className="hidden text-[#8A8A93] normal-case tracking-normal sm:inline">
+            Staking, markets and disputes use tNTI until the live $NTI address is locked.
           </span>
-          <span className="hidden text-[#F59E0B]/80 sm:inline">
-            Registry not yet frozen (`registry.frozen == false`). Staking, markets &amp; disputes use test tokens until live $NTI CA is locked.
-          </span>
-        </div>
-        <span className="text-[#F59E0B]/90 tabular-nums">
-          CHAIN ID {chainId}
         </span>
+        <span className="text-[#71717A] tabular-nums">Chain {chainId}</span>
       </div>
     </div>
   );

@@ -57,11 +57,10 @@ export function EpochBadge({ epochId, status, compact = false }: EpochBadgeProps
     <Link
       href="/oracle"
       title="Inspect oracle epoch timeline, dataset hashes, and validator attestations"
-      className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors hover:border-[#32323D] ${s.border} ${s.bg} ${s.text}`}
+      className={`inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors hover:border-[#3A3A3D] ${s.border} ${s.bg} ${s.text}`}
     >
-      {epochId != null && (
-        <span className="text-[#F4F4F5] tabular-nums">EP-{epochId}</span>
-      )}
+      <span className="live-dot h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+      {epochId != null && <span className="text-[#F4F4F5] tabular-nums">EP-{epochId}</span>}
       <span>{compact ? status.toUpperCase() : s.label}</span>
     </Link>
   );

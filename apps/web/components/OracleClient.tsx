@@ -238,10 +238,10 @@ export function OracleClient({ initial }: OracleClientProps) {
   return (
     <div className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 lg:px-6">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#24242C] pb-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#232325] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-[#CCFF00]">
+            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
               Optimistic Attestation &amp; Provenance
             </span>
             {detail.dataSource === "preview" && (
@@ -256,7 +256,7 @@ export function OracleClient({ initial }: OracleClientProps) {
             )}
           </div>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-[#F4F4F5]">
-            Oracle Attestation Inspector · Epoch #{detail.epoch.epochId}
+            Oracle · Epoch #{detail.epoch.epochId}
           </h1>
           <p className="mt-1 text-xs text-[#A1A1AA]">
             Deterministic dataset snapshot, 2-of-3 validator EIP-712 median commit, and 2h bonded dispute window.
@@ -302,7 +302,7 @@ export function OracleClient({ initial }: OracleClientProps) {
               className={`rounded-md border px-2.5 py-1 transition-colors tabular-nums ${
                 active
                   ? "border-[#CCFF00]/60 bg-[#CCFF00]/12 text-[#F4F4F5]"
-                  : "border-[#24242C] bg-[#131317] text-[#A1A1AA] hover:border-[#32323D] hover:text-[#F4F4F5]"
+                  : "border-[#232325] bg-[#0E0E0F] text-[#A1A1AA] hover:border-[#3A3A3D] hover:text-[#F4F4F5]"
               }`}
             >
               #{ep.epochId} · {ep.status.toUpperCase()}
@@ -325,7 +325,7 @@ export function OracleClient({ initial }: OracleClientProps) {
       )}
 
       {/* Lifecycle Timeline */}
-      <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs font-semibold text-[#F4F4F5]">Epoch State Machine</div>
           <div className="font-mono text-[11px] text-[#A1A1AA]">
@@ -359,7 +359,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                     ? "border-[#CCFF00]/60 bg-[#CCFF00]/10"
                     : reached
                       ? "border-[#22C55E]/35 bg-[#22C55E]/8"
-                      : "border-[#24242C] bg-[#19191F]"
+                      : "border-[#232325] bg-[#131314]"
                 }`}
               >
                 <div className="flex items-center justify-between text-[10px]">
@@ -385,8 +385,8 @@ export function OracleClient({ initial }: OracleClientProps) {
         </div>
 
         {/* Cryptographic Hashes & Arweave Provenance */}
-        <div className="mt-4 grid grid-cols-1 gap-3 border-t border-[#24242C] pt-4 font-mono text-xs md:grid-cols-3">
-          <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 border-t border-[#232325] pt-4 font-mono text-xs md:grid-cols-3">
+          <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
             <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
               Dataset Hash (keccak256)
             </div>
@@ -394,7 +394,7 @@ export function OracleClient({ initial }: OracleClientProps) {
               {detail.epoch.datasetHash ?? "Pending snapshot"}
             </div>
           </div>
-          <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+          <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
             <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
               Config Hash (ConfigRegistry)
             </div>
@@ -402,7 +402,7 @@ export function OracleClient({ initial }: OracleClientProps) {
               {detail.epoch.configHash ?? "Pending"}
             </div>
           </div>
-          <div className="rounded-md border border-[#24242C] bg-[#0B0B0E] p-3">
+          <div className="rounded-md border border-[#232325] bg-[#090909] p-3">
             <div className="text-[10px] uppercase tracking-wider text-[#71717A]">
               Public Dataset Snapshot
             </div>
@@ -425,8 +425,8 @@ export function OracleClient({ initial }: OracleClientProps) {
       </div>
 
       {/* Validator Attestation Matrix */}
-      <div className="rounded-lg border border-[#24242C] bg-[#131317]">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#24242C] px-4 py-3">
+      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#232325] px-4 py-3">
           <div>
             <h2 className="text-sm font-semibold text-[#F4F4F5]">
               Validator EIP-712 Attestation Vectors ({detail.attestations.length} / 3 Quorum)
@@ -440,7 +440,7 @@ export function OracleClient({ initial }: OracleClientProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#24242C] bg-[#19191F] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+              <tr className="border-b border-[#232325] bg-[#131314] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 <th className="px-4 py-2.5">Validator</th>
                 {NARRATIVES.slice(0, 6).map((n) => (
                   <th key={n.id} className="px-2.5 py-2.5 text-right">
@@ -451,7 +451,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                 <th className="px-4 py-2.5 text-right">Signed</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#24242C] font-mono tabular-nums">
+            <tbody className="divide-y divide-[#232325] font-mono tabular-nums">
               {detail.attestations.length === 0 ? (
                 <tr>
                   <td
@@ -463,7 +463,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                 </tr>
               ) : (
                 detail.attestations.map((att) => (
-                  <tr key={att.validator} className="transition-colors hover:bg-[#19191F]/60">
+                  <tr key={att.validator} className="transition-colors hover:bg-[#131314]/60">
                     <td className="px-4 py-2.5 text-[#F4F4F5]">
                       {truncateHex(att.validator, 8, 6)}
                     </td>
@@ -495,7 +495,7 @@ export function OracleClient({ initial }: OracleClientProps) {
       </div>
 
       {/* Disputes Section */}
-      <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
         <h2 className="text-sm font-semibold text-[#F4F4F5]">
           Disputes for Epoch #{detail.epoch.epochId} ({detail.disputes.length})
         </h2>
@@ -504,7 +504,7 @@ export function OracleClient({ initial }: OracleClientProps) {
             Zero disputes opened for this epoch. Max 1 dispute per epoch prevents finalization griefing.
           </p>
         ) : (
-          <div className="mt-3 divide-y divide-[#24242C] font-mono text-xs">
+          <div className="mt-3 divide-y divide-[#232325] font-mono text-xs">
             {detail.disputes.map((d) => {
               const nar = NARRATIVE_BY_ID.get(d.narrativeId);
               const isOpen = d.status.toLowerCase() === "open";
@@ -523,7 +523,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                         type="button"
                         disabled={isBusy}
                         onClick={() => void handleExpireDispute(d.disputeId)}
-                        className="rounded border border-[#24242C] bg-[#19191F] px-2 py-1 text-[10px] text-[#F4F4F5] hover:border-[#F59E0B]/50 disabled:opacity-40"
+                        className="rounded border border-[#232325] bg-[#131314] px-2 py-1 text-[10px] text-[#F4F4F5] hover:border-[#F59E0B]/50 disabled:opacity-40"
                       >
                         EXPIRE (6H)
                       </button>
@@ -553,15 +553,15 @@ export function OracleClient({ initial }: OracleClientProps) {
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-lg border border-[#24242C] bg-[#131317] p-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#24242C] pb-3">
+          <div className="w-full max-w-md rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#232325] pb-3">
               <h3 className="text-sm font-semibold text-[#F87171]">
                 Open Oracle Dispute · Epoch #{detail.epoch.epochId}
               </h3>
               <button
                 type="button"
                 onClick={() => setDisputeModalOpen(false)}
-                className="rounded border border-[#24242C] bg-[#19191F] px-2 py-0.5 font-mono text-[11px] text-[#A1A1AA] hover:text-[#F4F4F5]"
+                className="rounded border border-[#232325] bg-[#131314] px-2 py-0.5 font-mono text-[11px] text-[#A1A1AA] hover:text-[#F4F4F5]"
               >
                 ESC
               </button>
@@ -571,7 +571,7 @@ export function OracleClient({ initial }: OracleClientProps) {
             </p>
 
             {/* Bond Balance & Allowance Check */}
-            <div className="mt-3 rounded-md border border-[#24242C] bg-[#19191F] p-2.5 font-mono text-[11px] tabular-nums">
+            <div className="mt-3 rounded-md border border-[#232325] bg-[#131314] p-2.5 font-mono text-[11px] tabular-nums">
               <div className="flex justify-between">
                 <span className="text-[#71717A]">$NTI Balance</span>
                 <span className={hasEnoughBalance ? "text-[#22C55E]" : "text-[#F87171]"}>
@@ -596,7 +596,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                 <select
                   value={disputeNarrativeId}
                   onChange={(e) => setDisputeNarrativeId(Number(e.target.value))}
-                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
                 >
                   {NARRATIVES.map((n) => (
                     <option key={n.id} value={n.id}>
@@ -615,7 +615,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                   max="10000"
                   value={claimedIBps}
                   onChange={(e) => setClaimedIBps(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] focus:border-[#CCFF00] focus:outline-none"
                 />
               </div>
               <div>
@@ -627,7 +627,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                   placeholder="0x... or Arweave replay URI"
                   value={evidenceNote}
                   onChange={(e) => setEvidenceNote(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
+                  className="mt-1 w-full rounded-md border border-[#232325] bg-[#090909] px-3 py-2 font-mono text-xs text-[#F4F4F5] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
                 />
               </div>
 

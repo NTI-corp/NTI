@@ -138,7 +138,7 @@ export function IndexChart({
     hoveredIdx !== null && hoveredIdx < epochs.length ? hoveredIdx : epochs.length - 1;
 
   return (
-    <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4">
+    <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold tracking-tight text-[#F4F4F5]">
@@ -158,8 +158,8 @@ export function IndexChart({
                 onClick={() => toggleSeries(s.id)}
                 className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono text-[11px] transition-opacity ${
                   hidden
-                    ? "border-[#24242C] text-[#71717A] opacity-45"
-                    : "border-[#24242C] bg-[#19191F] text-[#F4F4F5]"
+                    ? "border-[#232325] text-[#71717A] opacity-45"
+                    : "border-[#232325] bg-[#131314] text-[#F4F4F5]"
                 }`}
               >
                 <span
@@ -179,7 +179,7 @@ export function IndexChart({
       </div>
 
       {primary && primary.points[activeIdx] && (
-        <div className="mb-2 flex flex-wrap items-center gap-4 rounded-md border border-[#24242C] bg-[#0B0B0E] px-3 py-1.5 font-mono text-[11px] tabular-nums">
+        <div className="mb-2 flex flex-wrap items-center gap-4 rounded-md border border-[#232325] bg-[#090909] px-3 py-1.5 font-mono text-[11px] tabular-nums">
           <span className="text-[#A1A1AA]">
             EPOCH <strong className="text-[#F4F4F5]">#{primary.points[activeIdx]!.epochId}</strong>
           </span>
@@ -249,7 +249,7 @@ export function IndexChart({
                   x2={width - padRight}
                   y1={y}
                   y2={y}
-                  stroke="#24242C"
+                  stroke="#232325"
                   strokeWidth="1"
                 />
                 <text
@@ -309,7 +309,7 @@ export function IndexChart({
                   width="68"
                   height="14"
                   rx="2"
-                  fill="#131518"
+                  fill="#0E0E0F"
                   stroke="#CCFF00"
                   strokeOpacity="0.6"
                 />
@@ -367,7 +367,7 @@ export function IndexChart({
                     cy={yAtI(s.points[activeIdx]!.iBps)}
                     r="3.8"
                     fill={s.color}
-                    stroke="#0B0B0E"
+                    stroke="#090909"
                     strokeWidth="1.5"
                   />
                 )}
@@ -382,7 +382,7 @@ export function IndexChart({
                 x2={width - padRight}
                 y1={velMid}
                 y2={velMid}
-                stroke="#32323D"
+                stroke="#3A3A3D"
                 strokeWidth="1"
               />
               <text

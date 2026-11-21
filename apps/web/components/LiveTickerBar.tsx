@@ -20,9 +20,9 @@ export function LiveTickerBar({
   const items = [...sorted, ...sorted];
 
   return (
-    <div className="border-t border-[#24242C] bg-[#0B0B0E] font-mono text-[11px] tabular-nums">
+    <div className="border-t border-[#232325] bg-[#090909] font-mono text-[11px] tabular-nums">
       <div className="mx-auto flex max-w-[1440px] items-center">
-        <div className="flex shrink-0 items-center border-r border-[#24242C] bg-[#131317] px-3 py-2">
+        <div className="flex shrink-0 items-center border-r border-[#232325] bg-[#0E0E0F] px-3 py-2">
           <span className="text-[10px] uppercase tracking-[0.18em] text-[#A1A1AA]">
             {epochId ? `EPOCH #${epochId}` : "INDEX STREAM"}
           </span>
@@ -54,7 +54,7 @@ export function LiveTickerBar({
                   >
                     {formatSignedBps(n.vBps, n.vFlag)}
                   </span>
-                  <span className="text-[#24242C]">/</span>
+                  <span className="text-[#232325]">/</span>
                 </Link>
               );
             })}
@@ -65,7 +65,7 @@ export function LiveTickerBar({
           type="button"
           onClick={() => setPaused((p) => !p)}
           aria-label={paused ? "Resume ticker motion" : "Pause ticker motion"}
-          className="shrink-0 cursor-pointer border-l border-[#24242C] bg-[#131317] px-3 py-2 text-[10px] uppercase tracking-wider text-[#A1A1AA] transition-colors hover:text-[#F4F4F5]"
+          className="shrink-0 cursor-pointer border-l border-[#232325] bg-[#0E0E0F] px-3 py-2 text-[10px] uppercase tracking-wider text-[#A1A1AA] transition-colors hover:text-[#F4F4F5]"
         >
           {paused ? "PLAY" : "PAUSE"}
         </button>

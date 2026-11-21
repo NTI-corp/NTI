@@ -29,14 +29,14 @@ export function RadarFeed({
 
   if (visible.length === 0) {
     return (
-      <div className="rounded-lg border border-[#24242C] bg-[#131317] p-6 text-center text-xs text-[#71717A]">
+      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-6 text-center text-xs text-[#71717A]">
         No Radar alerts triggered in the current window. Velocity alerts fire at V_n &gt; +5,000 bps on finalized epochs.
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-[#24242C] overflow-hidden rounded-lg border border-[#24242C] bg-[#131317]">
+    <div className="divide-y divide-[#232325] overflow-hidden rounded-lg border border-[#232325] bg-[#0E0E0F]">
       {visible.map((alert) => {
         const publicMs = new Date(alert.publicAt).getTime();
         const remainingMin = Math.max(1, Math.ceil((publicMs - nowMs) / 60_000));
@@ -45,7 +45,7 @@ export function RadarFeed({
         return (
           <div
             key={alert.id}
-            className={`transition-colors hover:bg-[#19191F] ${
+            className={`transition-colors hover:bg-[#131314] ${
               compact ? "px-3.5 py-3" : "px-4 py-3.5"
             }`}
           >
@@ -101,7 +101,7 @@ export function RadarFeed({
                         {truncateHex(alert.token.address, 6, 4)}
                       </span>
                       {alert.token.liquidityEth !== null && (
-                        <span className="rounded border border-[#24242C] bg-[#0B0B0E] px-1.5 py-0.5 text-[10px] text-[#F4F4F5]">
+                        <span className="rounded border border-[#232325] bg-[#090909] px-1.5 py-0.5 text-[10px] text-[#F4F4F5]">
                           {alert.token.liquidityEth.toFixed(1)} ETH LIQ
                         </span>
                       )}

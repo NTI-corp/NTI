@@ -64,7 +64,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
 
   if (points.length === 0) {
     return (
-      <div className="rounded-lg border border-[#24242C] bg-[#131317] p-8 text-center text-xs text-[#A1A1AA]">
+      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-8 text-center text-xs text-[#A1A1AA]">
         No mindshare or active builder telemetry available yet. Heatmap populates automatically once Epoch #1 commits.
       </div>
     );
@@ -77,7 +77,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
 
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-      <div className="rounded-lg border border-[#24242C] bg-[#131317] p-4 xl:col-span-7">
+      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] p-4 xl:col-span-7">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold text-[#F4F4F5]">
@@ -88,7 +88,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
             </p>
           </div>
           {selected && (
-            <span className="rounded border border-[#24242C] bg-[#19191F] px-2.5 py-1 font-mono text-[11px] text-[#F4F4F5] tabular-nums">
+            <span className="rounded border border-[#232325] bg-[#131314] px-2.5 py-1 font-mono text-[11px] text-[#F4F4F5] tabular-nums">
               {selected.label}: Score {selected.opportunityScore.toFixed(2)}
             </span>
           )}
@@ -115,8 +115,8 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
               const y = padT + (1 - t) * plotH;
               return (
                 <g key={t}>
-                  <line x1={x} x2={x} y1={padT} y2={padT + plotH} stroke="#24242C" />
-                  <line x1={padL} x2={padL + plotW} y1={y} y2={y} stroke="#24242C" />
+                  <line x1={x} x2={x} y1={padT} y2={padT + plotH} stroke="#232325" />
+                  <line x1={padL} x2={padL + plotW} y1={y} y2={y} stroke="#232325" />
                 </g>
               );
             })}
@@ -126,7 +126,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
               x2={xOf(medM)}
               y1={padT}
               y2={padT + plotH}
-              stroke="#32323D"
+              stroke="#3A3A3D"
               strokeDasharray="4 4"
             />
             <line
@@ -134,7 +134,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
               x2={padL + plotW}
               y1={yOf(medP)}
               y2={yOf(medP)}
-              stroke="#32323D"
+              stroke="#3A3A3D"
               strokeDasharray="4 4"
             />
 
@@ -179,8 +179,8 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
               EARLY / QUIET
             </text>
 
-            <line x1={padL} x2={padL + plotW} y1={padT + plotH} y2={padT + plotH} stroke="#32323D" />
-            <line x1={padL} x2={padL} y1={padT} y2={padT + plotH} stroke="#32323D" />
+            <line x1={padL} x2={padL + plotW} y1={padT + plotH} y2={padT + plotH} stroke="#3A3A3D" />
+            <line x1={padL} x2={padL} y1={padT} y2={padT + plotH} stroke="#3A3A3D" />
 
             <text
               x={padL + plotW / 2}
@@ -242,7 +242,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
                     r={radius}
                     fill={q.color}
                     fillOpacity={isSelected ? 0.95 : 0.8}
-                    stroke="#0B0B0E"
+                    stroke="#090909"
                     strokeWidth="2"
                   />
                   <text
@@ -263,8 +263,8 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
         </div>
       </div>
 
-      <div className="rounded-lg border border-[#24242C] bg-[#131317] xl:col-span-5">
-        <div className="border-b border-[#24242C] px-4 py-3">
+      <div className="rounded-lg border border-[#232325] bg-[#0E0E0F] xl:col-span-5">
+        <div className="border-b border-[#232325] px-4 py-3">
           <h3 className="text-sm font-semibold text-[#F4F4F5]">
             Ranked Opportunity Score (M_n / Active Projects)
           </h3>
@@ -276,14 +276,14 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-[#24242C] bg-[#19191F] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+              <tr className="border-b border-[#232325] bg-[#131314] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 <th className="px-3.5 py-2.5">Narrative</th>
                 <th className="px-3.5 py-2.5 text-right">M_n</th>
                 <th className="px-3.5 py-2.5 text-right">Projects</th>
                 <th className="px-3.5 py-2.5 text-right">Opp. Score</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#24242C] font-mono tabular-nums">
+            <tbody className="divide-y divide-[#232325] font-mono tabular-nums">
               {points.map((pt, i) => {
                 const badge = QUADRANT_BADGE[pt.quadrant];
                 const isSel = selected?.narrativeId === pt.narrativeId;
@@ -293,7 +293,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
                     onClick={() => setSelectedId(pt.narrativeId)}
                     onMouseEnter={() => setSelectedId(pt.narrativeId)}
                     className={`cursor-pointer transition-colors ${
-                      isSel ? "bg-[#19191F]" : "hover:bg-[#19191F]/60"
+                      isSel ? "bg-[#131314]" : "hover:bg-[#131314]/60"
                     }`}
                   >
                     <td className="px-3.5 py-2.5">

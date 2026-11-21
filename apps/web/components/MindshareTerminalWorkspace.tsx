@@ -164,7 +164,7 @@ export function MindshareTerminalWorkspace({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#71717A]">
+            <div className="kicker">
               Analytics
             </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-3">
@@ -188,7 +188,7 @@ export function MindshareTerminalWorkspace({
             )}
             <Link
               href="/methodology"
-              className="inline-flex items-center gap-1 rounded-lg border border-[#24242C] bg-[#141418] px-3 py-1.5 text-xs font-medium text-[#A1A1AA] hover:border-[#3A3A46] hover:text-white"
+              className="inline-flex items-center gap-1 rounded-lg border border-[#232325] bg-[#131314] px-3 py-1.5 text-xs font-medium text-[#A1A1AA] hover:border-[#3A3A46] hover:text-white"
             >
               <span>API &amp; Methodology</span>
               <ArrowUpRight className="h-3.5 w-3.5" />
@@ -198,7 +198,7 @@ export function MindshareTerminalWorkspace({
 
         {/* Timeframe + Category Filter Strip (Blockworks style) */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-lg border border-[#24242C] bg-[#131317] p-0.5">
+          <div className="inline-flex rounded-lg border border-[#232325] bg-[#0E0E0F] p-0.5">
             {(["4H", "24H", "7D", "ALL"] as const).map((w) => (
               <button
                 key={w}
@@ -215,7 +215,7 @@ export function MindshareTerminalWorkspace({
             ))}
           </div>
 
-          <div className="h-5 w-px bg-[#24242C]" />
+          <div className="h-5 w-px bg-[#232325]" />
 
           <div className="flex flex-wrap items-center gap-1.5">
             {(
@@ -233,8 +233,8 @@ export function MindshareTerminalWorkspace({
                 onClick={() => setCategory(cat.id)}
                 className={`cursor-pointer rounded-lg border px-3 py-1 text-xs font-medium transition-colors ${
                   category === cat.id
-                    ? "border-[#3D3D4A] bg-[#22222A] text-white"
-                    : "border-[#22222A] bg-[#131317] text-[#A1A1AA] hover:border-[#32323D] hover:text-white"
+                    ? "border-[#3D3D4A] bg-[#1D1D1F] text-white"
+                    : "border-[#1D1D1F] bg-[#0E0E0F] text-[#A1A1AA] hover:border-[#3A3A3D] hover:text-white"
                 }`}
               >
                 {cat.label}
@@ -244,13 +244,46 @@ export function MindshareTerminalWorkspace({
         </div>
       </div>
 
+      {/* Stat strip: the four numbers that matter at a glance */}
+      <div className="stat-strip">
+        <div>
+          <div className="stat-label">Leader sector</div>
+          <div className="stat-value truncate">{leader?.label ?? "—"}</div>
+          <div className="stat-caption">
+            {leader ? formatBpsPercent(leader.iBps) : "—"} of total mindshare
+          </div>
+        </div>
+        <div>
+          <div className="stat-label">Total weight</div>
+          <div className="stat-value tabular-nums">
+            {totalBps.toLocaleString("en-US")}
+            <span className="ml-1 text-sm font-semibold text-[#22C55E]">bps</span>
+          </div>
+          <div className="stat-caption">Hamilton-rounded, always sums to 10,000</div>
+        </div>
+        <div>
+          <div className="stat-label">Fastest mover</div>
+          <div className="stat-value truncate">{fastest ? fastest.label : "Warming"}</div>
+          <div className="stat-caption">
+            {fastest ? `${formatSignedBps(fastest.vBps, fastest.vFlag)} over 24h` : "EMA needs 6 epochs of history"}
+          </div>
+        </div>
+        <div>
+          <div className="stat-label">Dataset root</div>
+          <div className="stat-value font-mono text-lg">
+            {activeEpoch?.datasetHash ? truncateHex(activeEpoch.datasetHash, 6, 4) : "Pending"}
+          </div>
+          <div className="stat-caption">Committed on-chain, recomputable by anyone</div>
+        </div>
+      </div>
+
       {/* Main 12-Col Blockworks Grid: 8 Left (Arena + Screener) | 4 Right (Overview + Signals) */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         {/* Left 8 Columns */}
         <div className="space-y-4 xl:col-span-8">
           {/* Sub-Tabs Strip */}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="inline-flex rounded-lg border border-[#24242C] bg-[#131317] p-0.5">
+            <div className="inline-flex rounded-lg border border-[#232325] bg-[#0E0E0F] p-0.5">
               {(
                 [
                   { id: "arena", label: "Sectors & Screener" },
@@ -280,7 +313,7 @@ export function MindshareTerminalWorkspace({
 
           {/* Blockworks Proportional Mindshare Mosaic */}
           {(viewTab === "arena" || viewTab === "combined") && (
-            <div className="rounded-xl border border-[#24242C] bg-[#131317] p-3">
+            <div className="rounded-xl border border-[#232325] bg-[#0E0E0F] p-3">
               <div className="flex min-h-[84px] w-full flex-wrap gap-1.5 sm:flex-nowrap">
                 {sortedByShare.map((n, idx) => {
                   const pct = (n.iBps / (sortedByShare.reduce((s, x) => s + x.iBps, 0) || 1)) * 100;
@@ -316,7 +349,7 @@ export function MindshareTerminalWorkspace({
 
           {/* Trajectory Chart */}
           {(viewTab === "chart" || viewTab === "combined") && (
-            <div className="rounded-xl border border-[#24242C] bg-[#131317] p-4">
+            <div className="rounded-xl border border-[#232325] bg-[#0E0E0F] p-4">
               <IndexChart
                 series={windowedChartSeries}
                 title={`Top 5 Narratives · Mindshare Trajectory (${windowChip})`}
@@ -328,11 +361,11 @@ export function MindshareTerminalWorkspace({
 
           {/* Blockworks-Style Sortable Screener Table */}
           {(viewTab === "arena" || viewTab === "combined") && (
-            <div className="overflow-hidden rounded-xl border border-[#24242C] bg-[#131317]">
+            <div className="overflow-hidden rounded-xl border border-[#232325] bg-[#0E0E0F]">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-[#24242C] bg-[#101014] text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
+                    <tr className="border-b border-[#232325] bg-[#101014] text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
                       <th className="w-10 px-3 py-3 text-center">#</th>
                       <th className="px-3 py-3">Narrative</th>
                       <th
@@ -454,7 +487,7 @@ export function MindshareTerminalWorkspace({
                             <td className="px-3 py-3 text-right whitespace-nowrap">
                               <Link
                                 href={`/narratives/${n.narrativeId}`}
-                                className="inline-flex items-center gap-1 rounded-md border border-[#262A32] bg-[#16191E] px-2.5 py-1 text-[11px] font-medium text-[#D4D4D8] hover:border-[#CCFF00] hover:text-[#CCFF00]"
+                                className="inline-flex items-center gap-1 rounded-md border border-[#262A32] bg-[#131314] px-2.5 py-1 text-[11px] font-medium text-[#D4D4D8] hover:border-[#CCFF00] hover:text-[#CCFF00]"
                               >
                                 <span>Open</span>
                                 <ArrowUpRight className="h-3 w-3" />
@@ -473,53 +506,11 @@ export function MindshareTerminalWorkspace({
 
         {/* Right 4 Columns: Overview Card + Tabbed Radar/Actions */}
         <aside className="space-y-4 xl:col-span-4">
-          {/* Index Overview Card (Blockworks Market Overview clone) */}
-          <div className="rounded-xl border border-[#24242C] bg-[#131317] p-4">
-            <div className="text-xs font-semibold text-white">Index Overview</div>
-
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-[11px] text-[#71717A]">Total Weight</div>
-                <div className="mt-0.5 flex items-baseline gap-1.5 font-mono">
-                  <span className="text-base font-bold tabular-nums text-white">
-                    {totalBps.toLocaleString("en-US")}
-                  </span>
-                  <span className="text-[11px] text-[#22C55E]">bps</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[11px] text-[#71717A]">Leader Mindshare</div>
-                <div className="mt-0.5 flex items-center gap-1.5">
-                  <span className="truncate text-xs font-semibold text-white">
-                    {leader?.label ?? "—"}
-                  </span>
-                  <span className="rounded bg-[#22C55E]/15 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[#22C55E]">
-                    {leader ? formatBpsPercent(leader.iBps) : "—"}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[11px] text-[#71717A]">Fastest Mover</div>
-                <div className="mt-0.5 text-xs font-medium text-[#D4D4D8]">
-                  {fastest ? `${fastest.label} (${formatSignedBps(fastest.vBps, fastest.vFlag)})` : "Warming EMA"}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-[11px] text-[#71717A]">Dataset Root</div>
-                <div className="mt-0.5 font-mono text-xs text-[#A1A1AA]">
-                  {activeEpoch?.datasetHash ? truncateHex(activeEpoch.datasetHash, 6, 4) : "Pending"}
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Right Panel Tabs: Radar Signals vs On-Chain Execution */}
-          <div className="rounded-xl border border-[#24242C] bg-[#131317] p-4">
+          <div className="rounded-xl border border-[#232325] bg-[#0E0E0F] p-4">
             <div className="mb-4 flex items-center justify-between gap-2">
-              <div className="inline-flex rounded-lg border border-[#24242C] bg-[#0D0D10] p-0.5">
+              <div className="inline-flex rounded-lg border border-[#232325] bg-[#0D0D10] p-0.5">
                 <button
                   type="button"
                   onClick={() => setSideTab("radar")}
@@ -561,8 +552,8 @@ export function MindshareTerminalWorkspace({
                 />
 
                 {!radar.realtimeUnlocked && (
-                  <div className="rounded-xl border border-[#2A2F38] bg-gradient-to-b from-[#16191E] to-[#101216] p-5 text-center">
-                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-[#343940] bg-[#0B0D11] text-[#CCFF00]">
+                  <div className="rounded-xl border border-[#2A2F38] bg-gradient-to-b from-[#131314] to-[#101216] p-5 text-center">
+                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-[#343940] bg-[#090909] text-[#CCFF00]">
                       <Radar className="h-4 w-4" />
                     </div>
                     <h3 className="mt-3 font-display text-sm font-bold text-white">
@@ -620,7 +611,7 @@ export function MindshareTerminalWorkspace({
                     <Link
                       key={act.href}
                       href={act.href}
-                      className="flex items-center justify-between rounded-lg border border-[#242830] bg-[#0E1014] px-3.5 py-3 transition-colors hover:border-[#CCFF00]/60 hover:bg-[#16191E]"
+                      className="flex items-center justify-between rounded-lg border border-[#232325] bg-[#0E1014] px-3.5 py-3 transition-colors hover:border-[#CCFF00]/60 hover:bg-[#131314]"
                     >
                       <div className="flex items-center gap-3">
                         <Icon className="h-4 w-4 text-[#CCFF00]" />

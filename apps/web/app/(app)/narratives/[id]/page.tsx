@@ -34,7 +34,7 @@ export default async function NarrativeDetailPage({
       {data.awaitingFirstEpoch && <AwaitingEpochBanner />}
 
       {/* Breadcrumb & Narrative Switcher */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#24242C] pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#232325] pb-4">
         <div>
           <div className="flex items-center gap-2 font-mono text-[11px] text-[#71717A]">
             <Link href="/terminal" className="hover:text-[#F4F4F5]">
@@ -46,7 +46,7 @@ export default async function NarrativeDetailPage({
           <h1 className="mt-1.5 text-2xl font-semibold tracking-tight text-[#F4F4F5]">
             {meta.label}
           </h1>
-          <p className="mt-1 text-xs text-[#8A96A8]">{meta.description}</p>
+          <p className="mt-1 text-xs text-[#8A8A93]">{meta.description}</p>
         </div>
 
         {/* Quick Links to Market & Basket */}
@@ -75,7 +75,7 @@ export default async function NarrativeDetailPage({
             className={`rounded border px-2.5 py-1 font-mono text-[11px] transition-colors ${
               n.id === meta.id
                 ? "border-[#38BDF8]/60 bg-[#38BDF8]/12 text-[#EDF1F7]"
-                : "border-[#1B2028] bg-[#0E1117] text-[#8A96A8] hover:border-[#2A3342] hover:text-[#EDF1F7]"
+                : "border-[#1B2028] bg-[#0E1117] text-[#8A8A93] hover:border-[#2A3342] hover:text-[#EDF1F7]"
             }`}
           >
             {n.label}
@@ -90,7 +90,7 @@ export default async function NarrativeDetailPage({
           <div className="mt-1 text-xl font-semibold text-[#EDF1F7]">
             {latest ? formatBpsPercent(latest.iBps) : "—"}
           </div>
-          <div className="text-[11px] text-[#8A96A8]">
+          <div className="text-[11px] text-[#8A8A93]">
             {latest ? `${latest.iBps.toLocaleString("en-US")} bps` : "No finalized epoch"}
           </div>
         </div>
@@ -108,7 +108,7 @@ export default async function NarrativeDetailPage({
           >
             {latest ? formatSignedBps(latest.vBps, latest.vFlag) : "—"}
           </div>
-          <div className="text-[11px] text-[#8A96A8]">6-epoch lag (24h)</div>
+          <div className="text-[11px] text-[#8A8A93]">6-epoch lag (24h)</div>
         </div>
 
         <div className="panel-surface rounded-md p-3.5">
@@ -116,7 +116,7 @@ export default async function NarrativeDetailPage({
           <div className="mt-1 text-xl font-semibold text-[#38BDF8]">
             {latest ? formatBpsPercent(latest.mBps) : "—"}
           </div>
-          <div className="text-[11px] text-[#8A96A8]">Before α = 0.3 EMA</div>
+          <div className="text-[11px] text-[#8A8A93]">Before α = 0.3 EMA</div>
         </div>
 
         <div className="panel-surface rounded-md p-3.5">
@@ -124,7 +124,7 @@ export default async function NarrativeDetailPage({
           <div className="mt-1 text-xl font-semibold text-[#EDF1F7]">
             {latest ? Math.round(latest.weightedPosts).toLocaleString("en-US") : "—"}
           </div>
-          <div className="text-[11px] text-[#8A96A8]">Threshold ≥ 30 for V_n</div>
+          <div className="text-[11px] text-[#8A8A93]">Threshold ≥ 30 for V_n</div>
         </div>
       </div>
 
@@ -158,7 +158,7 @@ export default async function NarrativeDetailPage({
             <h3 className="font-display text-sm font-semibold text-[#EDF1F7]">
               Related On-Chain Tokens
             </h3>
-            <p className="font-mono text-[11px] text-[#8A96A8]">
+            <p className="font-mono text-[11px] text-[#8A8A93]">
               Indexed from Pons V1/V2 &amp; Uniswap pools on Robinhood Chain
             </p>
           </div>
@@ -176,7 +176,7 @@ export default async function NarrativeDetailPage({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-[#EDF1F7]">${tok.symbol}</span>
-                      <span className="font-sans text-xs text-[#8A96A8]">{tok.name}</span>
+                      <span className="font-sans text-xs text-[#8A8A93]">{tok.name}</span>
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-[10px] text-[#556173]">
                       <span>{truncateHex(tok.address, 8, 6)}</span>
@@ -192,7 +192,7 @@ export default async function NarrativeDetailPage({
                   </div>
                   <div className="text-right">
                     <div className="text-[#EDF1F7]">{tok.liquidityEth.toFixed(1)} ETH</div>
-                    <div className="text-[10px] text-[#8A96A8]">{tok.txs7d} txs / 7d</div>
+                    <div className="text-[10px] text-[#8A8A93]">{tok.txs7d} txs / 7d</div>
                   </div>
                 </div>
               ))}
