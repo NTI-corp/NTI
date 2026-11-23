@@ -152,7 +152,7 @@ class GeminiAdapter:
 
 
 class MiMoAdapter:
-    """Primary classifier adapter using Xiaomi MiMo OpenAI-compatible /chat/completions with thinking off."""
+    """Primary classifier adapter using Xiaomi MiMo /chat/completions with thinking disabled."""
 
     def __init__(
         self,
