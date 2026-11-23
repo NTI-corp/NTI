@@ -123,6 +123,31 @@ def post_score(
     return ENGINE_CONTEXT.multiply(ENGINE_CONTEXT.multiply(a_k, e_i), decay)
 
 
+def diminishing_return_sum(
+    scores: Sequence[Decimal],
+    full_weight_posts: int = 3,
+) -> Decimal:
+    """Aggregate one KOL's per-narrative post scores with anti-spam diminishing returns.
+
+    Posts are ordered descending so the result is 100% permutation-invariant:
+    - Top ``full_weight_posts`` (default 3) receive full 1.0x weight.
+    - Post rank k > full_weight_posts receives ``1 / sqrt(k - full_weight_posts + 1)``
+      in 40-digit Decimal arithmetic, curbing thread/shill spam without hurting normal KOLs.
+    """
+    positives = sorted((s for s in scores if s > ZERO), reverse=True)
+    if not positives:
+        return ZERO
+    total = ZERO
+    for idx, val in enumerate(positives, start=1):
+        if idx <= full_weight_posts:
+            total = ENGINE_CONTEXT.add(total, val)
+        else:
+            denom = ENGINE_CONTEXT.sqrt(Decimal(idx - full_weight_posts + 1))
+            weighted = ENGINE_CONTEXT.divide(val, denom)
+            total = ENGINE_CONTEXT.add(total, weighted)
+    return total
+
+
 def apply_cap(
     kol_scores: dict[int, Decimal],
     active_kol_ids: set[int],
@@ -309,8 +334,8 @@ def run_epoch(
     lookback_sec = cfg.lookback_hours * 3600
     vel_window_sec = 24 * 3600
 
-    # (narrative_id -> {user_id -> sum P_i * q_in})
-    raw_contrib: dict[int, dict[int, Decimal]] = {nid: {} for nid in narrative_ids}
+    # (narrative_id -> {user_id -> [P_i * q_in, ...]})
+    raw_post_contribs: dict[int, dict[int, list[Decimal]]] = {nid: {} for nid in narrative_ids}
     active_kols: dict[int, set[int]] = {nid: set() for nid in narrative_ids}
     weighted_posts: dict[int, Decimal] = {nid: ZERO for nid in narrative_ids}
 
@@ -353,10 +378,17 @@ def run_epoch(
             if p_i <= ZERO:
                 continue
             contrib_i = ENGINE_CONTEXT.multiply(p_i, q_val)
-            prev_c = raw_contrib[nid].get(kol.user_id, ZERO)
-            raw_contrib[nid][kol.user_id] = ENGINE_CONTEXT.add(prev_c, contrib_i)
+            raw_post_contribs[nid].setdefault(kol.user_id, []).append(contrib_i)
             if q_val >= cfg.kol_active_min_q:
                 active_kols[nid].add(kol.user_id)
+
+    raw_contrib: dict[int, dict[int, Decimal]] = {
+        nid: {
+            uid: diminishing_return_sum(contribs)
+            for uid, contribs in sorted(user_map.items())
+        }
+        for nid, user_map in raw_post_contribs.items()
+    }
 
     s_by_narrative: dict[int, Decimal] = {}
     capped_by_narrative: dict[int, tuple[dict[int, Decimal], set[int]]] = {}

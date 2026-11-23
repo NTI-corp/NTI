@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from statistics import median
 from typing import Any, Protocol
 
 from nti_discovery.kol_harvest import poll_tier_for
@@ -175,6 +176,121 @@ async def retire_inactive(
             await storage.patch("kols", {"user_id": f"eq.{uid}"}, {"active": False})
             retired += 1
     return retired
+
+
+def compute_reputation(
+    followers: int,
+    engagements: list[int],
+    classified_max_q: list[float],
+) -> tuple[float, int]:
+    """Compute dynamic reputation ``r_k`` in [0.25, 1.50] and human guard ``h_k`` (0 or 1).
+
+    Combines:
+    - Median engagement-to-follower ratio against a sub-linear baseline (anti-fake-followers).
+    - Signal-to-noise ratio of classified posts with max(q) >= 0.25 (anti-off-topic spam).
+    - Bot/dead-audience guard: >= 50K followers with >= 10 recent posts and 0 median engagement.
+    """
+    if not engagements:
+        return 1.0, 1
+
+    med_eng = float(median(engagements))
+    if followers >= 50_000 and len(engagements) >= 10 and med_eng <= 0.0:
+        return 0.25, 0
+
+    expected = max(5.0, (max(0, followers) ** 0.5) * 0.45)
+    eng_ratio = max(0.0, med_eng / expected)
+    eng_score = 0.35 + min(1.0, (eng_ratio**0.5) * 0.70)
+
+    if classified_max_q:
+        relevant = sum(1 for q in classified_max_q if q >= 0.25)
+        snr = relevant / len(classified_max_q)
+    else:
+        snr = 0.70
+    snr_mult = 0.55 + 0.65 * snr
+
+    r_k = round(min(1.50, max(0.25, eng_score * snr_mult)), 4)
+    return r_k, 1
+
+
+async def recompute_reputation(
+    storage: Storage,
+    now: datetime,
+    *,
+    window_days: int = 14,
+    min_posts: int = 2,
+) -> dict[str, int]:
+    """Recalibrate dynamic ``r_k`` and ``h_k`` across active KOLs from recent post telemetry."""
+    since = (now - timedelta(days=window_days)).isoformat()
+    kols = await storage.select(
+        "kols",
+        columns="user_id,followers,r_k,h_k",
+        filters={"active": "eq.true"},
+    )
+    posts = await storage.select(
+        "posts",
+        columns="tweet_id,user_id",
+        filters={"created_at": f"gte.{since}"},
+    )
+    if not posts or not kols:
+        return {"evaluated": 0, "updated": 0, "flagged_bots": 0}
+
+    eng_rows = await storage.select(
+        "post_engagement",
+        columns="tweet_id,likes,reposts,quotes,replies",
+        filters={"fetched_at": f"gte.{since}"},
+    )
+    cls_rows = await storage.select(
+        "classifications",
+        columns="tweet_id,q",
+    )
+
+    best_eng: dict[int, int] = {}
+    for e in eng_rows:
+        tid = int(e["tweet_id"])
+        score = (
+            int(e.get("likes", 0))
+            + 2 * int(e.get("reposts", 0))
+            + 3 * int(e.get("quotes", 0))
+            + int(e.get("replies", 0))
+        )
+        if score > best_eng.get(tid, -1):
+            best_eng[tid] = score
+
+    best_q: dict[int, float] = {}
+    for c in cls_rows:
+        tid = int(c["tweet_id"])
+        q_obj = c.get("q")
+        if isinstance(q_obj, dict) and q_obj:
+            mx = max(float(v) for v in q_obj.values())
+            if mx > best_q.get(tid, -1.0):
+                best_q[tid] = mx
+
+    posts_by_user: dict[int, list[int]] = {}
+    for p in posts:
+        posts_by_user.setdefault(int(p["user_id"]), []).append(int(p["tweet_id"]))
+
+    evaluated = updated = flagged_bots = 0
+    for k in kols:
+        uid = int(k["user_id"])
+        tids = posts_by_user.get(uid)
+        if not tids or len(tids) < min_posts:
+            continue
+        evaluated += 1
+        engs = [best_eng.get(t, 0) for t in tids]
+        qs = [best_q[t] for t in tids if t in best_q]
+        new_rk, new_hk = compute_reputation(int(k.get("followers", 0)), engs, qs)
+        cur_rk = float(k.get("r_k", 1.0))
+        cur_hk = int(k.get("h_k", 1))
+        if new_hk == 0:
+            flagged_bots += 1
+        if abs(new_rk - cur_rk) >= 0.03 or new_hk != cur_hk:
+            await storage.patch(
+                "kols",
+                {"user_id": f"eq.{uid}"},
+                {"r_k": new_rk, "h_k": new_hk},
+            )
+            updated += 1
+    return {"evaluated": evaluated, "updated": updated, "flagged_bots": flagged_bots}
 
 
 class TwscrapeProfiles:

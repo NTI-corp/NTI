@@ -8,6 +8,7 @@ import json
 import os
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 from nti_core.config import load_config
@@ -47,7 +48,7 @@ def _load_kols_json(path: Path) -> list[KolProfile]:
 async def _load_kols_from_supabase(storage: SupabaseStorage) -> list[KolProfile]:
     rows = await storage.select(
         "kols",
-        columns="user_id,handle,followers,h_k,poll_tier,active",
+        columns="user_id,handle,followers,h_k,r_k,poll_tier,active",
         filters={"active": "eq.true"},
         order="user_id.asc",
     )
@@ -57,6 +58,7 @@ async def _load_kols_from_supabase(storage: SupabaseStorage) -> list[KolProfile]
             handle=str(r["handle"]),
             followers=int(r.get("followers", 0)),
             h_k=int(r.get("h_k", 1)),
+            r_k=Decimal(str(r.get("r_k", "1"))),
             poll_tier=int(r.get("poll_tier", 1)),
             active=bool(r.get("active", True)),
         )

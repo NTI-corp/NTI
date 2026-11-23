@@ -129,3 +129,19 @@ def test_retier_uses_real_post_counts() -> None:
     )
     assert asyncio.run(retier(st, NOW)) == 1
     assert st.patches[0][1] == {"poll_tier": 1}
+
+
+def test_compute_reputation_rewards_high_signal_and_flags_dead_bots() -> None:
+    from nti_discovery.kol_maintain import compute_reputation
+
+    # High-signal researcher: 20K followers, strong median engagement, 100% relevant posts
+    r_pro, h_pro = compute_reputation(20_000, [120, 180, 150, 210], [0.85, 0.9, 0.75, 0.8])
+    assert h_pro == 1 and r_pro > 1.15
+
+    # Low-engagement off-topic noise account: 100K followers, tiny engagement, 0% relevant
+    r_noise, h_noise = compute_reputation(100_000, [2, 3, 1, 2], [0.0, 0.05, 0.0, 0.1])
+    assert h_noise == 1 and r_noise < 0.55
+
+    # Dead/bought-follower bot: 80K followers, 12 posts with 0 median engagement
+    r_bot, h_bot = compute_reputation(80_000, [0] * 12, [0.0] * 12)
+    assert h_bot == 0 and r_bot == 0.25

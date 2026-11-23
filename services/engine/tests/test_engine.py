@@ -247,3 +247,19 @@ def test_permutation_invariance_shuffled_inputs_identical_output() -> None:
     r1 = run_epoch(ds1, prev, CONFIG_V1)
     r2 = run_epoch(ds2, prev, CONFIG_V1)
     assert r1 == r2
+
+
+def test_diminishing_return_sum_curbs_spam_bursts_and_is_permutation_invariant() -> None:
+    from nti_engine.calc import diminishing_return_sum
+
+    # Top 3 posts get full 1.0x weight
+    assert diminishing_return_sum([Decimal("10"), Decimal("10"), Decimal("10")]) == Decimal("30")
+
+    # 10 identical spam posts get strictly less than 10x (post #4..10 decay as 1/sqrt(k-2))
+    burst = [Decimal("10")] * 10
+    total = diminishing_return_sum(burst)
+    assert Decimal("55") < total < Decimal("65")
+
+    # Order of input posts does not affect the aggregate
+    mixed = [Decimal("2"), Decimal("50"), Decimal("15"), Decimal("8"), Decimal("30")]
+    assert diminishing_return_sum(mixed) == diminishing_return_sum(list(reversed(mixed)))

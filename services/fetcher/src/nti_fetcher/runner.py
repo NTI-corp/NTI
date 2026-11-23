@@ -177,10 +177,14 @@ class FetchRunner:
 
     @staticmethod
     def eligible_kols(kols: Sequence[KolProfile], epoch_id: int) -> list[KolProfile]:
-        ordered = sorted(kols, key=lambda k: k.user_id)
-        return [
-            k for k in ordered if k.active and k.poll_tier > 0 and (epoch_id % k.poll_tier == 0)
+        """Return active KOLs due this epoch, ordered by tier then authority (followers * r_k)."""
+        due = [
+            k for k in kols if k.active and k.poll_tier > 0 and (epoch_id % k.poll_tier == 0)
         ]
+        return sorted(
+            due,
+            key=lambda k: (k.poll_tier, -(k.followers * float(k.r_k)), k.user_id),
+        )
 
     async def _sleep_jitter(self) -> None:
         lo, hi = self._jitter_range

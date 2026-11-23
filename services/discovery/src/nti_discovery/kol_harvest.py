@@ -292,6 +292,7 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
         )
         report["retiered"] = await kol_maintain.retier(storage, now)
         report["retired_inactive"] = await kol_maintain.retire_inactive(storage, now)
+        report["reputation"] = await kol_maintain.recompute_reputation(storage, now)
 
     existing = await storage.select("kols", columns="user_id,handle,active")
     known = {int(r["user_id"]) for r in existing}

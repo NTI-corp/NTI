@@ -302,6 +302,23 @@ async def test_runner_tiered_polling_and_3_page_60_post_cap(tmp_path: Path) -> N
     assert res.status == EpochStatus.COLLECTING
     assert res.total_ok == 1
     assert res.total_failed == 0
+
+    # Priority ordering: Tier 1 highest (followers * r_k) first, then Tier 2
+    prioritized = FetchRunner.eligible_kols(
+        [
+            KolProfile(
+                user_id=10, handle="t2_big", followers=500_000, r_k=Decimal("1.5"), poll_tier=2
+            ),
+            KolProfile(
+                user_id=11, handle="t1_low", followers=5_000, r_k=Decimal("0.5"), poll_tier=1
+            ),
+            KolProfile(
+                user_id=12, handle="t1_top", followers=100_000, r_k=Decimal("1.4"), poll_tier=1
+            ),
+        ],
+        epoch_id=4,
+    )
+    assert [k.handle for k in prioritized] == ["t1_top", "t1_low", "t2_big"]
     # 3 pages x 20 fetched = 60 raw posts; 1 post after boundary dropped -> 59 eligible
     assert res.total_posts == 59
     assert 9999 not in {p.tweet_id for p in res.posts}
