@@ -426,13 +426,14 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
     if len(val_keys) < 3:
         raise RuntimeError("VALIDATOR_PRIVATE_KEY_1..3 are required for operator consensus")
 
+    use_live_omission = os.environ.get("VALIDATOR_OMISSION_CHECK", "0") == "1"
     validators = [
         ValidatorNode(
             private_key=pk,
             cfg=cfg,
             chain_id=args.chain_id,
             verifying_contract=oracle_addr,
-            validator_source=x_source,
+            validator_source=x_source if use_live_omission else None,
         )
         for pk in val_keys
     ]

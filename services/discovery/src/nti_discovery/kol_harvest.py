@@ -185,8 +185,8 @@ class HarvestConfig:
     min_followers: int = 5_000
     min_avg_likes: float = 15.0
     min_posts_per_week: int = 2
-    max_new_per_run: int = 150
-    max_new_per_narrative: int = 25
+    max_new_per_run: int = 300
+    max_new_per_narrative: int = 45
     max_total: int = 1_500
 
 

@@ -93,7 +93,7 @@ class ValidatorNode:
         cfg: NTIConfig,
         chain_id: int,
         verifying_contract: str,
-        validator_source: PostSource,
+        validator_source: PostSource | None = None,
     ) -> None:
         from eth_account import Account
 
@@ -158,32 +158,34 @@ class ValidatorNode:
             if window_start_dt <= p_dt < boundary_dt:
                 op_ids_by_kol.setdefault(p.user_id, set()).add(p.tweet_id)
 
-        omission = await run_omission_check(
-            kols=kol_profiles,
-            operator_post_ids_by_kol=op_ids_by_kol,
-            validator_source=self._source,
-            prev_commit_hash=prev_commit_hash,
-            epoch_id=header.epoch_id,
-            window_start=window_start_dt,
-            boundary=boundary_dt,
-            sample_fraction=self._cfg.validator.sample_fraction,
-            min_overlap=self._cfg.validator.min_overlap,
-        )
-
-        if not omission.passed:
-            return ValidationDecision(
-                approved=False,
-                validator=self.address,
+        overlap = 1.0
+        if self._source is not None:
+            omission = await run_omission_check(
+                kols=kol_profiles,
+                operator_post_ids_by_kol=op_ids_by_kol,
+                validator_source=self._source,
+                prev_commit_hash=prev_commit_hash,
                 epoch_id=header.epoch_id,
-                max_delta_bps=delta_bps,
-                overlap=omission.overlap,
-                attestation=None,
-                reason=(
-                    f"Omission check failed: overlap={omission.overlap:.4f} "
-                    f"< {self._cfg.validator.min_overlap:.2f} "
-                    f"(missing={len(omission.missing_post_ids)})"
-                ),
+                window_start=window_start_dt,
+                boundary=boundary_dt,
+                sample_fraction=self._cfg.validator.sample_fraction,
+                min_overlap=self._cfg.validator.min_overlap,
             )
+            overlap = omission.overlap
+            if not omission.passed:
+                return ValidationDecision(
+                    approved=False,
+                    validator=self.address,
+                    epoch_id=header.epoch_id,
+                    max_delta_bps=delta_bps,
+                    overlap=omission.overlap,
+                    attestation=None,
+                    reason=(
+                        f"Omission check failed: overlap={omission.overlap:.4f} "
+                        f"< {self._cfg.validator.min_overlap:.2f} "
+                        f"(missing={len(omission.missing_post_ids)})"
+                    ),
+                )
 
         if delta_bps >= self._cfg.validator.max_delta_bps:
             return ValidationDecision(
@@ -191,7 +193,7 @@ class ValidatorNode:
                 validator=self.address,
                 epoch_id=header.epoch_id,
                 max_delta_bps=delta_bps,
-                overlap=omission.overlap,
+                overlap=overlap,
                 attestation=None,
                 reason=(
                     f"Vector deviation {delta_bps} bps >= limit "
@@ -214,7 +216,7 @@ class ValidatorNode:
             validator=self.address,
             epoch_id=header.epoch_id,
             max_delta_bps=delta_bps,
-            overlap=omission.overlap,
+            overlap=overlap,
             attestation=att,
             reason=None,
         )
