@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   BarChart3,
   BookOpen,
   ChevronsLeft,
@@ -430,13 +431,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link href="/" className="flex items-center gap-2 lg:hidden" aria-label="NTI home">
                 <NtiBrandMark className="h-6 w-6" />
               </Link>
-              {currentItem && (
-                <p className="hidden min-w-0 items-center gap-2 text-[12px] text-[#71717A] sm:flex">
-                  <span>{currentItem.group}</span>
-                  <span aria-hidden="true">/</span>
-                  <b className="truncate font-medium text-[#F5F5F7]">{currentItem.label}</b>
-                </p>
-              )}
+              {(() => {
+                const routePath = optimisticPath ?? pathname;
+                const parentBack = routePath.startsWith("/narratives/")
+                  ? { href: "/terminal", label: "Terminal" }
+                  : routePath.startsWith("/markets/")
+                    ? { href: "/markets", label: "Markets" }
+                    : routePath.startsWith("/baskets/")
+                      ? { href: "/baskets", label: "Baskets" }
+                      : null;
+
+                return (
+                  <>
+                    {parentBack && (
+                      <Link
+                        href={parentBack.href}
+                        onClick={() => {
+                          if (parentBack.href !== pathname) setOptimisticPath(parentBack.href);
+                        }}
+                        className="inline-flex h-8 shrink-0 items-center gap-1.5 border border-[#26262A] bg-[#161618] px-2.5 font-mono text-[11px] font-medium uppercase tracking-wider text-[#F5F5F7] transition-colors hover:border-[#CCFF00] hover:bg-[#1E1E21] hover:text-[#CCFF00]"
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        <span>Back</span>
+                        <span className="hidden text-[#71717A] sm:inline">· {parentBack.label}</span>
+                      </Link>
+                    )}
+                    {currentItem && (
+                      <p className="hidden min-w-0 items-center gap-2 text-[12px] text-[#71717A] sm:flex">
+                        <span>{currentItem.group}</span>
+                        <span aria-hidden="true">/</span>
+                        <b className="truncate font-medium text-[#F5F5F7]">{currentItem.label}</b>
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <div className="flex items-center gap-3">

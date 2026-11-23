@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { NARRATIVES, NARRATIVE_BY_ID, NARRATIVE_BY_SLUG } from "@nti/sdk";
 import { fetchBasketsData, fetchNarrativeHistory } from "@/lib/supabase";
 import { formatBpsPercent, formatRelativeTime, formatSignedBps, truncateHex } from "@/lib/format";
@@ -38,9 +38,13 @@ export default async function NarrativeDetailPage({
       {/* Breadcrumb & Narrative Switcher */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#26262A] pb-4">
         <div>
-          <div className="flex items-center gap-2 font-mono text-[11px] text-[#71717A]">
-            <Link href="/terminal" className="hover:text-[#F5F5F7]">
-              TERMINAL
+          <div className="flex items-center gap-2.5 font-mono text-[11px] text-[#71717A]">
+            <Link
+              href="/terminal"
+              className="inline-flex items-center gap-1 border border-[#26262A] bg-[#161618] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[#F5F5F7] transition-colors hover:border-[#CCFF00] hover:text-[#CCFF00]"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              <span>BACK TO TERMINAL</span>
             </Link>
             <span>/</span>
             <span className="text-[#71717A]">NARRATIVE #{meta.id}</span>
