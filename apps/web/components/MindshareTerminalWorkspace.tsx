@@ -49,6 +49,7 @@ export function MindshareTerminalWorkspace({
   const [windowChip, setWindowChip] = useState<"4H" | "24H" | "7D" | "ALL">("4H");
   const [sortCol, setSortCol] = useState<SortColumn>("iBps");
   const [sortAsc, setSortAsc] = useState(false);
+  const [hoveredSectorId, setHoveredSectorId] = useState<number | null>(null);
 
   const totalBps = useMemo(
     () => narratives.reduce((sum, n) => sum + n.iBps, 0) || 10_000,
@@ -123,6 +124,14 @@ export function MindshareTerminalWorkspace({
     [filtered],
   );
   const leader = [...narratives].sort((a, b) => b.iBps - a.iBps)[0];
+  const allSortedByShare = useMemo(
+    () => [...narratives].sort((a, b) => b.iBps - a.iBps),
+    [narratives],
+  );
+  const hoveredSector = useMemo(
+    () => (hoveredSectorId !== null ? narratives.find((n) => n.narrativeId === hoveredSectorId) ?? null : null),
+    [narratives, hoveredSectorId],
+  );
   const fastest = [...narratives]
     .filter((n) => n.vBps !== null)
     .sort((a, b) => (b.vBps ?? -999999) - (a.vBps ?? -999999))[0];
@@ -220,6 +229,94 @@ export function MindshareTerminalWorkspace({
           <div className="stat-caption">Committed onchain · 2-of-3 quorum</div>
         </div>
       </div>
+
+      {/* 100% Proportional Mindshare Allocation Bar */}
+      <section aria-label="Mindshare allocation distribution" className="border border-[#26262A] bg-[#161618] p-3.5">
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+          <span className="uppercase tracking-[0.12em] text-[#A1A1AA]">
+            Mindshare Allocation · 100.00%
+          </span>
+          {hoveredSector ? (
+            <span className="flex flex-wrap items-center gap-3 tabular-nums">
+              <span className="inline-flex items-center gap-1.5 font-medium text-[#F5F5F7]">
+                <span
+                  className="inline-block h-2 w-2"
+                  style={{ backgroundColor: sectorColor(hoveredSector.narrativeId) }}
+                />
+                {hoveredSector.label}
+              </span>
+              <span className="text-[#F5F5F7]">{formatBpsPercent(hoveredSector.iBps)}</span>
+              <span className="text-[#71717A]">{hoveredSector.iBps.toLocaleString("en-US")} bps</span>
+              <span
+                className={
+                  (windowDeltaById.get(hoveredSector.narrativeId) ?? 0) >= 0
+                    ? "text-[#4ADE80]"
+                    : "text-[#EF4444]"
+                }
+              >
+                {windowDeltaById.get(hoveredSector.narrativeId) !== null
+                  ? formatSignedBps(
+                      windowDeltaById.get(hoveredSector.narrativeId) ?? null,
+                      windowChip === "4H" ? hoveredSector.vFlag : null,
+                    )
+                  : "—"}
+              </span>
+            </span>
+          ) : (
+            <span className="uppercase tracking-[0.08em] text-[#71717A]">
+              Hover segment for telemetry · Click to open sector
+            </span>
+          )}
+        </div>
+
+        <div className="flex h-3.5 w-full overflow-hidden border border-[#26262A] bg-[#0D0D0E]">
+          {allSortedByShare.map((n) => {
+            const pct = (n.iBps / totalBps) * 100;
+            if (pct <= 0) return null;
+            const isDimmed = hoveredSectorId !== null && hoveredSectorId !== n.narrativeId;
+            return (
+              <Link
+                key={n.narrativeId}
+                href={`/narratives/${n.narrativeId}`}
+                onMouseEnter={() => setHoveredSectorId(n.narrativeId)}
+                onMouseLeave={() => setHoveredSectorId(null)}
+                title={`${n.label}: ${formatBpsPercent(n.iBps)} (${n.iBps} bps)`}
+                className="block h-full border-r border-[#0D0D0E] transition-opacity last:border-r-0"
+                style={{
+                  width: `${pct}%`,
+                  backgroundColor: sectorColor(n.narrativeId),
+                  opacity: isDimmed ? 0.3 : 1,
+                }}
+                aria-label={`${n.label} ${formatBpsPercent(n.iBps)}`}
+              />
+            );
+          })}
+        </div>
+
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 font-mono text-[10px] tabular-nums">
+          {allSortedByShare.map((n) => {
+            const isActive = hoveredSectorId === n.narrativeId;
+            return (
+              <Link
+                key={n.narrativeId}
+                href={`/narratives/${n.narrativeId}`}
+                onMouseEnter={() => setHoveredSectorId(n.narrativeId)}
+                onMouseLeave={() => setHoveredSectorId(null)}
+                className={`inline-flex items-center gap-1.5 transition-colors ${
+                  isActive ? "text-[#F5F5F7]" : "text-[#8A8A93] hover:text-[#F5F5F7]"
+                }`}
+              >
+                <span
+                  className="inline-block h-1.5 w-1.5 shrink-0"
+                  style={{ backgroundColor: sectorColor(n.narrativeId) }}
+                />
+                <span>{n.label}</span>
+                <span className="text-[#F5F5F7]">{(n.iBps / 100).toFixed(1)}%</span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Bloomberg / US Stock 5-Up Sector Quote Board (shared 1px hairline borders, 0px radius) */}
       <section aria-label="Sector mindshare board">

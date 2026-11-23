@@ -24,6 +24,7 @@ import type {
   RadarAlertItem,
   RadarResponse,
   TokenItem,
+  TopPostItem,
   VFlag,
   ValidatorAttestationItem,
 } from "./types";
@@ -388,7 +389,7 @@ async function load_fetchNarrativeHistory(
     filterClauses.push(`epoch_id=lte.${toEpoch}`);
   }
 
-  const [neRows, contribRows, tokenRows] = await Promise.all([
+  const [neRows, contribRows, tokenRows, postRows] = await Promise.all([
     supabaseSelect<DbNarrativeEpochRow>(
       `narrative_epoch?select=*&${filterClauses.join("&")}&order=epoch_id.asc`,
       "anon",
@@ -420,6 +421,30 @@ async function load_fetchNarrativeHistory(
     }>(
       `tokens?select=*&narrative_id=eq.${meta.id}&order=liquidity_eth.desc.nullslast&limit=25`,
       "anon",
+    ),
+    supabaseSelect<{
+      tweet_id: number | string;
+      user_id: number | string;
+      created_at: string;
+      kols?: {
+        handle?: string;
+        followers?: number;
+        display_name?: string | null;
+        avatar_url?: string | null;
+      } | null;
+      post_engagement?: Array<{
+        likes?: number;
+        reposts?: number;
+        quotes?: number;
+        replies?: number;
+        fetched_at?: string;
+      }> | null;
+      classifications?: Array<{
+        q?: Record<string, number> | null;
+      }> | null;
+    }>(
+      "posts?select=tweet_id,user_id,created_at,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications(q)&order=created_at.desc&limit=200",
+      "service",
     ),
   ]);
 
@@ -473,6 +498,64 @@ async function load_fetchNarrativeHistory(
     createdAt: t.created_at,
   }));
 
+  const scoredPosts: Array<{ influence: number; item: TopPostItem }> = [];
+  for (const p of postRows ?? []) {
+    const clsList = p.classifications ?? [];
+    let bestQ = 0;
+    for (const c of clsList) {
+      const qObj = c.q;
+      if (!qObj || typeof qObj !== "object") continue;
+      const candidate = Number(qObj[meta.slug] ?? qObj[String(meta.id)] ?? 0);
+      if (Number.isFinite(candidate) && candidate > bestQ) bestQ = candidate;
+    }
+    if (bestQ < 0.25) continue;
+
+    const engList = p.post_engagement ?? [];
+    let likes = 0;
+    let reposts = 0;
+    let quotes = 0;
+    let replies = 0;
+    let bestEngSum = -1;
+    for (const e of engList) {
+      const l = Number(e.likes ?? 0);
+      const rp = Number(e.reposts ?? 0);
+      const qt = Number(e.quotes ?? 0);
+      const rl = Number(e.replies ?? 0);
+      const sum = l + rp + qt + rl;
+      if (sum > bestEngSum) {
+        bestEngSum = sum;
+        likes = l;
+        reposts = rp;
+        quotes = qt;
+        replies = rl;
+      }
+    }
+
+    const item: TopPostItem = {
+      tweetId: String(p.tweet_id),
+      handle: p.kols?.handle ?? `kol_${p.user_id}`,
+      followers: Number(p.kols?.followers ?? 0),
+      likes,
+      reposts,
+      quotes,
+      replies,
+      relevanceQ: bestQ,
+      createdAt: p.created_at,
+    };
+    if (p.kols?.display_name) item.displayName = p.kols.display_name;
+    if (p.kols?.avatar_url) item.avatarUrl = p.kols.avatar_url;
+
+    scoredPosts.push({
+      influence: bestQ * Math.log1p(likes + 2 * reposts + 3 * quotes + replies),
+      item,
+    });
+  }
+
+  const topPosts: TopPostItem[] = scoredPosts
+    .sort((a, b) => b.influence - a.influence)
+    .slice(0, 8)
+    .map((x) => x.item);
+
   return {
     awaitingFirstEpoch: false,
     dataSource: "supabase",
@@ -481,6 +564,7 @@ async function load_fetchNarrativeHistory(
     series,
     contributors,
     tokens,
+    topPosts,
   };
 }
 

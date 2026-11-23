@@ -85,6 +85,20 @@ export interface TokenItem {
   createdAt: string | null;
 }
 
+export interface TopPostItem {
+  tweetId: string;
+  handle: string;
+  displayName?: string;
+  avatarUrl?: string;
+  followers: number;
+  likes: number;
+  reposts: number;
+  quotes: number;
+  replies: number;
+  relevanceQ: number;
+  createdAt: string;
+}
+
 export interface NarrativeHistoryResponse {
   awaitingFirstEpoch: boolean;
   dataSource: "supabase" | "preview";
@@ -98,6 +112,7 @@ export interface NarrativeHistoryResponse {
   series: HistoryPoint[];
   contributors: ContributorRow[];
   tokens: TokenItem[];
+  topPosts?: TopPostItem[];
 }
 
 export interface ValidatorAttestationItem {
