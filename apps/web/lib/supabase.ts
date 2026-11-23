@@ -1369,9 +1369,9 @@ export interface ActiveConfigVersion {
 
 export const DEFAULT_NTI_V1_CONFIG: ActiveConfigVersion = {
   version: 1,
-  configHash: "0x9f12b7c4e82100a3f4c8d1e7a2b56c9031d4e6f8a0b2c4d6e8f0a1b3c5d7e9f1",
-  modelVersion: "gemini-2.5-flash-lite@2026-11",
-  promptVersion: "v1.0.0",
+  configHash: "0x07acec1d77949027e6ba95a4ec7b43ce380fb70efd317e79d0f024e4afc8c297",
+  modelVersion: "mimo-v2.6-pro",
+  promptVersion: "v1",
   payload: {
     version: 1,
     epoch_seconds: 14400,
@@ -1391,21 +1391,34 @@ export const DEFAULT_NTI_V1_CONFIG: ActiveConfigVersion = {
 };
 
 export async function fetchActiveConfig(): Promise<ActiveConfigVersion> {
-  const rows = await supabaseSelect<{
-    version: number;
-    config_hash: string;
-    payload: ActiveConfigVersion["payload"];
-  }>("config_versions?select=*&order=version.desc&limit=1", "anon");
+  const [rows, llmRows] = await Promise.all([
+    supabaseSelect<{
+      version: number;
+      config_hash: string;
+      payload: ActiveConfigVersion["payload"];
+    }>("config_versions?select=*&order=version.desc&limit=1", "anon"),
+    supabaseSelect<{
+      model_version: string;
+      prompt_version: string;
+    }>("llm_runs?select=model_version,prompt_version&order=id.desc&limit=1", "service"),
+  ]);
+
+  const liveModel = llmRows?.[0]?.model_version || DEFAULT_NTI_V1_CONFIG.modelVersion;
+  const livePrompt = llmRows?.[0]?.prompt_version || DEFAULT_NTI_V1_CONFIG.promptVersion;
 
   if (!rows || rows.length === 0) {
-    return DEFAULT_NTI_V1_CONFIG;
+    return {
+      ...DEFAULT_NTI_V1_CONFIG,
+      modelVersion: liveModel,
+      promptVersion: livePrompt,
+    };
   }
   const latest = rows[0]!;
   return {
     version: latest.version,
     configHash: normalizeHex(latest.config_hash) ?? DEFAULT_NTI_V1_CONFIG.configHash,
-    modelVersion: DEFAULT_NTI_V1_CONFIG.modelVersion,
-    promptVersion: DEFAULT_NTI_V1_CONFIG.promptVersion,
+    modelVersion: liveModel,
+    promptVersion: livePrompt,
     payload: latest.payload ?? DEFAULT_NTI_V1_CONFIG.payload,
   };
 }

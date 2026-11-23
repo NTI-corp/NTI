@@ -142,6 +142,41 @@ async def retier(storage: Storage, now: datetime) -> int:
     return changed
 
 
+async def retire_inactive(
+    storage: Storage,
+    now: datetime,
+    *,
+    inactive_days: int = 30,
+    max_retire: int = 30,
+) -> int:
+    """Deactivate KOLs inactive for ``inactive_days`` so rising KOLs can rotate in."""
+    since = (now - timedelta(days=inactive_days)).isoformat()
+    recent_posts = await storage.select(
+        "posts", columns="user_id", filters={"created_at": f"gte.{since}"}
+    )
+    active_posters = {int(p["user_id"]) for p in recent_posts}
+    if not active_posters:
+        return 0  # guard against empty post table wiping the universe
+    kols = await storage.select(
+        "kols",
+        columns="user_id,followers_updated_at",
+        filters={"active": "eq.true"},
+        order="followers_updated_at.asc.nullsfirst",
+    )
+    cutoff = (now - timedelta(days=inactive_days)).isoformat()
+    retired = 0
+    for k in kols:
+        if retired >= max_retire:
+            break
+        uid = int(k["user_id"])
+        updated = str(k.get("followers_updated_at") or "")
+        # Only retire established KOLs older than inactive_days that never posted recently
+        if uid not in active_posters and updated and updated < cutoff:
+            await storage.patch("kols", {"user_id": f"eq.{uid}"}, {"active": False})
+            retired += 1
+    return retired
+
+
 class TwscrapeProfiles:
     """ProfileSource on top of the shared twscrape accounts.db."""
 

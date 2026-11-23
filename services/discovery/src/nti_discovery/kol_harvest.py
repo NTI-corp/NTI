@@ -291,20 +291,24 @@ async def run(args: argparse.Namespace) -> dict[str, Any]:
             storage, kol_maintain.TwscrapeProfiles(db_path), now
         )
         report["retiered"] = await kol_maintain.retier(storage, now)
+        report["retired_inactive"] = await kol_maintain.retire_inactive(storage, now)
 
-    existing = await storage.select("kols", columns="user_id,handle")
+    existing = await storage.select("kols", columns="user_id,handle,active")
     known = {int(r["user_id"]) for r in existing}
+    active_count = sum(1 for r in existing if r.get("active", True))
     known_handles = {str(r["handle"]).lower() for r in existing}
 
     if args.max_new is not None:
         budget, reason = args.max_new, "fixed"
     else:
-        budget, reason = await kol_maintain.adaptive_budget(storage, full=150)
-    report["growth"] = {"budget": budget, "reason": reason}
+        budget, reason = await kol_maintain.adaptive_budget(storage, full=300)
+    report["growth"] = {"budget": budget, "reason": reason, "active_before": active_count}
 
     kol_rows: list[dict[str, Any]] = []
-    if budget > 0:
-        cfg = HarvestConfig(max_new_per_run=budget, max_total=args.max_total)
+    room = max(0, args.max_total - active_count)
+    eff_budget = min(budget, room)
+    if eff_budget > 0:
+        cfg = HarvestConfig(max_new_per_run=eff_budget, max_total=len(known) + eff_budget)
         accepted = await harvest(TwscrapeSearch(db_path), known, now=now, cfg=cfg)
         accepted = [(m, p) for m, p in accepted if m.handle.lower() not in known_handles]
         kol_rows, link_rows = to_rows(accepted, now)

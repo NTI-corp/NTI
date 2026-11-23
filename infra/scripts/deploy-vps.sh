@@ -44,9 +44,13 @@ if command -v pm2 >/dev/null 2>&1 && grep -qE '^SUPABASE_URL=https://' "$APP_DIR
   else
     pm2 start "$APP_DIR/infra/ecosystem.config.cjs" --only nti-indexer --update-env
   fi
+  # Ensure nti-fetcher cron is registered without interrupting an in-flight 4h scrape.
+  if ! pm2 describe nti-fetcher >/dev/null 2>&1; then
+    pm2 start "$APP_DIR/infra/ecosystem.config.cjs" --only nti-fetcher --update-env
+  fi
   # Cron-driven jobs: re-register so schedule changes in ecosystem.config.cjs take effect. These are
   # idempotent (they exit early when there is nothing to do), so the immediate first run is harmless.
-  for app in nti-oracle-operator nti-keeper nti-monitor nti-discovery nti-kol-harvest; do
+  for app in nti-oracle-operator nti-keeper nti-monitor nti-discovery nti-kol-harvest nti-purge; do
     pm2 delete "$app" >/dev/null 2>&1 || true
     pm2 start "$APP_DIR/infra/ecosystem.config.cjs" --only "$app" --update-env
   done
