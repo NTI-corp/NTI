@@ -49,7 +49,7 @@ const ANATOMY_STAGES = [
     label: "Settlement",
     headline: "EIP-712 quorum commits behind a two-hour dispute shield.",
     detail:
-      "At least three independent validators sharing ≥95% KOL overlap sign the packed vector. Once committed to Robinhood Chain, a permissionless 2-hour Dispute window guards finalization.",
+      "At least three independent validators sharing ≥95% KOL overlap sign the packed vector. Once committed to Robinhood Chain, a permissionless contract-defined Dispute window guards finalization.",
     metricLabel: "Validators ≥ 3 · 95% overlap · 7,200s challenge",
     icon: ShieldCheck,
   },

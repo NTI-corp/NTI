@@ -50,7 +50,7 @@ export function RadarClient({
 
   return (
     <div className="space-y-4">
-      {data.awaitingFirstEpoch && <AwaitingEpochBanner />}
+      {data.dataSource === "unavailable" && <AwaitingEpochBanner unavailable message="Radar data is temporarily unavailable." />}
 
       {/* Bloomberg-Style Terminal Header Strip */}
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-3.5">

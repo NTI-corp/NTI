@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatEther, keccak256, stringToBytes } from "viem";
 import { useAccount, useReadContract } from "wagmi";
 import { TxStatusBanner } from "@/components/TxStatusBanner";
@@ -16,19 +16,13 @@ import {
 } from "@/lib/contracts";
 import { formatBpsPercent, formatCompactNumber, formatRelativeTime, truncateHex } from "@/lib/format";
 import { useChainAction } from "@/lib/useChainAction";
-import type { EpochDetailResponse } from "@/lib/types";
+import type { EpochDetailResponse, EpochSummary } from "@/lib/types";
 
 interface OracleClientProps {
   initial: EpochDetailResponse;
 }
 
-const LIFECYCLE_STEPS = [
-  { key: "collecting", offset: "T+00m", title: "Ingest & Filter" },
-  { key: "computed", offset: "T+02m", title: "Deterministic Score" },
-  { key: "committed", offset: "T+04m", title: "2-of-3 EIP-712 Commit" },
-  { key: "disputed", offset: "0..2h", title: "Dispute Window" },
-  { key: "final", offset: "T+2h05m", title: "Final On-Chain Root" },
-] as const;
+type PopulatedEpoch = EpochDetailResponse & { epoch: EpochSummary };
 
 const RANK: Record<string, number> = {
   collecting: 0,
@@ -36,14 +30,41 @@ const RANK: Record<string, number> = {
   committed: 2,
   disputed: 3,
   final: 4,
-  incomplete: 2,
+  incomplete: -1,
 };
 
-const DEFAULT_BOND_WEI = 50_000n * 10n ** 18n;
+function formatWindow(seconds: bigint | undefined): string {
+  if (seconds === undefined) return "Contract-defined";
+  if (seconds % 3600n === 0n) return `${seconds / 3600n}h`;
+  if (seconds % 60n === 0n) return `${seconds / 60n}m`;
+  return `${seconds}s`;
+}
+
 const BYTES32_HEX_RE = /^0x[0-9a-fA-F]{64}$/;
 
 export function OracleClient({ initial }: OracleClientProps) {
-  const [detail, setDetail] = useState<EpochDetailResponse>(initial);
+  const epoch = initial.epoch;
+  if (!epoch) {
+    return (
+      <section className="border border-[#26262A] bg-[#161618] p-4">
+        <h1 className="text-lg font-semibold text-[#F5F5F7]">Oracle</h1>
+        <p role="status" className="mt-2 text-xs text-[#A1A1AA]">
+          {initial.dataSource === "unavailable" ? "Epoch data is temporarily unavailable." : "No oracle epochs have been indexed yet."}
+        </p>
+      </section>
+    );
+  }
+  return <OracleEpoch initial={{ ...initial, epoch }} />;
+}
+
+function OracleEpoch({ initial }: { initial: PopulatedEpoch }) {
+  const [detail, setDetail] = useState<PopulatedEpoch>(initial);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 5_000);
+    return () => window.clearInterval(timer);
+  }, [detail.epoch.epochId]);
   const [loadingEpochId, setLoadingEpochId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -56,6 +77,28 @@ export function OracleClient({ initial }: OracleClientProps) {
   const { address, isConnected } = useAccount();
   const activeChainId = getActiveChainId();
   const addrs = getProtocolAddresses(activeChainId);
+
+  const { data: disputeWindow } = useReadContract({
+    address: addrs.oracleCommit ?? undefined,
+    abi: oracleCommitAbi,
+    functionName: "DISPUTE_WINDOW",
+    chainId: activeChainId,
+    query: { enabled: Boolean(addrs.oracleCommit) },
+  });
+  const { data: minValidators } = useReadContract({
+    address: addrs.oracleCommit ?? undefined,
+    abi: oracleCommitAbi,
+    functionName: "MIN_VALIDATORS",
+    chainId: activeChainId,
+    query: { enabled: Boolean(addrs.oracleCommit) },
+  });
+  const { data: resolutionWindow } = useReadContract({
+    address: addrs.dispute ?? undefined,
+    abi: disputeAbi,
+    functionName: "RESOLUTION_WINDOW",
+    chainId: activeChainId,
+    query: { enabled: Boolean(addrs.dispute) },
+  });
 
   const { data: disputeBondWei } = useReadContract({
     address: addrs.dispute ?? undefined,
@@ -92,7 +135,8 @@ export function OracleClient({ initial }: OracleClientProps) {
         throw new Error(`Failed to fetch epoch #${epochId} (HTTP ${res.status})`);
       }
       const next = (await res.json()) as EpochDetailResponse;
-      setDetail(next);
+      if (!next.epoch) throw new Error(`No indexed detail for epoch #${epochId}.`);
+      setDetail({ ...next, epoch: next.epoch });
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Failed to load epoch detail.");
     } finally {
@@ -105,7 +149,7 @@ export function OracleClient({ initial }: OracleClientProps) {
       await Promise.all([refetchBalance(), refetchAllowance(), loadEpoch(detail.epoch.epochId)]);
     });
 
-  const bondWei = (disputeBondWei as bigint | undefined) ?? DEFAULT_BOND_WEI;
+  const bondWei = disputeBondWei ?? 0n;
   const bondNti = Number(formatEther(bondWei));
   const balanceWei = (ntiBalanceWei as bigint | undefined) ?? 0n;
   const allowanceWei = (ntiAllowanceWei as bigint | undefined) ?? 0n;
@@ -114,8 +158,20 @@ export function OracleClient({ initial }: OracleClientProps) {
   const needsApproval = allowanceWei < bondWei;
 
   const activeRank = RANK[detail.epoch.status] ?? 0;
-  const canFinalize = detail.epoch.status === "committed";
-  const canDispute = detail.epoch.status === "committed";
+  const committedAt = detail.epoch.committedAt ? Date.parse(detail.epoch.committedAt) : null;
+  const windowEnd = committedAt !== null && disputeWindow !== undefined
+    ? committedAt + Number(disputeWindow) * 1000
+    : null;
+  const committed = detail.epoch.status === "committed";
+  const canFinalize = committed && (windowEnd === null || now >= windowEnd);
+  const canDispute = committed && disputeBondWei !== undefined && (windowEnd === null || now < windowEnd);
+  const lifecycleSteps = [
+    { key: "collecting", caption: "Ingestion", title: "Ingest & Filter" },
+    { key: "computed", caption: "Scoring", title: "Deterministic Score" },
+    { key: "committed", caption: minValidators ? `Minimum ${minValidators} validators` : "EIP-712", title: "Validator Commit" },
+    { key: "disputed", caption: formatWindow(disputeWindow), title: "Bonded Challenge Window" },
+    { key: "final", caption: "After challenge window", title: "Finalized On-Chain" },
+  ];
 
   async function handleFinalize() {
     setValidationError(null);
@@ -233,7 +289,7 @@ export function OracleClient({ initial }: OracleClientProps) {
         functionName: "expire",
         args: [BigInt(disputeId)],
       },
-      `Dispute #${disputeId} expired after 6h resolution window.`,
+      `Dispute #${disputeId} expired on-chain.`,
     );
   }
 
@@ -246,9 +302,9 @@ export function OracleClient({ initial }: OracleClientProps) {
             <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
               Optimistic Attestation &amp; Provenance
             </span>
-            {detail.dataSource === "preview" && (
+            {detail.dataSource === "unavailable" && (
               <span className="border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
-                PREVIEW DATA
+                PARTIAL INDEXER DATA
               </span>
             )}
             {wrongChain && (
@@ -261,25 +317,25 @@ export function OracleClient({ initial }: OracleClientProps) {
             Oracle · Epoch #{detail.epoch.epochId}
           </h1>
           <p className="mt-1 text-xs text-[#71717A]">
-            Deterministic dataset snapshot, 2-of-3 validator EIP-712 median commit, and 2h bonded dispute window.
+            Deterministic dataset snapshots with EIP-712 validator attestations and a bonded challenge window.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
           <button
             type="button"
-            disabled={isBusy || !canDispute}
+            disabled={isBusy || !isConnected || !canDispute}
             onClick={() => {
               setValidationError(null);
               setDisputeModalOpen(true);
             }}
             className="border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-1.5 font-medium text-[#EF4444] transition-colors hover:bg-[#EF4444]/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            OPEN DISPUTE ({formatCompactNumber(bondNti)} $NTI)
+            OPEN DISPUTE{disputeBondWei !== undefined && ` (${formatCompactNumber(bondNti)} $NTI)`}
           </button>
           <button
             type="button"
-            disabled={isBusy || !canFinalize}
+            disabled={isBusy || !isConnected || !canFinalize}
             onClick={() => void handleFinalize()}
             className="border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-1.5 font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -334,7 +390,7 @@ export function OracleClient({ initial }: OracleClientProps) {
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
-          {LIFECYCLE_STEPS.map((step, i) => {
+          {lifecycleSteps.map((step, i) => {
             const reached = i <= activeRank;
             const current = step.key === detail.epoch.status;
             return (
@@ -349,7 +405,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                 }`}
               >
                 <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-[#71717A]">{step.offset}</span>
+                  <span className="text-[#71717A]">{step.caption}</span>
                   <span
                     className={
                       current
@@ -400,10 +456,10 @@ export function OracleClient({ initial }: OracleClientProps) {
                   rel="noreferrer"
                   className="hover:underline"
                 >
-                  {detail.epoch.arweaveTx} ↗
+                  Download archive
                 </a>
               ) : (
-                <span className="text-[#71717A]">Awaiting upload</span>
+                <span className="text-[#71717A]">Public archive unavailable</span>
               )}
             </div>
           </div>
@@ -415,10 +471,10 @@ export function OracleClient({ initial }: OracleClientProps) {
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#26262A] px-4 py-3">
           <div>
             <h2 className="text-sm font-semibold text-[#F5F5F7]">
-              Validator EIP-712 Attestation Vectors ({detail.attestations.length} / 3 Quorum)
+              Validator Attestations ({detail.attestations.length} indexed)
             </h2>
             <p className="mt-0.5 text-xs text-[#71717A]">
-              Median per narrative is committed on-chain; operator and validators must agree within ±100 bps.
+              Each index vector is compared with the indexed epoch values.
             </p>
           </div>
         </div>
@@ -428,7 +484,7 @@ export function OracleClient({ initial }: OracleClientProps) {
             <thead>
               <tr className="border-b border-[#26262A] bg-[#111113] font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
                 <th className="px-4 py-2.5">Validator</th>
-                {NARRATIVES.slice(0, 6).map((n) => (
+                {NARRATIVES.map((n) => (
                   <th key={n.id} className="px-2.5 py-2.5 text-right">
                     {n.slug.slice(0, 6)}
                   </th>
@@ -441,7 +497,7 @@ export function OracleClient({ initial }: OracleClientProps) {
               {detail.attestations.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={NARRATIVES.length + 3}
                     className="px-4 py-6 text-center font-sans text-xs text-[#71717A]"
                   >
                     No validator attestations indexed for Epoch #{detail.epoch.epochId} yet.
@@ -453,7 +509,7 @@ export function OracleClient({ initial }: OracleClientProps) {
                     <td className="px-4 py-2.5 text-[#F5F5F7]">
                       {truncateHex(att.validator, 8, 6)}
                     </td>
-                    {NARRATIVES.slice(0, 6).map((n, idx) => (
+                    {NARRATIVES.map((n, idx) => (
                       <td key={n.id} className="px-2.5 py-2.5 text-right text-[#71717A]">
                         {att.iBps[idx] !== undefined ? formatBpsPercent(att.iBps[idx]!, 1) : "—"}
                       </td>
@@ -461,12 +517,14 @@ export function OracleClient({ initial }: OracleClientProps) {
                     <td className="px-4 py-2.5 text-right">
                       <span
                         className={`border px-2 py-0.5 text-[10px] ${
-                          att.matchesMedian
-                            ? "border-[#4ADE80]/35 bg-[#4ADE80]/10 text-[#4ADE80]"
-                            : "border-[#EF4444]/35 bg-[#EF4444]/10 text-[#EF4444]"
+                          att.matchesMedian === null
+                            ? "border-[#26262A] text-[#71717A]"
+                            : att.matchesMedian
+                              ? "border-[#4ADE80]/35 bg-[#4ADE80]/10 text-[#4ADE80]"
+                              : "border-[#F59E0B]/35 bg-[#F59E0B]/10 text-[#F59E0B]"
                         }`}
                       >
-                        {att.matchesMedian ? "≤100 BPS OK" : "DEVIATED"}
+                        {att.matchesMedian === null ? "Unavailable" : att.matchesMedian ? "Equal" : "Different"}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right text-[#71717A]">
@@ -487,13 +545,15 @@ export function OracleClient({ initial }: OracleClientProps) {
         </h2>
         {detail.disputes.length === 0 ? (
           <p className="mt-2 text-xs text-[#71717A]">
-            Zero disputes opened for this epoch. Max 1 dispute per epoch prevents finalization griefing.
+            No disputes indexed for this epoch.
           </p>
         ) : (
           <div className="mt-3 divide-y divide-[#1F1F23] font-mono text-xs">
             {detail.disputes.map((d) => {
               const nar = NARRATIVE_BY_ID.get(d.narrativeId);
               const isOpen = d.status.toLowerCase() === "open";
+              const canExpire = resolutionWindow === undefined ||
+                now >= Date.parse(d.openedAt) + Number(resolutionWindow) * 1000;
               return (
                 <div key={d.disputeId} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                   <div className="text-[#71717A]">
@@ -507,11 +567,11 @@ export function OracleClient({ initial }: OracleClientProps) {
                     {isOpen && (
                       <button
                         type="button"
-                        disabled={isBusy}
+                        disabled={isBusy || !isConnected || !canExpire}
                         onClick={() => void handleExpireDispute(d.disputeId)}
                         className="border border-[#26262A] bg-[#111113] px-2 py-1 text-[10px] text-[#F5F5F7] hover:border-[#F59E0B]/50 disabled:opacity-40"
                       >
-                        EXPIRE (6H)
+                        EXPIRE AFTER {formatWindow(resolutionWindow)}
                       </button>
                     )}
                   </div>

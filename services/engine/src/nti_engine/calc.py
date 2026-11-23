@@ -20,6 +20,7 @@ from nti_engine.models import (
 )
 
 ENGINE_PRECISION = 40
+ENGINE_VERSION = "nti-decimal40-drs-observation-v2"
 ENGINE_CONTEXT = Context(prec=ENGINE_PRECISION, rounding=ROUND_HALF_EVEN)
 
 ZERO = Decimal("0")
@@ -320,6 +321,11 @@ def run_epoch(
 ) -> EpochResult:
     """Execute one complete deterministic epoch computation."""
     narrative_ids = tuple(sorted(cfg.narratives))
+    observation_cutoff = dataset.observation_cutoff_unix or dataset.boundary_unix
+    if observation_cutoff < dataset.boundary_unix:
+        raise ValueError("Observation cutoff must not precede the post boundary")
+    if observation_cutoff > dataset.boundary_unix + cfg.epoch_seconds:
+        raise ValueError("Observation cutoff must remain within the epoch")
     kol_map = {k.user_id: k for k in sorted(dataset.kols, key=lambda k: k.user_id)}
     a_max = (
         dataset.a_max
@@ -352,7 +358,7 @@ def run_epoch(
         snap = select_engagement(
             post.engagements,
             post.created_at_unix,
-            dataset.boundary_unix,
+            observation_cutoff,
             target_hours=cfg.engagement_reread_hours,
         )
         if snap is None:

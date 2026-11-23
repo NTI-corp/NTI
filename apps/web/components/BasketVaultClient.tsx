@@ -280,7 +280,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
             {basket.name}
           </h1>
           <p className="mt-1 text-xs text-[#71717A]">
-            Rebalanced {formatRelativeTime(basket.lastRebalancedAt)} · Mgmt Fee{" "}
+            {basket.lastRebalancedAt ? `Rebalanced ${formatRelativeTime(basket.lastRebalancedAt)}` : "No rebalance recorded"} · Mgmt Fee{" "}
             {formatBpsPercent(basket.managementFeeBps, 2)}/yr · Slippage absorbed by depositor
           </p>
         </div>
@@ -359,10 +359,10 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                           {formatBpsPercent(h.weightBps, 1)}
                         </td>
                         <td className="px-4 py-3 text-right text-[#F5F5F7]">
-                          {h.twap30mEth.toFixed(5)} ETH
+                          {h.twap30mEth === null ? "Unavailable" : `${h.twap30mEth.toFixed(5)} ETH`}
                         </td>
                         <td className="px-4 py-3 text-right text-[#4ADE80]">
-                          {h.liquidityEth.toFixed(1)} ETH
+                          {h.liquidityEth === null ? "Unavailable" : `${h.liquidityEth.toFixed(1)} ETH`}
                         </td>
                       </tr>
                     ))

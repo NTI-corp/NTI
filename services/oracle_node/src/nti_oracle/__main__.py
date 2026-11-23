@@ -12,22 +12,14 @@ from pathlib import Path
 from typing import Any
 
 from eth_account import Account
-from nti_classifier.adapters import MiMoAdapter
-from nti_classifier.pipeline import ClassifierPipeline, load_prompt_spec
-from nti_classifier.protocol import PostIn
 from nti_core.config import NTIConfig, load_config
 from nti_core.types import KolProfile
-from nti_engine.models import EngagementSnapshot, EngineKol, EnginePost, PrevEpochState
-from nti_fetcher.accounts import AccountPool
+from nti_engine.models import EnginePost
 from nti_fetcher.adapters import TwscrapeSource
-from nti_fetcher.runner import FetchRunner
 from nti_fetcher.storage import SupabaseStorage
 
 from nti_oracle.chain import OracleCommitClient
 from nti_oracle.dataset import (
-    ZERO_HASH,
-    LocalFileUploader,
-    MirroredUploader,
     SupabaseStorageMirror,
     tx_id_to_bytes32,
 )
@@ -47,7 +39,7 @@ from nti_oracle.monitor import (
     now_unix,
     run_monitor,
 )
-from nti_oracle.node import OperatorNode, TelegramNotifier, ValidatorNode
+from nti_oracle.node import TelegramNotifier
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -100,7 +92,6 @@ async def _load_active_kols(storage: SupabaseStorage) -> list[KolProfile]:
         columns="user_id,handle,followers,h_k,r_k,poll_tier,active",
         filters={"active": "eq.true"},
         order="followers.desc",
-        limit=2000,
     )
     return [
         KolProfile(
@@ -123,216 +114,20 @@ async def _ensure_classified_posts(
     kols: list[KolProfile],
     epoch_id: int,
     boundary_unix: int,
-    source: TwscrapeSource,
+    source: TwscrapeSource | None,
+    observation_cutoff_unix: int | None = None,
 ) -> tuple[list[EnginePost], str]:
-    lookback_start_iso = datetime.fromtimestamp(
-        boundary_unix - cfg.lookback_hours * 3600, tz=UTC
-    ).isoformat()
+    from nti_oracle.live_inputs import prepare_engine_posts
 
-    kol_ids = {k.user_id for k in kols}
-
-    async def load_post_rows() -> list[dict[str, Any]]:
-        rows = await storage.select(
-            "posts",
-            columns="tweet_id,user_id,created_at,body",
-            filters={"created_at": f"gte.{lookback_start_iso}"},
-            order="created_at.desc",
-            limit=2000,
-        )
-        return [
-            r
-            for r in rows
-            if int(r["user_id"]) in kol_ids
-            and _parse_dt_unix(str(r["created_at"])) <= boundary_unix
-        ]
-
-    post_rows = await load_post_rows()
-
-    # Fetch fresh posts when none exist yet OR the last fetch finished before this epoch boundary.
-    # The commit delay can be shorter than the fetcher schedule, and a commit built on stale data
-    # fails the validators' omission check.
-    last_cycle = await storage.select(
-        "fetch_cycles", columns="finished_at", order="id.desc", limit=1
+    return await prepare_engine_posts(
+        storage=storage,
+        cfg=cfg,
+        kols=kols,
+        epoch_id=epoch_id,
+        boundary_unix=boundary_unix,
+        observation_cutoff_unix=observation_cutoff_unix or boundary_unix,
+        repo_root=REPO_ROOT,
     )
-    last_fetch_unix = (
-        _parse_dt_unix(str(last_cycle[0]["finished_at"]))
-        if last_cycle and last_cycle[0].get("finished_at")
-        else 0
-    )
-    if not post_rows or last_fetch_unix < boundary_unix:
-        max_kols = int(os.environ.get("FETCHER_MAX_KOLS_PER_CYCLE", "120"))
-        runner = FetchRunner(
-            primary=source,
-            output_dir=REPO_ROOT / "data" / "snapshots",
-            lock_path=REPO_ROOT / "data" / "state" / "oracle_fetch.lock",
-            page_limit=60,
-            max_pages=1,
-            max_kols=max_kols,
-        )
-        fetch_res = await runner.run_cycle(
-            epoch_id=epoch_id,
-            boundary=datetime.fromtimestamp(boundary_unix, tz=UTC),
-            kols=kols,
-        )
-        cycle_rows = [
-            {
-                "epoch_id": epoch_id,
-                "lane": lane.lane,
-                "source": lane.source,
-                "started_at": lane.started_at,
-                "finished_at": lane.finished_at,
-                "accounts_ok": lane.accounts_ok,
-                "accounts_failed": lane.accounts_failed,
-                "post_count": lane.post_count,
-                "manifest_sha256": lane.sha256,
-            }
-            for lane in fetch_res.lanes
-        ]
-        # Record the cycle even when nothing new was found, so the staleness check above clears.
-        inserted = await storage.insert_returning("fetch_cycles", cycle_rows) if cycle_rows else []
-        cid = int(inserted[0]["id"]) if inserted else 1
-        if fetch_res.posts:
-            await storage.upsert_posts(
-                [
-                    {
-                        "tweet_id": p.tweet_id,
-                        "user_id": p.user_id,
-                        "created_at": p.created_at.astimezone(UTC).isoformat(),
-                        "body": p.text,
-                    }
-                    for p in fetch_res.posts
-                ]
-            )
-            await storage.upsert_post_engagement(
-                [
-                    {
-                        "tweet_id": p.tweet_id,
-                        "cycle_id": cid,
-                        "likes": p.likes,
-                        "reposts": p.reposts,
-                        "quotes": p.quotes,
-                        "replies": p.replies,
-                        "fetched_at": p.fetched_at.astimezone(UTC).isoformat(),
-                    }
-                    for p in fetch_res.posts
-                ]
-            )
-            post_rows = await load_post_rows()
-
-    if not post_rows:
-        return [], os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
-
-    eng_rows = await storage.select(
-        "post_engagement",
-        columns="tweet_id,likes,reposts,quotes,replies,fetched_at",
-        filters={"fetched_at": f"gte.{lookback_start_iso}"},
-        order="fetched_at.desc",
-        limit=5000,
-    )
-    engs_by_tid: dict[int, list[EngagementSnapshot]] = {}
-    fallback_engs_by_tid: dict[int, list[EngagementSnapshot]] = {}
-    for er in eng_rows:
-        f_unix = _parse_dt_unix(str(er["fetched_at"]))
-        tid = int(er["tweet_id"])
-        snap_raw = EngagementSnapshot(
-            likes=int(er.get("likes", 0)),
-            reposts=int(er.get("reposts", 0)),
-            quotes=int(er.get("quotes", 0)),
-            replies=int(er.get("replies", 0)),
-            fetched_at_unix=min(f_unix, boundary_unix),
-        )
-        if f_unix <= boundary_unix:
-            engs_by_tid.setdefault(tid, []).append(snap_raw)
-        else:
-            fallback_engs_by_tid.setdefault(tid, []).append(snap_raw)
-
-    for tid, snaps in fallback_engs_by_tid.items():
-        if tid not in engs_by_tid:
-            engs_by_tid[tid] = snaps[:1]
-
-    cls_rows = await storage.select(
-        "classifications",
-        columns="tweet_id,q,model_version",
-        filters={"prompt_version": "eq.v1"},
-        order="tweet_id.desc",
-        limit=5000,
-    )
-    q_by_tid: dict[int, dict[int, Decimal]] = {}
-    for cr in cls_rows:
-        tid = int(cr["tweet_id"])
-        raw_q = cr.get("q") or {}
-        q_by_tid[tid] = {int(k): Decimal(str(v)) for k, v in raw_q.items()}
-
-    handle_by_uid = {k.user_id: k.handle for k in kols}
-    unclassified = [
-        PostIn(
-            tweet_id=int(r["tweet_id"]),
-            handle=handle_by_uid.get(int(r["user_id"]), str(r["user_id"])),
-            text=str(r.get("body") or ""),
-        )
-        for r in post_rows
-        if int(r["tweet_id"]) not in q_by_tid and r.get("body")
-    ]
-
-    model_name = os.environ.get("MIMO_MODEL", "mimo-v2.6-pro")
-    mimo_base = os.environ.get("MIMO_API_BASE_URL") or "https://token-plan-sgp.xiaomimimo.com/v1"
-    if unclassified:
-        mimo_key = os.environ.get("MIMO_API_KEY", "")
-        primary = MiMoAdapter(api_key=mimo_key, base_url=mimo_base, model=model_name)
-        eff_batch = min(cfg.classifier.batch_size, 40)
-        pipeline = ClassifierPipeline(
-            primary=primary,
-            fallback=None,
-            batch_size=eff_batch,
-        )
-        spec = load_prompt_spec(
-            "v1",
-            prompts_dir=REPO_ROOT / "services" / "classifier" / "prompts",
-            narratives=cfg.narratives,
-        )
-        cls_out = await pipeline.run(unclassified, spec)
-        await storage.upsert_classifications(
-            [
-                {
-                    "tweet_id": item.tweet_id,
-                    "model_version": cls_out.run_record.model_version,
-                    "prompt_version": spec.version,
-                    "series_id": 1,
-                    "q": {str(k): v for k, v in item.q.items()},
-                }
-                for item in cls_out.results
-            ]
-        )
-        await storage.upsert_llm_runs(
-            [
-                {
-                    "epoch_id": epoch_id,
-                    "provider": "mimo",
-                    "model_version": cls_out.run_record.model_version,
-                    "prompt_version": spec.version,
-                    "batch_size": cfg.classifier.batch_size,
-                    "valid_count": cls_out.run_record.succeeded_posts,
-                    "failed_count": cls_out.run_record.fallback_zero_count,
-                }
-            ]
-        )
-        for item in cls_out.results:
-            q_by_tid[item.tweet_id] = {int(k): Decimal(str(v)) for k, v in item.q.items()}
-
-    engine_posts = [
-        EnginePost(
-            tweet_id=int(r["tweet_id"]),
-            user_id=int(r["user_id"]),
-            created_at_unix=_parse_dt_unix(str(r["created_at"])),
-            engagements=tuple(
-                sorted(engs_by_tid.get(int(r["tweet_id"]), []), key=lambda e: e.fetched_at_unix)
-            ),
-            q=q_by_tid.get(int(r["tweet_id"]), {}),
-        )
-        for r in post_rows
-        if engs_by_tid.get(int(r["tweet_id"]))
-    ]
-    return engine_posts, model_name
 
 
 async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, Any]:
@@ -362,142 +157,18 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
             "latest_final_epoch": state.latest_final_epoch,
         }
 
-    boundary_unix = state.genesis_timestamp + target_epoch * cfg.epoch_seconds
-    kols = await _load_active_kols(storage)
-    accounts_path = _resolve_repo_path(os.environ.get("X_ACCOUNTS_FILE", "secrets/x_accounts.json"))
-    pool = AccountPool.from_file(accounts_path) if accounts_path.exists() else None
-    db_path = _resolve_repo_path(os.environ.get("TWSCRAPE_DB_PATH", "data/state/accounts.db"))
-    x_source = TwscrapeSource(db_path=db_path, account_pool=pool)
+    from nti_oracle.operator import prepare_commit
 
-    delta_posts, model_name = await _ensure_classified_posts(
+    payload, model_name = await prepare_commit(
+        epoch_id=target_epoch,
+        cfg=cfg,
+        kols=await _load_active_kols(storage),
         storage=storage,
-        cfg=cfg,
-        kols=kols,
-        epoch_id=target_epoch,
-        boundary_unix=boundary_unix,
-        source=x_source,
-    )
-    if not delta_posts:
-        return {"role": "operator", "status": "no_posts", "epoch_id": target_epoch}
-
-    # Previous epoch EMA + lag baseline from latest final epoch
-    prev_i_bps: dict[int, int] | None = None
-    lag_i_bps: dict[int, int] | None = None
-    series_id = 1
-    prev_dataset_hash = ZERO_HASH
-    prev_arweave_tx = ""
-    prev_commit_hash = ZERO_HASH
-
-    ep_rows = await storage.select(
-        "epochs",
-        columns="epoch_id,series_id,dataset_hash,arweave_tx,commit_tx,status",
-        order="epoch_id.desc",
-        limit=1,
-    )
-    if ep_rows:
-        last_ep = ep_rows[0]
-        series_id = int(last_ep.get("series_id", 1))
-        raw_dh = str(last_ep.get("dataset_hash") or "").replace("\\x", "")
-        if len(raw_dh) == 64:
-            prev_dataset_hash = f"0x{raw_dh}"
-        prev_arweave_tx = str(last_ep.get("arweave_tx") or "")
-        raw_ct = str(last_ep.get("commit_tx") or "").replace("\\x", "")
-        if len(raw_ct) == 64:
-            prev_commit_hash = f"0x{raw_ct}"
-
-    if state.latest_final_epoch > 0:
-        final_rows = await storage.select(
-            "narrative_epoch",
-            columns="narrative_id,i_bps",
-            filters={"epoch_id": f"eq.{state.latest_final_epoch}"},
-        )
-        if final_rows:
-            prev_i_bps = {int(r["narrative_id"]): int(r["i_bps"]) for r in final_rows}
-
-    lag_epoch = target_epoch - cfg.v_lag_epochs
-    if lag_epoch > 0:
-        lag_rows = await storage.select(
-            "narrative_epoch",
-            columns="narrative_id,i_bps",
-            filters={"epoch_id": f"eq.{lag_epoch}"},
-        )
-        if lag_rows:
-            lag_i_bps = {int(r["narrative_id"]): int(r["i_bps"]) for r in lag_rows}
-
-    val_keys = [
-        os.environ.get(f"VALIDATOR_PRIVATE_KEY_{idx}", "")
-        for idx in (1, 2, 3)
-        if os.environ.get(f"VALIDATOR_PRIVATE_KEY_{idx}", "")
-    ]
-    if len(val_keys) < 3:
-        raise RuntimeError("VALIDATOR_PRIVATE_KEY_1..3 are required for operator consensus")
-
-    use_live_omission = os.environ.get("VALIDATOR_OMISSION_CHECK", "0") == "1"
-    validators = [
-        ValidatorNode(
-            private_key=pk,
-            cfg=cfg,
-            chain_id=args.chain_id,
-            verifying_contract=oracle_addr,
-            validator_source=x_source if use_live_omission else None,
-        )
-        for pk in val_keys
-    ]
-    local_uploader = LocalFileUploader(REPO_ROOT / "data" / "deltas")
-    mirror = SupabaseStorageMirror(sb_url, sb_key)
-    uploader = MirroredUploader(local_uploader, mirror)
-    operator_node = OperatorNode(
-        cfg=cfg,
-        uploader=uploader,
+        client=client,
+        state=state,
         chain_id=args.chain_id,
-        verifying_contract=oracle_addr,
-        registered_validators={Account.from_key(pk).address for pk in val_keys},
-        min_validators=3,
-    )
-    engine_kols = [
-        EngineKol(user_id=k.user_id, followers=k.followers, h_k=k.h_k, r_k=Decimal("1"))
-        for k in kols
-    ]
-
-    # Bootstrap fresh chain link from current dataset when no local delta archive exists yet
-    prev_deltas: list[bytes] = []
-    if prev_arweave_tx.startswith("local_"):
-        candidate = REPO_ROOT / "data" / "deltas" / f"{prev_arweave_tx}.jsonl.gz"
-        recovered: bytes | None = None
-        if not candidate.exists():
-            try:
-                recovered = await mirror.get(prev_arweave_tx)
-            except Exception:  # noqa: BLE001 - an unreachable mirror just means no recovery
-                recovered = None
-        if candidate.exists():
-            prev_deltas.append(candidate.read_bytes())
-        elif recovered is not None:
-            candidate.write_bytes(recovered)  # disk was lost: restore the chain from the mirror
-            prev_deltas.append(recovered)
-        else:
-            prev_dataset_hash = ZERO_HASH
-            prev_arweave_tx = ""
-    else:
-        prev_dataset_hash = ZERO_HASH
-        prev_arweave_tx = ""
-
-    payload = await operator_node.build_and_collect_commit(
-        epoch_id=target_epoch,
-        boundary_unix=boundary_unix,
-        series_id=series_id,
-        kols=engine_kols,
-        kol_profiles=kols,
-        delta_posts=delta_posts,
-        prev_deltas=prev_deltas,
-        prev_state=PrevEpochState(
-            series_id=series_id,
-            prev_i_bps=prev_i_bps,
-            lag_i_bps=lag_i_bps,
-        ),
-        prev_dataset_hash=prev_dataset_hash,
-        prev_arweave_tx=prev_arweave_tx,
-        prev_commit_hash=prev_commit_hash,
-        validators=validators,
+        oracle_address=oracle_addr,
+        repo_root=REPO_ROOT,
     )
 
     if args.dry_run:
@@ -506,12 +177,15 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
             "status": "dry_run",
             "epoch_id": target_epoch,
             "model": model_name,
-            "post_count": len(delta_posts),
+            "post_count": payload.input_post_count,
             "dataset_hash": payload.dataset_hash,
             "i_vector": list(payload.median_i_vector),
         }
 
     op_key = os.environ["OPERATOR_PRIVATE_KEY"]
+    current_status, _ = await client.get_epoch_status(payload.epoch_id)
+    if current_status != 0:
+        return {"role": "operator", "status": "already_processed", "epoch_id": payload.epoch_id}
     tx_hash = await client.commit_epoch(
         private_key=op_key,
         epoch_id=payload.epoch_id,
@@ -594,7 +268,7 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
         "epoch_id": payload.epoch_id,
         "tx_hash": tx_hash,
         "finalize_tx": finalize_tx,
-        "post_count": len(delta_posts),
+        "post_count": payload.input_post_count,
         "dataset_hash": payload.dataset_hash,
         "i_vector": list(payload.median_i_vector),
     }

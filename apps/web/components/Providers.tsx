@@ -2,8 +2,9 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider, useAccount, useChainId, useSignMessage } from "wagmi";
+import { WagmiProvider, useAccount, useSignMessage, useSwitchChain } from "wagmi";
 import { wagmiConfig } from "@/lib/wagmi";
+import { getActiveChainId } from "@/lib/contracts";
 import type { SiweSessionState } from "@/lib/types";
 
 interface SiweContextValue {
@@ -31,8 +32,8 @@ export function useSiweSession() {
 }
 
 function SiweProviderInner({ children }: { children: React.ReactNode }) {
-  const { address, isConnected } = useAccount();
-  const chainId = useChainId();
+  const { address, chainId, isConnected } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
   const { signMessageAsync } = useSignMessage();
 
   const [session, setSession] = useState<SiweSessionState | null>(null);
@@ -74,6 +75,8 @@ function SiweProviderInner({ children }: { children: React.ReactNode }) {
     setSigningIn(true);
     setError(null);
     try {
+      const activeChainId = getActiveChainId();
+      if (chainId !== activeChainId) await switchChainAsync({ chainId: activeChainId });
       const nonceRes = await fetch("/api/auth/siwe?nonce=1", { cache: "no-store" });
       if (!nonceRes.ok) throw new Error("Failed to issue SIWE nonce");
       const { nonce } = (await nonceRes.json()) as { nonce: string };
@@ -89,7 +92,7 @@ function SiweProviderInner({ children }: { children: React.ReactNode }) {
         "",
         `URI: ${uri}`,
         "Version: 1",
-        `Chain ID: ${chainId}`,
+        `Chain ID: ${activeChainId}`,
         `Nonce: ${nonce}`,
         `Issued At: ${issuedAt}`,
       ].join("\n");
@@ -113,7 +116,7 @@ function SiweProviderInner({ children }: { children: React.ReactNode }) {
     } finally {
       setSigningIn(false);
     }
-  }, [address, chainId, isConnected, signMessageAsync]);
+  }, [address, chainId, isConnected, signMessageAsync, switchChainAsync]);
 
   const signOut = useCallback(async () => {
     await fetch("/api/auth/siwe", { method: "DELETE" });

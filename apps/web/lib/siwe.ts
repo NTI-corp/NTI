@@ -9,6 +9,7 @@ import {
   type Hex,
 } from "viem";
 import { getChain } from "@nti/sdk";
+import { parseSiweMessage, validateSiweMessage } from "viem/siwe";
 import { getActiveChainId, getProtocolAddresses, stakingAbi } from "./contracts";
 import { getStakerTier } from "./format";
 import type { SiweSessionState } from "./types";
@@ -143,7 +144,7 @@ export function createSessionCookie(
 
 export function readSessionCookie(cookieValue: string | undefined): SignedSessionPayload | null {
   const payload = decodeSignedToken<SignedSessionPayload>(cookieValue);
-  if (!payload || payload.exp < Math.floor(Date.now() / 1000)) return null;
+  if (!payload || payload.chainId !== getActiveChainId() || payload.exp <= Math.floor(Date.now() / 1000)) return null;
   try {
     return {
       ...payload,
@@ -182,35 +183,43 @@ export async function verifySiweSubmission(params: {
   signature: Hex;
   address: Address;
   expectedNonce: string;
+  expectedOrigin: string;
 }): Promise<{ ok: true; address: Address; chainId: number } | { ok: false; error: string }> {
-  const checksumAddress = getAddress(params.address);
-
-  if (!params.message.includes(`Nonce: ${params.expectedNonce}`)) {
-    return { ok: false, error: "SIWE nonce mismatch or expired" };
-  }
-  if (!params.message.includes(checksumAddress)) {
-    return { ok: false, error: "SIWE message address mismatch" };
-  }
-
-  const chainMatch = params.message.match(/Chain ID:\s*(\d+)/);
-  const chainId = chainMatch ? Number(chainMatch[1]) : getActiveChainId();
-
-  let valid = false;
   try {
-    valid = await verifyMessage({
+    const chainId = getActiveChainId();
+    const checksumAddress = getAddress(params.address);
+    const origin = new URL(params.expectedOrigin);
+    const parsed = parseSiweMessage(params.message);
+    const now = Date.now();
+    const issuedAt = parsed.issuedAt?.getTime();
+    if (!validateSiweMessage({
+      message: parsed, address: checksumAddress, domain: origin.host, nonce: params.expectedNonce,
+    }) || parsed.version !== "1" || parsed.uri !== origin.origin || parsed.chainId !== chainId ||
+      issuedAt === undefined || !Number.isFinite(issuedAt) ||
+      issuedAt > now + 60_000 || issuedAt <= now - NONCE_TTL_SECONDS * 1000) {
+      return { ok: false, error: "SIWE message does not match this origin, network, or nonce window." };
+    }
+
+    // Accept the exact EIP-4361 format issued by the NTI client, with the
+    // wallet's original address spelling for signatures from older clients.
+    const expectedMessage = buildSiweMessage({
+      domain: origin.host, uri: origin.origin, address: checksumAddress, nonce: params.expectedNonce,
+      chainId, issuedAt: parsed.issuedAt!.toISOString(),
+    }).replace(checksumAddress, parsed.address!);
+    if (params.message !== expectedMessage) {
+      return { ok: false, error: "Malformed NTI sign-in message." };
+    }
+
+    const valid = await verifyMessage({
       address: checksumAddress,
       message: params.message,
       signature: params.signature,
     });
+    if (valid) return { ok: true, address: checksumAddress, chainId };
   } catch {
-    valid = false;
+    // Malformed wallet input and signature verification failures are treated as unauthorized.
   }
-
-  if (!valid) {
-    return { ok: false, error: "Invalid EIP-191 signature" };
-  }
-
-  return { ok: true, address: checksumAddress, chainId };
+  return { ok: false, error: "Invalid EIP-191 signature or address." };
 }
 
 export async function readWalletStakeCached(

@@ -1,17 +1,19 @@
 import type { DecodedEventContext, MirrorUpsert } from "../types.js";
 
 export function handleGovernanceEvent(ctx: DecodedEventContext): MirrorUpsert[] {
-  const { chainId, eventName, args, txHash, blockNumber } = ctx;
+  const { chainId, contractAddress, eventName, args, txHash, blockNumber } = ctx;
+  const proposalKey = ["chain_id", "governor_address", "proposal_id"];
 
   switch (eventName) {
     case "ProposalCreated":
       return [
         {
           table: "governance_proposals",
-          conflictColumns: ["chain_id", "proposal_id"],
+          conflictColumns: proposalKey,
           row: {
             chain_id: chainId,
             proposal_id: String(args.proposalId),
+            governor_address: contractAddress,
             proposer: args.proposer,
             targets: args.targets,
             values: args.values,
@@ -20,22 +22,25 @@ export function handleGovernanceEvent(ctx: DecodedEventContext): MirrorUpsert[] 
             vote_start: String(args.voteStart),
             vote_end: String(args.voteEnd),
             description: String(args.description),
-            status: "active",
+            status: "pending",
+            eta_seconds: null,
             created_block: blockNumber.toString(),
           },
         },
       ];
 
     case "VoteCast":
+    case "VoteCastWithParams":
       if (!("proposalId" in args)) return [];
       return [
         {
           table: "governance_votes",
-          conflictColumns: ["chain_id", "proposal_id", "voter"],
+          conflictColumns: [...proposalKey, "voter"],
           row: {
             chain_id: chainId,
             proposal_id: String(args.proposalId),
             voter: args.voter,
+            governor_address: contractAddress,
             support: Number(args.support),
             weight: String(args.weight),
             reason: String(args.reason ?? ""),
@@ -49,9 +54,11 @@ export function handleGovernanceEvent(ctx: DecodedEventContext): MirrorUpsert[] 
       return [
         {
           table: "governance_proposals",
-          conflictColumns: ["chain_id", "proposal_id"],
+          conflictColumns: proposalKey,
+          updateOnly: true,
           row: {
             chain_id: chainId,
+            governor_address: contractAddress,
             proposal_id: String(args.proposalId),
             status: "queued",
             eta_seconds: String(args.etaSeconds),
@@ -63,9 +70,11 @@ export function handleGovernanceEvent(ctx: DecodedEventContext): MirrorUpsert[] 
       return [
         {
           table: "governance_proposals",
-          conflictColumns: ["chain_id", "proposal_id"],
+          conflictColumns: proposalKey,
+          updateOnly: true,
           row: {
             chain_id: chainId,
+            governor_address: contractAddress,
             proposal_id: String(args.proposalId),
             status: "executed",
           },
@@ -76,9 +85,11 @@ export function handleGovernanceEvent(ctx: DecodedEventContext): MirrorUpsert[] 
       return [
         {
           table: "governance_proposals",
-          conflictColumns: ["chain_id", "proposal_id"],
+          conflictColumns: proposalKey,
+          updateOnly: true,
           row: {
             chain_id: chainId,
+            governor_address: contractAddress,
             proposal_id: String(args.proposalId),
             status: "canceled",
           },

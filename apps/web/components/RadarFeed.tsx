@@ -102,6 +102,9 @@ export function RadarFeed({
                         <span className="font-medium text-[#F5F5F7]">
                           ${alert.token.symbol ?? "TOKEN"}
                         </span>
+                          {alert.token.source === "testnet_mock" && (
+                            <span className="text-[#F59E0B]">TESTNET MARKET FIXTURE</span>
+                          )}
                         <span className="text-[#71717A]">
                           {truncateHex(alert.token.address, 6, 4)}
                         </span>

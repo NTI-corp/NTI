@@ -107,7 +107,7 @@ export const HOME_CONTENT = {
   manifesto: {
     badge: "Crypto attention, priced with deterministic precision",
     statement:
-      "Capital rotates around narratives long before price catches up. NTI scores X sector mindshare every 4 hours with EMA smoothing and Hamilton bps weighting, verified by 2-of-3 EIP-712 validators before settling pair markets and TWAP baskets on Robinhood Chain.",
+      "Capital rotates around narratives long before price catches up. NTI scores X sector mindshare every 4 hours with EMA smoothing and Hamilton bps weighting, verified by at least three EIP-712 validators before settling pair markets and TWAP baskets on Robinhood Chain.",
   },
   suiIs: {
     prefix: "[ → ]",
@@ -122,13 +122,13 @@ export const HOME_CONTENT = {
       },
       {
         tag: "QUORUM 2/3",
-        title: "2-of-3 EIP-712 oracle roots",
+        title: "validator EIP-712 oracle roots",
         kind: "lottie",
         lottieSrc: "/assets/lottie/research.json",
       },
       {
         tag: "2H GUARD",
-        title: "2-hour dispute protection",
+        title: "contract-defined dispute protection",
         kind: "lottie",
         lottieSrc: "/assets/lottie/shield-security.json",
       },
@@ -166,7 +166,7 @@ export const HOME_CONTENT = {
       },
       {
         number: "03",
-        title: "2-of-3 EIP-712 attestations",
+        title: "validator EIP-712 attestations",
         protocol: "NarrativeOracle",
         column: "right",
         iconKey: "oracle",
@@ -174,7 +174,7 @@ export const HOME_CONTENT = {
       },
       {
         number: "04",
-        title: "2-hour challenge bonds",
+        title: "contract-defined challenge bonds",
         protocol: "Dispute Guard",
         column: "left",
         iconKey: "guard",
@@ -254,7 +254,7 @@ export const HOME_CONTENT = {
         bullets: [
           "Parimutuel ETH pools settled by oracle roots",
           "Zero external price-feed oracle risk",
-          "2-hour dispute window before payout claims",
+          "contract-defined dispute window before payout claims",
         ],
         iconKind: "lottie",
         lottieSrc: "/assets/lottie/capital-markets.json",
@@ -289,7 +289,7 @@ export const HOME_CONTENT = {
       {
         title: "Trade pair markets",
         description:
-          "Take positions on relative mindshare spreads settled by 2-of-3 oracle roots.",
+          "Take positions on relative mindshare spreads settled by validator-attested oracle roots.",
         ctaLabel: "View Markets",
         href: "/markets",
         lottieSrc: "/assets/lottie/developer.json",
@@ -351,7 +351,7 @@ export const HOME_CONTENT = {
         name: "OracleCommit",
         category: "ORACLE",
         column: "right",
-        description: "Publishes 4-hour scoring roots attested by 2-of-3 EIP-712 validators.",
+        description: "Publishes 4-hour scoring roots attested by at least three EIP-712 validators.",
       },
       {
         key: "dispute",
@@ -359,7 +359,7 @@ export const HOME_CONTENT = {
         name: "DisputeGuard",
         category: "ORACLE",
         column: "left",
-        description: "Enforces the 2-hour challenge window and validator slash bonds.",
+        description: "Enforces the contract-defined challenge window and validator slash bonds.",
       },
       {
         key: "narrativeMarket",

@@ -165,7 +165,7 @@ export function MindshareTerminalWorkspace({
             {activeEpoch && <EpochBadge epochId={activeEpoch.epochId} status={activeEpoch.status} />}
             {pendingFinalization && (
               <span className="border border-[#E2A856]/50 bg-[#E2A856]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[#E2A856]">
-                2H DISPUTE ACTIVE
+                NEXT EPOCH AWAITING FINALIZATION
               </span>
             )}
           </div>
@@ -209,7 +209,7 @@ export function MindshareTerminalWorkspace({
         <div>
           <div className="stat-label">Total weight</div>
           <div className="stat-value tabular-nums">
-            {totalBps.toLocaleString("en-US")}
+            {narratives.length ? totalBps.toLocaleString("en-US") : "\u2014"}
             <span className="ml-1.5 font-mono text-xs font-normal text-[#71717A]">BPS</span>
           </div>
           <div className="stat-caption">Hamilton-rounded, sums to 10,000</div>
@@ -226,7 +226,7 @@ export function MindshareTerminalWorkspace({
           <div className="stat-value truncate font-mono text-[15px] leading-[1.6rem]">
             {activeEpoch?.datasetHash ? truncateHex(activeEpoch.datasetHash, 8, 6) : "Pending"}
           </div>
-          <div className="stat-caption">Committed onchain · 2-of-3 quorum</div>
+          <div className="stat-caption">{activeEpoch?.datasetHash ? "Finalized on-chain" : "No finalized root available"}</div>
         </div>
       </div>
 
@@ -234,7 +234,7 @@ export function MindshareTerminalWorkspace({
       <section aria-label="Mindshare allocation distribution" className="border border-[#26262A] bg-[#161618] p-3.5">
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
           <span className="uppercase tracking-[0.12em] text-[#A1A1AA]">
-            Mindshare Allocation · 100.00%
+            Mindshare Allocation{narratives.length > 0 && ` · ${formatBpsPercent(totalBps)}`}
           </span>
           {hoveredSector ? (
             <span className="flex flex-wrap items-center gap-3 tabular-nums">

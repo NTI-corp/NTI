@@ -81,7 +81,7 @@ function getRouteMeta(path: string): RouteShellMeta {
       return {
         eyebrow: "PROTOCOL · EIP-712 CONSENSUS",
         title: "Oracle Provenance",
-        subtitle: "Validator attestations, canonical dataset hashes, and 2h disputes.",
+        subtitle: "Validator attestations, canonical dataset hashes, and bonded disputes.",
         layout: "split",
       };
     case "/methodology":

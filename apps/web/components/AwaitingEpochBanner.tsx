@@ -2,10 +2,12 @@ import Link from "next/link";
 
 interface AwaitingEpochBannerProps {
   message?: string;
+  unavailable?: boolean;
 }
 
 export function AwaitingEpochBanner({
-  message = "Awaiting first finalized epoch on Robinhood Chain. Displaying deterministic protocol preview layout until Epoch #1 reaches final status (B + 210m).",
+  message = "Official index values appear after the first epoch finalizes on Robinhood Chain.",
+  unavailable = false,
 }: AwaitingEpochBannerProps) {
   return (
     <div
@@ -14,7 +16,7 @@ export function AwaitingEpochBanner({
     >
       <div className="flex items-center">
         <span>
-          <strong className="tracking-[0.08em]">AWAITING FIRST FINALIZED EPOCH</strong>
+          <strong className="tracking-[0.08em]">{unavailable ? "DATA UNAVAILABLE" : "AWAITING FIRST FINALIZED EPOCH"}</strong>
           <span className="ml-2 font-sans text-xs text-[#A1A1AA]">{message}</span>
         </span>
       </div>

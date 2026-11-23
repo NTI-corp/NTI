@@ -1,6 +1,6 @@
 import { decodeEventLog, type Address, type Hex } from "viem";
 import { ALL_NTI_EVENTS_ABI } from "./abis.js";
-import { dispatchEventHandlers } from "./handlers/index.js";
+import { projectChainEvent, requiresBlockTime } from "./replay.js";
 import {
   serializeArgs,
   type ChainEventRow,
@@ -19,6 +19,7 @@ export interface RawChainLog {
 
 export interface LogFetcherClient {
   getBlockNumber(): Promise<bigint>;
+  getBasketAddresses?(factory: Address, blockNumber?: bigint): Promise<readonly Address[]>;
   /** Unix seconds of a block. Optional so minimal test doubles keep working. */
   getBlockTimestamp?(blockNumber: bigint): Promise<number>;
   getLogs(params: {
@@ -31,6 +32,7 @@ export interface LogFetcherClient {
 export interface PollerConfig {
   chainId: number;
   addresses: Address[];
+  basketFactory?: Address;
   startBlock?: bigint;
   batchBlocks?: bigint;
   reorgBufferBlocks?: bigint;
@@ -54,8 +56,15 @@ export const DEFAULT_POLL_INTERVAL_MS = 5_000;
 export function decodeNtiLog(
   chainId: number,
   log: RawChainLog,
-  blockTimeIso: string = new Date().toISOString(),
+  blockTimeIso?: string,
 ): { eventRow: ChainEventRow; mirrors: MirrorUpsert[] } | null {
+  const eventRow = decodeEventRow(chainId, log);
+  if (!eventRow) return null;
+  if (blockTimeIso) eventRow.block_time = blockTimeIso;
+  return { eventRow, mirrors: projectChainEvent(eventRow) };
+}
+
+function decodeEventRow(chainId: number, log: RawChainLog): ChainEventRow | null {
   if (
     log.blockNumber === null ||
     log.transactionHash === null ||
@@ -71,7 +80,6 @@ export function decodeNtiLog(
       abi: ALL_NTI_EVENTS_ABI,
       data: log.data,
       topics: log.topics as [Hex, ...Hex[]],
-      strict: false,
     }) as { eventName: string; args?: unknown };
   } catch {
     return null;
@@ -83,7 +91,7 @@ export function decodeNtiLog(
       : {};
   const serializedArgs = serializeArgs(rawArgs);
 
-  const eventRow: ChainEventRow = {
+  return {
     chain_id: chainId,
     tx_hash: log.transactionHash,
     log_index: log.logIndex,
@@ -93,25 +101,14 @@ export function decodeNtiLog(
     args: serializedArgs,
   };
 
-  const mirrors = dispatchEventHandlers({
-    chainId,
-    blockNumber: log.blockNumber,
-    txHash: log.transactionHash,
-    logIndex: log.logIndex,
-    contractAddress: log.address,
-    eventName: decoded.eventName,
-    args: serializedArgs,
-    blockTimeIso,
-  });
-
-  return { eventRow, mirrors };
 }
 
 export class IndexerPoller {
   private readonly client: LogFetcherClient;
   private readonly store: IndexerStore;
   private readonly chainId: number;
-  private readonly addresses: Address[];
+  private readonly addresses: Set<Address>;
+  private readonly basketFactory: Address | undefined;
   private readonly startBlock: bigint;
   private readonly batchBlocks: bigint;
   private readonly reorgBufferBlocks: bigint;
@@ -123,17 +120,25 @@ export class IndexerPoller {
     this.client = client;
     this.store = store;
     this.chainId = config.chainId;
-    this.addresses = config.addresses;
+    this.addresses = new Set(config.addresses.map((address) => address.toLowerCase() as Address));
+    if (this.addresses.size === 0) throw new Error("Indexer requires at least one contract address");
+    this.basketFactory = config.basketFactory?.toLowerCase() as Address | undefined;
     this.startBlock = config.startBlock ?? 0n;
     this.batchBlocks = config.batchBlocks ?? DEFAULT_BATCH_BLOCKS;
     this.reorgBufferBlocks = config.reorgBufferBlocks ?? DEFAULT_REORG_BUFFER_BLOCKS;
     this.pollIntervalMs = config.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
+    if (this.batchBlocks < 1n || this.reorgBufferBlocks < 0n || this.startBlock < 0n) {
+      throw new Error("Invalid indexer block configuration");
+    }
+  }
+
+  private safeHead(headBlock: bigint): bigint {
+    return headBlock > this.reorgBufferBlocks ? headBlock - this.reorgBufferBlocks : 0n;
   }
 
   async pollOnce(): Promise<PollCycleResult> {
     const headBlock = await this.client.getBlockNumber();
-    const safeHead =
-      headBlock > this.reorgBufferBlocks ? headBlock - this.reorgBufferBlocks : 0n;
+    const safeHead = this.safeHead(headBlock);
 
     const storedLast = await this.store.getLastBlock(this.chainId);
     const fromBlock = storedLast > 0n ? storedLast + 1n : this.startBlock;
@@ -153,7 +158,7 @@ export class IndexerPoller {
     const { chunksProcessed, eventsIndexed, mirrorUpserts } = await this.processRange(
       fromBlock,
       safeHead,
-      true,
+      "poll",
     );
 
     return {
@@ -169,27 +174,48 @@ export class IndexerPoller {
 
   /**
    * Replays an explicit inclusive block range idempotently.
-   * Advances stored checkpoint only if `toBlock` exceeds current checkpoint.
+   * Leaves the live checkpoint alone. Prefer backfill plus stored replay for historical gaps.
    */
   async replayRange(
     fromBlock: bigint,
     toBlock: bigint,
   ): Promise<{ chunksProcessed: number; eventsIndexed: number; mirrorUpserts: number }> {
-    if (toBlock < fromBlock) {
-      return { chunksProcessed: 0, eventsIndexed: 0, mirrorUpserts: 0 };
+    await this.assertSafeRange(fromBlock, toBlock);
+    return this.processRange(fromBlock, toBlock, "replay");
+  }
+
+  /** Archive a finalized range without applying its historical transitions to current projections. */
+  async backfillRange(fromBlock: bigint, toBlock: bigint) {
+    await this.assertSafeRange(fromBlock, toBlock);
+    if (this.basketFactory && this.addresses.has(this.basketFactory) && this.client.getBasketAddresses) {
+      const baskets = await this.client.getBasketAddresses(this.basketFactory, toBlock);
+      for (const basket of baskets) this.addresses.add(basket.toLowerCase() as Address);
     }
-    const storedLast = await this.store.getLastBlock(this.chainId);
-    const res = await this.processRange(fromBlock, toBlock, false);
-    if (toBlock > storedLast) {
-      await this.store.setLastBlock(this.chainId, toBlock);
+    return this.processRange(fromBlock, toBlock, "archive");
+  }
+
+  private async assertSafeRange(fromBlock: bigint, toBlock: bigint): Promise<void> {
+    if (fromBlock < 0n || toBlock < fromBlock) throw new Error("Invalid replay block range");
+    const safeHead = this.safeHead(await this.client.getBlockNumber());
+    if (toBlock > safeHead) throw new Error(`Replay block ${toBlock} exceeds safe head ${safeHead}`);
+  }
+
+  private async fetchEvents(addresses: Address[], fromBlock: bigint, toBlock: bigint): Promise<ChainEventRow[]> {
+    const events: ChainEventRow[] = [];
+    for (let i = 0; i < addresses.length; i += 8) {
+      const logs = await this.client.getLogs({ address: addresses.slice(i, i + 8), fromBlock, toBlock });
+      for (const log of logs) {
+        const event = decodeEventRow(this.chainId, log);
+        if (event) events.push(event);
+      }
     }
-    return res;
+    return events;
   }
 
   private async processRange(
     fromBlock: bigint,
     toBlock: bigint,
-    persistEachChunk: boolean,
+    mode: "poll" | "replay" | "archive",
   ): Promise<{ chunksProcessed: number; eventsIndexed: number; mirrorUpserts: number }> {
     let cursor = fromBlock;
     let chunksProcessed = 0;
@@ -200,69 +226,44 @@ export class IndexerPoller {
       const chunkEnd =
         cursor + this.batchBlocks - 1n < toBlock ? cursor + this.batchBlocks - 1n : toBlock;
 
-      const rawLogs: RawChainLog[] = [];
-      if (this.addresses.length <= 8) {
-        const logs = await this.client.getLogs({
-          address: this.addresses.length > 0 ? this.addresses : undefined,
-          fromBlock: cursor,
-          toBlock: chunkEnd,
-        });
-        rawLogs.push(...logs);
-      } else {
-        for (let i = 0; i < this.addresses.length; i += 8) {
-          const slice = this.addresses.slice(i, i + 8);
-          const logs = await this.client.getLogs({
-            address: slice,
-            fromBlock: cursor,
-            toBlock: chunkEnd,
-          });
-          rawLogs.push(...logs);
-        }
-        rawLogs.sort((a, b) => {
-          const ab = a.blockNumber ?? 0n;
-          const bb = b.blockNumber ?? 0n;
-          return ab !== bb ? (ab < bb ? -1 : 1) : (a.logIndex ?? 0) - (b.logIndex ?? 0);
-        });
+      const eventRows = await this.fetchEvents([...this.addresses], cursor, chunkEnd);
+      const newBaskets = new Set<Address>();
+      for (const event of eventRows) {
+        if (event.event_name !== "BasketCreated") continue;
+        if (this.basketFactory && event.contract_address.toLowerCase() !== this.basketFactory) continue;
+        const basket = String(event.args.basket).toLowerCase() as Address;
+        if (/^0x[0-9a-f]{40}$/.test(basket) && !this.addresses.has(basket)) newBaskets.add(basket);
       }
-
-      const eventRows: ChainEventRow[] = [];
-      const mirrors: MirrorUpsert[] = [];
+      // A vault can emit events in its creation block. Fetch it before advancing this chunk.
+      eventRows.push(...await this.fetchEvents([...newBaskets], cursor, chunkEnd));
+      eventRows.sort((a, b) => {
+        const first = BigInt(a.block_number);
+        const second = BigInt(b.block_number);
+        return first === second ? a.log_index - b.log_index : first < second ? -1 : 1;
+      });
 
       const blockTimes = new Map<bigint, string>();
-      if (this.client.getBlockTimestamp) {
-        const distinct = new Set<bigint>();
-        for (const log of rawLogs) if (log.blockNumber !== null) distinct.add(log.blockNumber);
-        for (const bn of distinct) {
-          try {
-            blockTimes.set(bn, new Date((await this.client.getBlockTimestamp(bn)) * 1000).toISOString());
-          } catch {
-            // fall back to indexing time for this block
-          }
+      for (const event of eventRows) {
+        if (!requiresBlockTime(event) || !this.client.getBlockTimestamp) continue;
+        const block = BigInt(event.block_number);
+        let time = blockTimes.get(block);
+        if (time === undefined) {
+          time = new Date(await this.client.getBlockTimestamp(block) * 1000).toISOString();
+          blockTimes.set(block, time);
         }
+        event.block_time = time;
       }
 
-      for (const log of rawLogs) {
-        const parsed = decodeNtiLog(
-          this.chainId,
-          log,
-          log.blockNumber !== null ? blockTimes.get(log.blockNumber) : undefined,
-        );
-        if (!parsed) continue;
-        eventRows.push(parsed.eventRow);
-        mirrors.push(...parsed.mirrors);
-      }
-
-      if (eventRows.length > 0) {
-        await this.store.upsertChainEvents(eventRows);
-        eventsIndexed += eventRows.length;
-      }
-
-      if (mirrors.length > 0) {
+      await this.store.upsertChainEvents(eventRows);
+      eventsIndexed += eventRows.length;
+      if (mode !== "archive") {
+        const mirrors = eventRows.flatMap(projectChainEvent);
         await this.store.upsertMirror(mirrors);
         mirrorUpserts += mirrors.length;
       }
 
-      if (persistEachChunk) {
+      for (const basket of newBaskets) this.addresses.add(basket);
+      if (mode === "poll") {
         await this.store.setLastBlock(this.chainId, chunkEnd);
       }
 

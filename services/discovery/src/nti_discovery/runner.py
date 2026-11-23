@@ -7,6 +7,7 @@ so a failed run is simply retried over the same range.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -141,11 +142,20 @@ class DiscoveryRunner:
         if path is None:
             return
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"last_block": block}))
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"last_block": block}))
+        tmp.replace(path)
 
     # --- scanning ---------------------------------------------------------------------------
 
-    async def _scan(self, from_block: int, to_block: int) -> list[dict[str, Any]]:
+    async def _scan(
+        self,
+        from_block: int,
+        to_block: int,
+        topics: Sequence[str] = (pons.TOPIC_TOKEN_LAUNCHED, pons.TOPIC_POOL_GRADUATED),
+    ) -> list[dict[str, Any]]:
+        if self._cfg.log_range < 1:
+            raise ValueError("Discovery log range must be positive")
         logs: list[dict[str, Any]] = []
         start = from_block
         while start <= to_block:
@@ -157,7 +167,7 @@ class DiscoveryRunner:
                         "address": self._cfg.factory,
                         "fromBlock": hex(start),
                         "toBlock": hex(end),
-                        "topics": [[pons.TOPIC_TOKEN_LAUNCHED, pons.TOPIC_POOL_GRADUATED]],
+                        "topics": [list(topics)],
                     }
                 ],
             )
@@ -218,6 +228,40 @@ class DiscoveryRunner:
             and r.get("v_bps") is not None
             and int(r["v_bps"]) >= self._cfg.rising_v_bps
         }
+
+    async def _emit_token_alerts(
+        self, tokens: Sequence[DiscoveredToken], *, detected_at: datetime
+    ) -> int:
+        if not tokens:
+            return 0
+        alerts_created = 0
+        for alert in generate_new_token_alerts(
+            tokens, rising_narratives=await self._rising_narratives(), detected_at=detected_at
+        ):
+            token = to_pg_bytea(alert.token or "")
+            existing = await self._storage.select(
+                "radar_alerts",
+                columns="id",
+                filters={"kind": "eq.new_token", "token": f"eq.{token}"},
+                limit=1,
+            )
+            if existing:
+                continue
+            await self._storage.upsert(
+                "radar_alerts",
+                [
+                    {
+                        "kind": alert.kind,
+                        "narrative_id": alert.narrative_id,
+                        "v_bps": None,
+                        "token": token,
+                        "detected_at": alert.detected_at.isoformat(),
+                        "public_at": alert.public_at.isoformat(),
+                    }
+                ],
+            )
+            alerts_created += 1
+        return alerts_created
 
     # --- main -------------------------------------------------------------------------------
 
@@ -327,36 +371,7 @@ class DiscoveryRunner:
             for a, t in tokens.items()
             if (t.graduated and a not in was_graduated) or a not in known_addresses
         ]
-        alerts_created = 0
-        if fresh:
-            for alert in generate_new_token_alerts(
-                fresh, rising_narratives=await self._rising_narratives(), detected_at=self._now
-            ):
-                existing = await self._storage.select(
-                    "radar_alerts",
-                    columns="id",
-                    filters={
-                        "kind": "eq.new_token",
-                        "token": f"eq.{to_pg_bytea(alert.token or '')}",
-                    },
-                    limit=1,
-                )
-                if existing:
-                    continue
-                await self._storage.upsert(
-                    "radar_alerts",
-                    [
-                        {
-                            "kind": alert.kind,
-                            "narrative_id": alert.narrative_id,
-                            "v_bps": None,
-                            "token": to_pg_bytea(alert.token or ""),
-                            "detected_at": alert.detected_at.isoformat(),
-                            "public_at": alert.public_at.isoformat(),
-                        }
-                    ],
-                )
-                alerts_created += 1
+        alerts_created = await self._emit_token_alerts(fresh, detected_at=self._now)
 
         self._save_last_block(to_block)
         return {

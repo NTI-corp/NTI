@@ -1,10 +1,11 @@
 import { Suspense } from "react";
+import { getActiveChainId, ROBINHOOD_TESTNET_ID } from "@/lib/contracts";
 import { fetchHeatmapData } from "@/lib/supabase";
 import { HeatmapGrid } from "@/components/HeatmapGrid";
 import { AwaitingEpochBanner } from "@/components/AwaitingEpochBanner";
 import { InstantRouteShell } from "@/components/InstantRouteShell";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 async function HeatmapContent() {
   const data = await fetchHeatmapData();
@@ -13,6 +14,7 @@ async function HeatmapContent() {
   return (
     <div className="tab-panel-enter space-y-4">
       {data.awaitingFirstEpoch && <AwaitingEpochBanner />}
+      {data.dataSource === "unavailable" && <AwaitingEpochBanner unavailable message="Heatmap data is temporarily unavailable." />}
 
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-3.5">
         <div>
@@ -39,7 +41,10 @@ async function HeatmapContent() {
         )}
       </div>
 
-      <HeatmapGrid points={data.points} />
+      {getActiveChainId() === ROBINHOOD_TESTNET_ID && (
+        <p className="text-xs text-[#A1A1AA]">Asset counts reflect Robinhood Testnet activity and may include test market fixtures.</p>
+      )}
+      {data.points.length > 0 && <HeatmapGrid points={data.points} />}
     </div>
   );
 }

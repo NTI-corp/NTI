@@ -7,17 +7,21 @@ transaction when the action is currently possible. A failing task never blocks t
 from __future__ import annotations
 
 import time
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any, Protocol
+from typing import Any
 
 from eth_abi import decode as abi_decode
-from eth_abi import encode as abi_encode
-from eth_utils import keccak
 from nti_core.types import EpochStatus
 
 from nti_oracle.chain import ChainRpcError
+from nti_oracle.keeper_baskets import rebalance_baskets as rebalance_baskets
+from nti_oracle.keeper_baskets import redeem_basket_fees as redeem_basket_fees
+from nti_oracle.keeper_buyback import RouteUnavailable, resolve_buyback
+from nti_oracle.keeper_chain import ContractAt, ContractCaller
+from nti_oracle.keeper_chain import encode_call as _enc
+from nti_oracle.keeper_chain import uint as _uint
 
 STATUS_FINAL = 3
 STATUS_INCOMPLETE = 4
@@ -26,29 +30,6 @@ MIN_DISTRIBUTE_WEI = 10**9
 MIN_BUYBACK_WEI = 10**12
 MIN_GRANT_BUDGET_WEI = 10**12
 DEFAULT_GRANT_ROUND_SECONDS = 14 * 24 * 3600
-
-
-class ContractCaller(Protocol):
-    """Subset of OracleCommitClient used by the tasks (one instance per contract address)."""
-
-    async def _call(self, sig: str, arg_types: Sequence[str], args: Sequence[Any]) -> bytes: ...
-
-    async def _send_tx(self, private_key: str, calldata: bytes) -> str: ...
-
-
-def _sel(sig: str) -> bytes:
-    return keccak(text=sig)[:4]
-
-
-def _enc(sig: str, types: Sequence[str], args: Sequence[Any]) -> bytes:
-    return _sel(sig) + (abi_encode(list(types), list(args)) if types else b"")
-
-
-async def _uint(
-    c: ContractCaller, sig: str, types: Sequence[str] = (), args: Sequence[Any] = ()
-) -> int:
-    raw = await c._call(sig, types, args)
-    return int(abi_decode(["uint256"], raw)[0])
 
 
 async def _guard(name: str, fn: Callable[[], Awaitable[dict[str, Any]]]) -> dict[str, Any]:
@@ -133,6 +114,9 @@ async def run_buyback(
     *,
     private_key: str,
     now: int | None = None,
+    at_address: ContractAt | None = None,
+    deployment: Mapping[str, str] | None = None,
+    v4_pools_json: str | None = None,
 ) -> dict[str, Any]:
     """Execute one rate-limited buyback-and-burn when the registry reports an active adapter."""
     now = now or int(time.time())
@@ -152,14 +136,26 @@ async def run_buyback(
         }
     if last and now < last + BUYBACK_COOLDOWN_SECONDS:
         return {"task": "buyback", "status": "idle", "reason": "cooldown"}
-    # minOut=0 is safe: the adapter enforces its own 30-minute TWAP 3% slippage floor.
+    if at_address is None or deployment is None:
+        return {"task": "buyback", "status": "error", "reason": "route_configuration_missing"}
+    try:
+        route = await resolve_buyback(registry, at_address, deployment, amount, v4_pools_json)
+    except RouteUnavailable as exc:
+        return {"task": "buyback", "status": "error", "reason": str(exc)}
     calldata = _enc(
         "executeBuyback(uint256,uint256,uint256,bytes)",
         ["uint256", "uint256", "uint256", "bytes"],
-        [amount, 0, now + 600, b""],
+        [amount, route.min_out, now + 600, route.data],
     )
     tx = await fee_router._send_tx(private_key, calldata)
-    return {"task": "buyback", "status": "ok", "tx_hash": tx, "amount_wei": amount}
+    return {
+        "task": "buyback",
+        "status": "ok",
+        "tx_hash": tx,
+        "amount_wei": amount,
+        "min_out": route.min_out,
+        "adapter_kind": route.kind,
+    }
 
 
 async def manage_grant_round(

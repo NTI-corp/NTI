@@ -18,9 +18,9 @@ async function BasketsContent() {
     <div className="tab-panel-enter space-y-4">
       {awaitingDeployment && (
         <div className="border border-[#F59E0B]/35 bg-[#161618] px-4 py-2.5 font-mono text-[11px] text-[#F59E0B]">
-          <strong>PREVIEW VAULTS</strong>
+          <strong>VAULT DATA UNAVAILABLE</strong>
           <span className="ml-2 font-sans text-xs text-[#A1A1AA]">
-            BasketFactory returned 0 deployed vaults. Showing governance-whitelisted Uniswap V3 vault architecture (≥20 ETH pool liquidity + 30m TWAP oracle).
+              BasketFactory did not return current vault data.
           </span>
         </div>
       )}
@@ -41,8 +41,8 @@ async function BasketsContent() {
         <EmptyState
           icon={Layers}
           kicker="Narrative baskets"
-          title="No baskets deployed"
-          text="Baskets hold whitelisted tokens with deep Uniswap V3 pools and rebalance each epoch."
+          title={awaitingDeployment ? "Vault data unavailable" : "No baskets deployed"}
+          text="Baskets hold whitelisted tokens with deep Uniswap V3 pools and rebalance on the keeper schedule."
           steps={["Governance whitelists tokens", "Factory deploys the vault", "Deposit ETH, receive basket shares"]}
         />
       ) : (
@@ -83,7 +83,7 @@ async function BasketsContent() {
                           Share Price
                         </div>
                         <div className="mt-0.5 font-medium text-[#4ADE80]">
-                          {b.sharePriceEth.toFixed(5)} ETH
+                          {b.sharePriceEth === null ? "Unavailable" : `${b.sharePriceEth.toFixed(5)} ETH`}
                         </div>
                       </div>
                     </div>
@@ -140,7 +140,7 @@ async function BasketsContent() {
                     />
                   </div>
                   <div className="mt-2.5 flex justify-between text-[10px] text-[#52525B]">
-                    <span>Rebalanced {formatRelativeTime(b.lastRebalancedAt)}</span>
+                    <span>{b.lastRebalancedAt ? `Rebalanced ${formatRelativeTime(b.lastRebalancedAt)}` : "No rebalance recorded"}</span>
                     <span className="text-[#CCFF00]">OPEN VAULT →</span>
                   </div>
                 </div>

@@ -44,10 +44,12 @@ class NTIConfig(BaseModel):
     classifier: ClassifierConfig
     validator: ValidatorConfig
     narratives: tuple[int, ...] = Field(min_length=1)
+    engine_version: str | None = None
+    observation_window_seconds: int | None = Field(default=None, ge=0, le=14400)
 
     def config_hash(self) -> str:
         """Compute keccak256 over the canonical JSON representation of this config."""
-        raw = self.model_dump(mode="json")
+        raw = self.model_dump(mode="json", exclude_none=True)
         return keccak256_hex(canonical_json_bytes(raw))
 
 

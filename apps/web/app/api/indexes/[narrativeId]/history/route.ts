@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { NARRATIVE_BY_ID, NARRATIVE_BY_SLUG } from "@nti/sdk";
 import { fetchNarrativeHistory } from "@/lib/supabase";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export async function GET(
   request: NextRequest,
@@ -28,8 +28,9 @@ export async function GET(
 
   const data = await fetchNarrativeHistory(meta.id, fromEpoch, toEpoch);
   return NextResponse.json(data, {
+    status: data.dataSource === "unavailable" ? 503 : 200,
     headers: {
-      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+      "Cache-Control": "no-store",
     },
   });
 }

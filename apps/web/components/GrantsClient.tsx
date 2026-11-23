@@ -6,7 +6,6 @@ import { useAccount, useReadContract } from "wagmi";
 import { Sprout } from "lucide-react";
 import { EmptyState } from "@/components/ui/Visuals";
 import { TxStatusBanner } from "@/components/TxStatusBanner";
-import { NARRATIVE_BY_ID } from "@nti/sdk";
 import { getActiveChainId, getProtocolAddresses, grantsAbi, stakingAbi } from "@/lib/contracts";
 import { formatCompactNumber, formatCountdown, formatEth, formatBpsPercent, truncateHex } from "@/lib/format";
 import { useChainAction } from "@/lib/useChainAction";
@@ -111,8 +110,8 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
         <EmptyState
           icon={Sprout}
           kicker="Ecosystem grants"
-          title="No grant rounds yet"
-          text="Awaiting governance round initialization on Robinhood Chain."
+          title={awaitingDeployment ? "Grant data unavailable" : "No grant rounds yet"}
+          text={awaitingDeployment ? "The grants contract did not return current round data." : "Awaiting a funded round on Robinhood Chain."}
           steps={["Governance opens a funded round", "Builders submit proposals", "Stakers vote, winners get paid"]}
         />
       </div>
@@ -121,7 +120,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
 
   const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
   const quorumPct =
-    round.quorumNti > 0 ? Math.min(100, (round.totalVotesNti / round.quorumNti) * 100) : 0;
+    round.quorumNti && round.quorumNti > 0 ? Math.min(100, (round.totalVotesNti / round.quorumNti) * 100) : null;
 
   async function submitVote() {
     if (!round) return;
@@ -268,11 +267,6 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
             <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
               Public Goods Allocation
             </span>
-            {awaitingDeployment && (
-              <span className="border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
-                PREVIEW FALLBACK
-              </span>
-            )}
             {wrongChain && (
               <span className="border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
                 AUTO-SWITCHES TO CHAIN {targetChainId} ON TX
@@ -304,7 +298,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
 
           <button
             type="button"
-            disabled={isBusy || round.status === "finalized"}
+            disabled={isBusy || !isConnected || round.status !== "awaiting_finalization"}
             onClick={() => void invokeRoundAction("finalizeRound")}
             className="border border-[#CCFF00]/40 bg-[#CCFF00]/12 px-3 py-1.5 font-mono text-[11px] font-medium text-[#CCFF00] transition-colors hover:bg-[#CCFF00]/22 disabled:cursor-not-allowed disabled:opacity-45"
           >
@@ -333,7 +327,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
             {formatCountdown(round.voteEnd)}
           </div>
           <div className="mt-0.5 font-mono text-[11px] uppercase text-[#71717A]">
-            {round.status}
+            {round.status.replaceAll("_", " ")}
           </div>
         </div>
 
@@ -352,10 +346,10 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
             Quorum Progress
           </div>
           <div className="mt-1 font-mono text-lg font-semibold text-[#F5F5F7] tabular-nums">
-            {quorumPct.toFixed(0)}%
+            {quorumPct === null ? "Unavailable" : `${quorumPct.toFixed(0)}%`}
           </div>
           <div className="mt-0.5 font-mono text-[11px] text-[#71717A] tabular-nums">
-            {formatCompactNumber(round.totalVotesNti)} / {formatCompactNumber(round.quorumNti)} $NTI
+            {formatCompactNumber(round.totalVotesNti)}{round.quorumNti === null ? "" : ` / ${formatCompactNumber(round.quorumNti)}`} $NTI
           </div>
         </div>
 
@@ -400,7 +394,6 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
             </div>
           ) : (
             round.proposals.map((p) => {
-              const nar = NARRATIVE_BY_ID.get(p.narrativeId);
               const myW = weights[p.proposalId] ?? 0;
               return (
                 <div
@@ -411,11 +404,6 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
                     <div className="max-w-xl">
                       <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] text-[#71717A]">
                         <span className="text-[#F5F5F7]">PROP #{p.proposalId}</span>
-                        {nar && (
-                          <span className="border border-[#26262A] bg-[#111113] px-1.5 py-0.5 text-[10px] text-[#CCFF00]">
-                            {nar.label}
-                          </span>
-                        )}
                         <span>Recipient {truncateHex(p.recipient, 6, 4)}</span>
                       </div>
                       <h3 className="mt-1.5 text-sm font-semibold text-[#F5F5F7]">
@@ -462,7 +450,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
 
                     <button
                       type="button"
-                      disabled={isBusy || p.claimed || round.status !== "finalized"}
+                      disabled={isBusy || p.claimed || round.status !== "finalized" || p.projectedEth <= 0 || address?.toLowerCase() !== p.recipient.toLowerCase()}
                       onClick={() => void invokeRoundAction("claim", p.proposalId)}
                       className="border border-[#26262A] bg-[#111113] px-3 py-1 font-mono text-[11px] text-[#F5F5F7] transition-colors hover:border-[#CCFF00]/50 disabled:cursor-not-allowed disabled:opacity-40"
                     >

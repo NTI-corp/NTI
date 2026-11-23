@@ -85,6 +85,7 @@ class LlmRunRecord:
 class PipelineOutput:
     results: tuple[ClassResult, ...]
     run_record: LlmRunRecord
+    failed_tweet_ids: tuple[int, ...] = ()
 
 
 class ClassifierPipeline:
@@ -97,10 +98,13 @@ class ClassifierPipeline:
         batch_size: int = 100,
         daily_primary_limit: int = 1000,
         quota_state_path: str | Path | None = None,
+        max_split_depth: int = 1,
     ) -> None:
         if batch_size <= 0:
             raise ValueError("batch_size must be positive")
         self._primary = primary
+        self._max_split_depth = max_split_depth
+        self._failed_ids: set[int] = set()
         self._fallback = fallback
         self._batch_size = batch_size
         self._quota = DailyQuotaTracker(limit=daily_primary_limit, state_path=quota_state_path)
@@ -130,19 +134,21 @@ class ClassifierPipeline:
         spec: PromptSpec,
         *,
         allow_split: bool,
+        depth_remaining: int | None = None,
     ) -> tuple[list[ClassResult], int, int, bool]:
         """Return (results, half_batch_retries, zero_q_fallbacks, used_fallback)."""
+        depth_remaining = self._max_split_depth if depth_remaining is None else depth_remaining
         try:
             res, used_fb = await self._call_provider(chunk, spec)
             return res, 0, 0, used_fb
         except InvalidResponseError:
-            if allow_split and len(chunk) > 1:
+            if allow_split and depth_remaining > 0 and len(chunk) > 1:
                 mid = len(chunk) // 2
                 left_res, l_ret, l_zero, l_fb = await self._classify_chunk(
-                    chunk[:mid], spec, allow_split=False
+                    chunk[:mid], spec, allow_split=True, depth_remaining=depth_remaining - 1
                 )
                 right_res, r_ret, r_zero, r_fb = await self._classify_chunk(
-                    chunk[mid:], spec, allow_split=False
+                    chunk[mid:], spec, allow_split=True, depth_remaining=depth_remaining - 1
                 )
                 return (
                     left_res + right_res,
@@ -151,10 +157,12 @@ class ClassifierPipeline:
                     l_fb or r_fb,
                 )
             zeros = [ClassResult(tweet_id=p.tweet_id, q={}) for p in chunk]
+            self._failed_ids.update(p.tweet_id for p in chunk)
             return zeros, 0, len(chunk), False
 
     async def run(self, posts: Sequence[PostIn], spec: PromptSpec) -> PipelineOutput:
         started = datetime.now(UTC).isoformat()
+        self._failed_ids.clear()
         ordered = sorted(posts, key=lambda p: p.tweet_id)
         all_results: list[ClassResult] = []
         total_retries = 0
@@ -191,4 +199,7 @@ class ClassifierPipeline:
             started_at=started,
             finished_at=finished,
         )
-        return PipelineOutput(results=tuple(all_results), run_record=record)
+        return PipelineOutput(
+            results=tuple(all_results), run_record=record,
+            failed_tweet_ids=tuple(sorted(self._failed_ids)),
+        )

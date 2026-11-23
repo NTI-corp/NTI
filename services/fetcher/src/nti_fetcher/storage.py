@@ -113,15 +113,26 @@ class SupabaseStorage:
         order: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
+        if limit is not None and limit <= 0:
+            return []
         params: dict[str, str] = {"select": columns}
         if filters:
             params.update(filters)
         if order:
             params["order"] = order
-        if limit is not None:
-            params["limit"] = str(limit)
-        data = await self._request("GET", table, params=params)
-        return list(data) if isinstance(data, list) else []
+        # Keep requests below PostgREST's usual 1000-row response ceiling. A requested
+        # SQL limit is not permission to silently truncate the result at that ceiling.
+        rows: list[dict[str, Any]] = []
+        while limit is None or len(rows) < limit:
+            size = min(500, limit - len(rows)) if limit is not None else 500
+            page_params = {**params, "limit": str(size), "offset": str(len(rows))}
+            data = await self._request("GET", table, params=page_params)
+            if not isinstance(data, list):
+                raise StorageError(f"Supabase SELECT {table} returned a non-array response")
+            rows.extend(data)
+            if len(data) < size:
+                break
+        return rows
 
     async def insert_returning(
         self,

@@ -18,6 +18,7 @@ export async function GET() {
   });
 
   return NextResponse.json(radar, {
+    status: radar.dataSource === "unavailable" ? 503 : 200,
     headers: {
       "Cache-Control": "no-store",
     },

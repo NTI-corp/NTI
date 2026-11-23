@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { fetchHeatmapData } from "@/lib/supabase";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const heatmap = await fetchHeatmapData();
   return NextResponse.json(heatmap, {
+    status: heatmap.dataSource === "unavailable" ? 503 : 200,
     headers: {
-      "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+      "Cache-Control": "no-store",
     },
   });
 }

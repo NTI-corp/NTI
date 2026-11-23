@@ -6,7 +6,6 @@ import asyncio
 import hashlib
 import inspect
 import json
-import os
 import random
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -17,6 +16,7 @@ from typing import Any
 from nti_core.canonical import canonical_jsonl_bytes
 from nti_core.types import EpochStatus, KolProfile, RawPost
 
+from nti_fetcher.accounts import FileLockBusyError, locked_file
 from nti_fetcher.protocol import PostSource
 
 
@@ -25,36 +25,30 @@ class CycleLockedError(RuntimeError):
 
 
 class CycleLock:
-    """Cross-platform atomic lockfile preventing overlapping fetch cycles."""
+    """Cross-platform OS advisory lockfile preventing overlapping fetch cycles."""
 
     def __init__(self, lock_path: str | Path, stale_seconds: int = 2700) -> None:
         self.lock_path = Path(lock_path)
         self._stale_seconds = stale_seconds
         self._acquired = False
-
-    def _reap_if_stale(self) -> None:
-        try:
-            age = datetime.now(UTC).timestamp() - self.lock_path.stat().st_mtime
-            if age > self._stale_seconds:
-                self.lock_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        self._lock_cm: Any = None
 
     def acquire(self) -> None:
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
-        self._reap_if_stale()
-        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+        cm = locked_file(self.lock_path, timeout=0)
         try:
-            fd = os.open(str(self.lock_path), flags)
-        except FileExistsError as exc:
+            cm.__enter__()
+        except FileLockBusyError as exc:
             raise CycleLockedError(f"Lockfile already held: {self.lock_path}") from exc
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(json.dumps({"pid": os.getpid(), "acquired_at": datetime.now(UTC).isoformat()}))
+        self._lock_cm = cm
         self._acquired = True
 
     def release(self) -> None:
         if self._acquired:
             try:
+                if self._lock_cm is not None:
+                    self._lock_cm.__exit__(None, None, None)
+                    self._lock_cm = None
                 self.lock_path.unlink(missing_ok=True)
             finally:
                 self._acquired = False
@@ -314,9 +308,13 @@ class FetchRunner:
             epoch_dir = self._output_dir / str(epoch_id)
             epoch_dir.mkdir(parents=True, exist_ok=True)
 
-            eligible = self.eligible_kols(kols, epoch_id)
+            due = self.eligible_kols(kols, epoch_id)
             if self._max_kols is not None and self._max_kols > 0:
-                eligible = eligible[: self._max_kols]
+                eligible = due[: self._max_kols]
+                omitted = due[self._max_kols :]
+            else:
+                eligible = due
+                omitted = []
             partitions: list[list[KolProfile]] = [[] for _ in range(self._num_lanes)]
             for idx, kol in enumerate(eligible):
                 partitions[idx % self._num_lanes].append(kol)
@@ -337,8 +335,10 @@ class FetchRunner:
             all_posts.sort(key=lambda p: p.tweet_id)
             total_ok = sum(r.accounts_ok for r in reports)
             total_failed = sum(r.accounts_failed for r in reports)
-            total_eligible = len(eligible)
-            failed_ratio = (total_failed / total_eligible) if total_eligible > 0 else 0.0
+            total_eligible = len(due)
+            failed_ratio = (
+                ((total_failed + len(omitted)) / total_eligible) if total_eligible > 0 else 0.0
+            )
             status = (
                 EpochStatus.INCOMPLETE
                 if failed_ratio > self._incomplete_threshold
@@ -351,6 +351,9 @@ class FetchRunner:
                 "status": str(status),
                 "started_at": started,
                 "finished_at": finished,
+                "total_eligible": total_eligible,
+                "due_user_ids": [k.user_id for k in due],
+                "omitted_user_ids": [k.user_id for k in omitted],
                 "total_ok": total_ok,
                 "total_failed": total_failed,
                 "total_posts": len(all_posts),

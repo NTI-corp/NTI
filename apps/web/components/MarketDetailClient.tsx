@@ -77,7 +77,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
     poolAEth,
     poolBEth,
     status: settledOnChain
-      ? onChainTuple?.[10] === 2
+      ? (onChainTuple ? onChainTuple[10] === 3 : market.status === "refunded")
         ? "refunded"
         : "settled"
       : market.status,
@@ -87,9 +87,9 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
   const pctA = totalPool > 0 ? Math.round((liveMarket.poolAEth / totalPool) * 100) : 50;
   const pctB = 100 - pctA;
 
-  const relA = market.baseIA > 0 ? market.currentIA / market.baseIA : 1;
-  const relB = market.baseIB > 0 ? market.currentIB / market.baseIB : 1;
-  const delta = relA - relB;
+  const relA = market.currentIA !== null && market.baseIA > 0 ? market.currentIA / market.baseIA : null;
+  const relB = market.currentIB !== null && market.baseIB > 0 ? market.currentIB / market.baseIB : null;
+  const delta = relA !== null && relB !== null ? relA - relB : null;
 
   const invoke = async (fn: "settle" | "claim") => {
     if (!addresses.narrativeMarket) return;
@@ -244,29 +244,29 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
               <div>
                 <div className="text-[10px] text-[#71717A]">{market.narrativeALabel}</div>
                 <div className="mt-0.5 text-[#F5F5F7]">
-                  {formatBpsPercent(market.baseIA)} → {formatBpsPercent(market.currentIA)}
+                  {formatBpsPercent(market.baseIA)} → {market.currentIA === null ? "\u2014" : formatBpsPercent(market.currentIA)}
                 </div>
-                <div className="text-[10px] text-[#4ADE80]">Ratio {relA.toFixed(4)}</div>
+                <div className="text-[10px] text-[#4ADE80]">Ratio {relA?.toFixed(4) ?? "\u2014"}</div>
               </div>
               <div>
                 <div className="text-[10px] text-[#71717A]">{market.narrativeBLabel}</div>
                 <div className="mt-0.5 text-[#F5F5F7]">
-                  {formatBpsPercent(market.baseIB)} → {formatBpsPercent(market.currentIB)}
+                  {formatBpsPercent(market.baseIB)} → {market.currentIB === null ? "\u2014" : formatBpsPercent(market.currentIB)}
                 </div>
-                <div className="text-[10px] text-[#CCFF00]">Ratio {relB.toFixed(4)}</div>
+                <div className="text-[10px] text-[#CCFF00]">Ratio {relB?.toFixed(4) ?? "\u2014"}</div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] text-[#71717A]">INDICATIVE Δ</div>
                 <div
                   className={`mt-0.5 text-base font-semibold ${
-                    delta >= 0 ? "text-[#4ADE80]" : "text-[#CCFF00]"
+                    delta !== null && delta >= 0 ? "text-[#4ADE80]" : "text-[#CCFF00]"
                   }`}
                 >
-                  {delta >= 0 ? "+" : ""}
-                  {(delta * 100).toFixed(2)}%
+                  {delta !== null && delta >= 0 ? "+" : ""}
+                  {delta === null ? "\u2014" : `${(delta * 100).toFixed(2)}%`}
                 </div>
                 <div className="text-[10px] text-[#71717A]">
-                  {delta > 0 ? "Side A leading" : delta < 0 ? "Side B leading" : "Tie (refund)"}
+                  {delta !== null && delta > 0 ? "Side A leading" : delta !== null && delta < 0 ? "Side B leading" : delta === null ? "Index comparison unavailable" : "Tie"}
                 </div>
               </div>
             </div>
@@ -278,7 +278,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
               Permissionless Settlement &amp; Payout Claim
             </h2>
             <p className="mt-1 text-xs text-[#71717A]">
-              Anyone can call <code className="font-mono text-[#F5F5F7]">settle({market.marketId})</code> once Epoch #{market.settleEpoch} reaches final status (or after the 48-hour timeout for automatic gross refund). Winners and refund recipients withdraw via pull <code className="font-mono text-[#F5F5F7]">claim({market.marketId})</code>.
+              Anyone can call <code className="font-mono text-[#F5F5F7]">settle({market.marketId})</code> once Epoch #{market.settleEpoch} reaches final status (if it becomes incomplete, or once the on-chain timeout allows a refund). Winners and refund recipients withdraw via pull <code className="font-mono text-[#F5F5F7]">claim({market.marketId})</code>.
             </p>
             <div className="mt-3 flex flex-wrap gap-2.5">
               <button

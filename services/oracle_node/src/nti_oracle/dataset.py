@@ -12,7 +12,13 @@ from typing import Any, Protocol
 
 import httpx
 from nti_core.canonical import canonical_jsonl_bytes, keccak256_bytes, keccak256_hex
-from nti_engine.models import EngagementSnapshot, EngineKol, EnginePost, EpochDataset
+from nti_engine.models import (
+    EngagementSnapshot,
+    EngineKol,
+    EnginePost,
+    EpochDataset,
+    PrevEpochState,
+)
 
 ZERO_HASH = "0x" + "00" * 32
 
@@ -30,6 +36,9 @@ class DeltaHeader:
     prev_dataset_hash: str
     prev_arweave_tx: str
     a_max: Decimal | None = None
+    observation_cutoff_unix: int | None = None
+    provenance: dict[str, Any] | None = None
+    previous_state: PrevEpochState | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +77,9 @@ def build_delta_dataset(
     prev_dataset_hash: str = ZERO_HASH,
     prev_arweave_tx: str = "",
     a_max: Decimal | None = None,
+    observation_cutoff_unix: int | None = None,
+    provenance: dict[str, Any] | None = None,
+    previous_state: PrevEpochState | None = None,
 ) -> DeltaArtifact:
     """Build a canonical, sorted, gzip-compressed 4-hour delta dataset with rolling chain hash."""
     rows: list[dict[str, Any]] = [
@@ -82,6 +94,17 @@ def build_delta_dataset(
             "a_max": None if a_max is None else format(a_max, "f"),
         }
     ]
+    if observation_cutoff_unix is not None:
+        rows[0]["observation_cutoff_unix"] = observation_cutoff_unix
+    if provenance is not None:
+        rows[0]["provenance"] = provenance
+    if previous_state is not None:
+        rows[0]["previous_state"] = {
+            "series_id": previous_state.series_id,
+            "prev_i_bps": previous_state.prev_i_bps,
+            "lag_i_bps": previous_state.lag_i_bps,
+            "has_incomplete_gap": previous_state.has_incomplete_gap,
+        }
 
     for kol in sorted(kols, key=lambda k: k.user_id):
         rows.append(
@@ -128,6 +151,9 @@ def build_delta_dataset(
         prev_dataset_hash=prev_dataset_hash,
         prev_arweave_tx=prev_arweave_tx,
         a_max=a_max,
+        observation_cutoff_unix=observation_cutoff_unix,
+        provenance=provenance,
+        previous_state=previous_state,
     )
     return DeltaArtifact(
         epoch_id=epoch_id,
@@ -161,6 +187,17 @@ def parse_delta_blob(
         raise DatasetChainError("First row of delta JSONL must be a header")
 
     a_max_raw = header_row.get("a_max")
+    state_row = header_row.get("previous_state")
+    previous_state = None
+    if state_row is not None:
+        previous_state = PrevEpochState(
+            series_id=int(state_row["series_id"]),
+            prev_i_bps={int(k): int(v) for k, v in state_row["prev_i_bps"].items()}
+            if state_row.get("prev_i_bps") else None,
+            lag_i_bps={int(k): int(v) for k, v in state_row["lag_i_bps"].items()}
+            if state_row.get("lag_i_bps") else None,
+            has_incomplete_gap=bool(state_row.get("has_incomplete_gap")),
+        )
     header = DeltaHeader(
         epoch_id=int(header_row["epoch_id"]),
         boundary_unix=int(header_row["boundary_unix"]),
@@ -169,6 +206,9 @@ def parse_delta_blob(
         prev_dataset_hash=str(header_row["prev_dataset_hash"]),
         prev_arweave_tx=str(header_row.get("prev_arweave_tx", "")),
         a_max=None if a_max_raw is None else Decimal(str(a_max_raw)),
+        observation_cutoff_unix=header_row.get("observation_cutoff_unix"),
+        provenance=header_row.get("provenance"),
+        previous_state=previous_state,
     )
 
     kols: list[EngineKol] = []
@@ -244,6 +284,8 @@ def reconstruct_window(
     latest_a_max: Decimal | None = None
 
     for header, kols, posts, _, _ in parsed:
+        if header.series_id != series_id:
+            continue
         if header.a_max is not None:
             latest_a_max = header.a_max
         for k in kols:
@@ -278,6 +320,7 @@ def reconstruct_window(
         posts=merged_posts,
         kols=merged_kols,
         a_max=latest_a_max,
+        observation_cutoff_unix=parsed[-1][0].observation_cutoff_unix if parsed else None,
     )
 
 
@@ -437,9 +480,13 @@ class SupabaseStorageMirror:
 class MirroredUploader:
     """Primary uploader plus a best-effort mirror; a mirror failure never blocks an epoch."""
 
-    def __init__(self, primary: DatasetUploader, mirror: SupabaseStorageMirror | None) -> None:
+    def __init__(
+        self, primary: DatasetUploader, mirror: SupabaseStorageMirror | None,
+        *, required: bool = False,
+    ) -> None:
         self._primary = primary
         self._mirror = mirror
+        self._required = required
         self.mirror_errors: list[str] = []
 
     async def upload(self, epoch_id: int, chain_hash: str, data: bytes) -> str:
@@ -449,6 +496,10 @@ class MirroredUploader:
                 await self._mirror.put(tx_id, data)
             except Exception as exc:  # noqa: BLE001 - mirroring is best effort
                 self.mirror_errors.append(f"{tx_id}: {str(exc)[:160]}")
+                if self._required:
+                    raise
+        elif self._required:
+            raise DatasetChainError("Live publication requires a public archive mirror")
         return tx_id
 
 

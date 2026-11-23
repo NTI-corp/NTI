@@ -10,7 +10,6 @@ import {
   estimateTxGas,
   getActiveChainId,
   getProtocolAddresses,
-  governorAbi,
   stakingAbi,
   type GasEstimateDisplay,
 } from "@/lib/contracts";
@@ -18,6 +17,8 @@ import { formatCompactNumber, getStakerTier, truncateHex } from "@/lib/format";
 import { useChainAction } from "@/lib/useChainAction";
 import { useSiweSession } from "./Providers";
 import type { GovernorProposalItem } from "@/lib/types";
+import { GovernorPanel } from "./GovernorPanel";
+import { KolRegistryPanel } from "./KolRegistryPanel";
 import { TierLadder } from "@/components/ui/Visuals";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
 
@@ -39,7 +40,7 @@ function safeParseNti(raw: string): bigint | null {
   }
 }
 
-export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }) {
+export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] | null }) {
   const { address, isConnected } = useAccount();
   const activeChainId = getActiveChainId();
   const isTestnet = activeChainId === ROBINHOOD_TESTNET_ID;
@@ -278,7 +279,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
           functionName: "requestUnstake",
           args: [parsedAmountWei],
         },
-        "7-day unstake cooldown started.",
+        "Unstake cooldown started.",
       );
       return;
     }
@@ -315,24 +316,6 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
     );
   };
 
-  const castGovVote = async (proposalId: string, support: 0 | 1 | 2) => {
-    setValidationError(null);
-    if (!isConnected || !addresses.governor) {
-      setValidationError("Connect wallet with NTIGovernor contract configured.");
-      return;
-    }
-    await execute(
-      `Cast governance vote on #${proposalId}`,
-      {
-        address: addresses.governor,
-        abi: governorAbi,
-        functionName: "castVote",
-        args: [BigInt(proposalId), support],
-      },
-      `Governance vote recorded on proposal #${proposalId}.`,
-    );
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-4">
@@ -351,7 +334,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
             Stake $NTI
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#71717A]">
-            Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and govern NTIGovernor (4% quorum, 3d vote, 48h Timelock).
+            Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and participate in stake-weighted NTIGovernor votes.
           </p>
         </div>
 
@@ -393,7 +376,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
 
         <div className="border border-[#26262A] bg-[#161618] p-3.5">
           <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
-            Cooldown (7-Day Lock)
+            Unstake Cooldown
           </div>
           <div className="mt-1 text-lg font-semibold text-[#F59E0B]">
             {Math.floor(cooldownAmtNum).toLocaleString("en-US")} $NTI
@@ -612,102 +595,8 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] }
         </div>
       </div>
 
-      {/* NTIGovernor Proposals */}
-      <section className="border border-[#26262A] bg-[#161618]">
-        <div className="border-b border-[#26262A] px-4 py-3">
-          <h2 className="text-sm font-semibold text-[#F5F5F7]">
-            NTIGovernor Proposals (4% Quorum · 3d Voting · 48h Timelock)
-          </h2>
-          <p className="mt-0.5 text-xs text-[#71717A]">
-            Controls ConfigRegistry parameters, validator permissionless mode, basket token whitelists, risk caps, and InsuranceFund.
-          </p>
-        </div>
-
-        {proposals.length === 0 ? (
-          <div className="px-4 py-8 text-center text-xs text-[#71717A]">
-            No NTIGovernor proposals indexed yet. Submit on-chain proposals once governance voting weights reach quorum.
-          </div>
-        ) : (
-          <div className="divide-y divide-[#1F1F23]">
-            {proposals.map((p) => {
-              const totalVotes = p.forVotesNti + p.againstVotesNti + p.abstainVotesNti;
-              const forPct =
-                totalVotes > 0 ? Math.round((p.forVotesNti / totalVotes) * 100) : 0;
-              return (
-                <div key={p.proposalId} className="p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="max-w-2xl">
-                      <div className="flex flex-wrap items-center gap-2 font-mono text-[10px]">
-                        <span className="border border-[#26262A] bg-[#111113] px-1.5 py-0.5 text-[#CCFF00]">
-                          {p.category.toUpperCase()}
-                        </span>
-                        <span
-                          className={`border px-1.5 py-0.5 ${
-                            p.status === "Active"
-                              ? "border-[#4ADE80]/40 bg-[#4ADE80]/10 text-[#4ADE80]"
-                              : p.status === "Queued"
-                                ? "border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]"
-                                : "border-[#26262A] text-[#71717A]"
-                          }`}
-                        >
-                          {p.status.toUpperCase()}
-                        </span>
-                        <span className="text-[#71717A]">
-                          ID #{p.proposalId} · By {truncateHex(p.proposer, 6, 4)}
-                        </span>
-                      </div>
-                      <h3 className="mt-1.5 text-sm font-semibold text-[#F5F5F7]">{p.title}</h3>
-                      <p className="mt-1 text-xs text-[#71717A]">{p.summary}</p>
-                    </div>
-
-                    {p.status === "Active" && (
-                      <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => void castGovVote(p.proposalId, 1)}
-                          className="border border-[#4ADE80]/50 bg-[#4ADE80]/15 px-3 py-1.5 text-[#4ADE80] hover:bg-[#4ADE80]/25 disabled:opacity-45"
-                        >
-                          FOR
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => void castGovVote(p.proposalId, 0)}
-                          className="border border-[#EF4444]/50 bg-[#EF4444]/15 px-3 py-1.5 text-[#EF4444] hover:bg-[#EF4444]/25 disabled:opacity-45"
-                        >
-                          AGAINST
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => void castGovVote(p.proposalId, 2)}
-                          className="border border-[#26262A] bg-[#111113] px-3 py-1.5 text-[#71717A] hover:text-[#F5F5F7] disabled:opacity-45"
-                        >
-                          ABSTAIN
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-4 font-mono text-[11px] text-[#71717A] tabular-nums">
-                    <span className="text-[#4ADE80]">
-                      FOR {formatCompactNumber(p.forVotesNti)} ({forPct}%)
-                    </span>
-                    <span className="text-[#EF4444]">
-                      AGAINST {formatCompactNumber(p.againstVotesNti)}
-                    </span>
-                    <span>ABSTAIN {formatCompactNumber(p.abstainVotesNti)}</span>
-                    <span className="text-[#71717A]">
-                      Quorum {formatCompactNumber(p.quorumNti)} $NTI
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      <GovernorPanel proposals={proposals} />
+      <KolRegistryPanel />
     </div>
   );
 }

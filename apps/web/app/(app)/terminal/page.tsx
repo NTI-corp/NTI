@@ -8,7 +8,7 @@ import { AwaitingEpochBanner } from "@/components/AwaitingEpochBanner";
 import { MindshareTerminalWorkspace } from "@/components/MindshareTerminalWorkspace";
 import { InstantRouteShell } from "@/components/InstantRouteShell";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 async function TerminalContent() {
   const cookieStore = await cookies();
@@ -34,11 +34,12 @@ async function TerminalContent() {
     color: sectorColor(n.narrativeId),
     points: snapshot.recentSeries[n.narrativeId] ?? [],
   }));
-  const activeEpoch = snapshot.latestObservedEpoch ?? snapshot.latestFinalEpoch;
+  const activeEpoch = snapshot.latestFinalEpoch;
 
   return (
     <div className="tab-panel-enter space-y-4">
       {snapshot.awaitingFirstEpoch && <AwaitingEpochBanner />}
+      {snapshot.dataSource === "unavailable" && <AwaitingEpochBanner unavailable message="Official index is temporarily unavailable." />}
       <MindshareTerminalWorkspace
         narratives={snapshot.narratives}
         recentSeries={snapshot.recentSeries}

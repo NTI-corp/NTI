@@ -28,6 +28,18 @@ def _format_user_payload(batch: list[PostIn]) -> str:
     return json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
 
 
+def _wire_batch(batch: list[PostIn]) -> tuple[list[PostIn], dict[int, int]]:
+    """Use small opaque IDs when snowflakes exceed exact JSON/JavaScript integers."""
+    if not any(p.tweet_id > (1 << 53) - 1 for p in batch):
+        return batch, {p.tweet_id: p.tweet_id for p in batch}
+    translated = [PostIn(i, p.handle, p.text) for i, p in enumerate(batch, 1)]
+    return translated, {i: p.tweet_id for i, p in enumerate(batch, 1)}
+
+
+def _restore_ids(results: list[ClassResult], ids: dict[int, int]) -> list[ClassResult]:
+    return [ClassResult(tweet_id=ids[r.tweet_id], q=r.q) for r in results]
+
+
 def parse_classification_json(
     raw_text: str,
     expected_ids: set[int],
@@ -94,6 +106,7 @@ class GeminiAdapter:
     async def classify(self, batch: list[PostIn], spec: PromptSpec) -> list[ClassResult]:
         if not batch:
             return []
+        batch, original_ids = _wire_batch(batch)
         url = f"{self._base_url}/models/{self._model}:generateContent"
         payload: dict[str, Any] = {
             "systemInstruction": {"parts": [{"text": spec.system_prompt}]},
@@ -144,11 +157,12 @@ class GeminiAdapter:
         except (KeyError, IndexError, TypeError) as exc:
             raise InvalidResponseError(f"Unexpected Gemini response envelope: {exc}") from exc
 
-        return parse_classification_json(
+        results = parse_classification_json(
             raw_text=str(text),
             expected_ids={p.tweet_id for p in batch},
             valid_narratives=spec.narratives,
         )
+        return _restore_ids(results, original_ids)
 
 
 class MiMoAdapter:
@@ -176,6 +190,7 @@ class MiMoAdapter:
     async def classify(self, batch: list[PostIn], spec: PromptSpec) -> list[ClassResult]:
         if not batch:
             return []
+        batch, original_ids = _wire_batch(batch)
         url = f"{self._base_url}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self._api_key}",
@@ -224,8 +239,9 @@ class MiMoAdapter:
         except (KeyError, IndexError, TypeError) as exc:
             raise InvalidResponseError(f"Unexpected MiMo response envelope: {exc}") from exc
 
-        return parse_classification_json(
+        results = parse_classification_json(
             raw_text=str(text),
             expected_ids={p.tweet_id for p in batch},
             valid_narratives=spec.narratives,
         )
+        return _restore_ids(results, original_ids)

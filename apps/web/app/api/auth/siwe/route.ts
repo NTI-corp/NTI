@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   if (wantNonce) {
     if (!isSiweConfigured()) return siweUnavailable();
     const { nonce, cookieValue, maxAge } = issueNonce();
-    const res = NextResponse.json({ nonce });
+    const res = NextResponse.json({ nonce }, { headers: { "Cache-Control": "no-store" } });
     res.cookies.set(SIWE_NONCE_COOKIE, cookieValue, {
       httpOnly: true,
       sameSite: "lax",
@@ -61,6 +61,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
   if (body.action === "logout") {
     const res = NextResponse.json({ ok: true, authenticated: false });
     res.cookies.delete(SIWE_SESSION_COOKIE);
@@ -70,7 +74,7 @@ export async function POST(request: NextRequest) {
   if (body.action === "nonce") {
     if (!isSiweConfigured()) return siweUnavailable();
     const { nonce, cookieValue, maxAge } = issueNonce();
-    const res = NextResponse.json({ nonce });
+    const res = NextResponse.json({ nonce }, { headers: { "Cache-Control": "no-store" } });
     res.cookies.set(SIWE_NONCE_COOKIE, cookieValue, {
       httpOnly: true,
       sameSite: "lax",
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest) {
 
   if (!isSiweConfigured()) return siweUnavailable();
 
-  if (!body.message || !body.signature || !body.address) {
+  if (typeof body.message !== "string" || typeof body.signature !== "string" || typeof body.address !== "string" || body.message.length > 2048) {
     return NextResponse.json(
       { error: "Missing message, signature, or address" },
       { status: 400 },
@@ -104,6 +108,7 @@ export async function POST(request: NextRequest) {
     signature: body.signature,
     address: body.address,
     expectedNonce,
+    expectedOrigin: request.nextUrl.origin,
   });
 
   if (!verified.ok) {
@@ -113,7 +118,7 @@ export async function POST(request: NextRequest) {
   const { cookieValue, maxAge } = createSessionCookie(verified.address, verified.chainId);
   const state = await getSiweSessionState(cookieValue);
 
-  const res = NextResponse.json(state);
+  const res = NextResponse.json(state, { headers: { "Cache-Control": "no-store" } });
   res.cookies.set(SIWE_SESSION_COOKIE, cookieValue, {
     httpOnly: true,
     sameSite: "lax",

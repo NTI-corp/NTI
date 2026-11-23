@@ -6,6 +6,7 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
+from eth_abi import decode as abi_decode
 from eth_abi import encode as abi_encode
 from eth_utils import keccak
 from nti_oracle.chain import ChainRpcError
@@ -21,6 +22,15 @@ from nti_oracle.keeper_tasks import (
 )
 
 KEY = "0x" + "11" * 32
+WETH = "0x" + "01" * 20
+NTI = "0x" + "02" * 20
+ADAPTER = "0x" + "03" * 20
+FACTORY = "0x" + "04" * 20
+POOL = "0x" + "05" * 20
+STATE_VIEW = "0x" + "06" * 20
+HOOK = "0x" + "07" * 20
+ZERO = "0x" + "00" * 20
+POOL_KEY = "(address,address,uint24,int24,address)"
 ROUND_TYPES = ["uint256", "uint64", "uint64", "uint64", "uint256", "uint256", "bool"]
 MARKET_TYPES = [
     "uint8",
@@ -129,10 +139,115 @@ def test_buyback_respects_ready_flag_minimum_and_cooldown() -> None:
     res = asyncio.run(run_buyback(_router(10**18, now - 10), ready, private_key=KEY, now=now))
     assert res["reason"] == "cooldown"
 
-    router = _router(10**18, now - 10_000)
-    res = asyncio.run(run_buyback(router, ready, private_key=KEY, now=now))
-    assert res["status"] == "ok" and res["amount_wei"] == 2 * 10**17
-    assert router.sent[0][:4] == sel("executeBuyback(uint256,uint256,uint256,bytes)")
+
+def _ready_registry() -> FakeContract:
+    return FakeContract(
+        {
+            "buybackReady()": (["bool"], [True]),
+            "buybackAdapter()": (["address"], [ADAPTER]),
+            "weth()": (["address"], [WETH]),
+            "nti()": (["address"], [NTI]),
+        }
+    )
+
+
+def test_buyback_uses_active_v3_pool_fee_and_observed_twap_floor() -> None:
+    router = _router(10**18, 0)
+    contracts = {
+        ADAPTER: FakeContract(
+            {
+                "weth()": (["address"], [WETH]),
+                "defaultPoolFee()": (["uint24"], [3000]),
+                "v3Factory()": (["address"], [FACTORY]),
+            }
+        ),
+        FACTORY: FakeContract({"getPool(address,address,uint24):" + WETH: (["address"], [POOL])}),
+        POOL: FakeContract(
+            {"observe(uint32[]):[1800, 0]": (["int56[]", "uint160[]"], [[0, 0], [0, 0]])}
+        ),
+    }
+    result = asyncio.run(
+        run_buyback(
+            router,
+            _ready_registry(),
+            at_address=contracts.__getitem__,
+            deployment={"buybackAdapterV3": ADAPTER},
+            private_key=KEY,
+            now=1_000_000,
+        )
+    )
+    assert result["status"] == "ok" and result["adapter_kind"] == "v3"
+    calldata = router.sent[0]
+    assert calldata[:4] == sel("executeBuyback(uint256,uint256,uint256,bytes)")
+    assert abi_decode(["uint256", "uint256", "uint256", "bytes"], calldata[4:]) == (
+        200_000_000_000_000_000,
+        194_000_000_000_000_000,
+        1_000_600,
+        (3000).to_bytes(32, "big"),
+    )
+
+
+def test_buyback_v4_encodes_real_pool_key_and_reads_state_view() -> None:
+    router = _router(10**18, 0)
+    key = (ZERO, NTI, 0x800000, 60, HOOK)
+    pool_id = keccak(abi_encode([POOL_KEY], [key]))
+    contracts = {
+        ADAPTER: FakeContract(
+            {
+                "weth()": (["address"], [WETH]),
+                "ponsHook()": (["address"], [HOOK]),
+                "stateView()": (["address"], [STATE_VIEW]),
+                "validateRoute(address,bytes):" + NTI: (["bool"], [True]),
+            }
+        ),
+        STATE_VIEW: FakeContract(
+            {
+                f"getSlot0(bytes32):{pool_id}": (
+                    ["uint160", "int24", "uint24", "uint24"],
+                    [1 << 97, 0, 0, 3000],
+                )
+            }
+        ),
+    }
+    result = asyncio.run(
+        run_buyback(
+            router,
+            _ready_registry(),
+            at_address=contracts.__getitem__,
+            deployment={"buybackAdapterV4": ADAPTER},
+            v4_pools_json='[{"currency0":"'
+            + ZERO
+            + '","currency1":"'
+            + NTI
+            + '","fee":8388608,"tickSpacing":60,"hooks":"'
+            + HOOK
+            + '"}]',
+            private_key=KEY,
+            now=1_000_000,
+        )
+    )
+    assert result["status"] == "ok" and result["adapter_kind"] == "v4"
+    _, minimum, _, route_data = abi_decode(
+        ["uint256", "uint256", "uint256", "bytes"], router.sent[0][4:]
+    )
+    assert minimum == 776_000_000_000_000_000
+    assert abi_decode([POOL_KEY + "[]"], route_data) == ((key,),)
+
+
+def test_buyback_never_broadcasts_to_an_unrecognized_active_adapter() -> None:
+    router = _router(10**18, 0)
+    result = asyncio.run(
+        run_buyback(
+            router,
+            _ready_registry(),
+            at_address={}.__getitem__,
+            deployment={"buybackAdapterV4": HOOK},
+            private_key=KEY,
+            now=1_000_000,
+        )
+    )
+    assert result["status"] == "error" and result["reason"] == "unknown_active_adapter"
+    assert router.sent == []
 
 
 def test_grant_round_finalizes_ended_round_then_starts_next() -> None:
@@ -243,3 +358,126 @@ def test_accrue_basket_fees_only_for_stale_baskets() -> None:
     res = asyncio.run(accrue_basket_fees(factory, lambda a: baskets[a], private_key=KEY, now=now))
     assert [a["basket"] for a in res["accrued"]] == [stale]
     assert baskets[stale].sent == [sel("accrueFee()")] and baskets[fresh].sent == []
+
+
+def _basket_fixture(
+    weights: list[int], token_balances: list[int], *, fee_shares: int = 0
+) -> tuple[FakeContract, FakeContract, dict[str, FakeContract], list[str]]:
+    tokens = ["0x" + f"{i:02x}" * 20 for i in (12, 13, 14)]
+    pools = ["0x" + f"{i:02x}" * 20 for i in (22, 23, 24)]
+    unit = 10**18
+    basket_address, fee_router = "0x" + "aa" * 20, "0x" + "bb" * 20
+    factory = FakeContract({"allBaskets()": (["address[]"], [[basket_address]])})
+    basket = FakeContract(
+        {
+            "paused()": (["bool"], [False]),
+            "lastRebalanceAt()": (["uint64"], [0]),
+            "narrativeId()": (["uint8"], [2]),
+            "constituents()": (["address[]", "uint16[]"], [tokens, weights]),
+            "totalNavWeth()": (["uint256"], [sum(token_balances)]),
+            "minPoolLiquidity()": (["uint128"], [unit]),
+            "feeRouter()": (["address"], [fee_router]),
+            "totalSupply()": (["uint256"], [100 * unit]),
+            "lastFeeAccrual()": (["uint64"], [1_000_000]),
+            f"balanceOf(address):{fee_router}": (["uint256"], [fee_shares]),
+            **{
+                f"tokenConfigs(address):{token}": (
+                    ["bool", "address", "uint24"],
+                    [True, pool, 3000],
+                )
+                for token, pool in zip(tokens, pools, strict=True)
+            },
+        }
+    )
+    contracts = {
+        basket_address: basket,
+        WETH: FakeContract({f"balanceOf(address):{basket_address}": (["uint256"], [0])}),
+        **{
+            token: FakeContract(
+                {
+                    f"balanceOf(address):{basket_address}": (["uint256"], [bal]),
+                    "totalSupply()": (["uint256"], [1_000_000 * unit]),
+                }
+            )
+            for token, bal in zip(tokens, token_balances, strict=True)
+        },
+        **{
+            pool: FakeContract(
+                {
+                    "liquidity()": (["uint128"], [1_000 * unit]),
+                    "token0()": (["address"], [WETH]),
+                    "token1()": (["address"], [token]),
+                    "fee()": (["uint24"], [3000]),
+                    "observe(uint32[]):[1800, 0]": (["int56[]", "uint160[]"], [[0, 0], [0, 0]]),
+                }
+            )
+            for token, pool in zip(tokens, pools, strict=True)
+        },
+    }
+    return factory, basket, contracts, tokens
+
+
+def test_rebalance_uses_verified_pool_data_and_funded_swaps_with_daily_cap() -> None:
+    from nti_oracle.keeper_tasks import rebalance_baskets
+
+    unit = 10**18
+    factory, basket, contracts, tokens = _basket_fixture(
+        [4000, 3000, 3000], [80 * unit, 10 * unit, 10 * unit]
+    )
+    result = asyncio.run(
+        rebalance_baskets(
+            factory, contracts.__getitem__, weth_address=WETH, private_key=KEY, now=1_000_000
+        )
+    )
+    assert result["status"] == "ok"
+    calldata = basket.sent[0]
+    assert calldata[:4] == sel("rebalance(address[],uint16[],(address,address,uint256,uint256)[])")
+    targets, weights, swaps = abi_decode(
+        ["address[]", "uint16[]", "(address,address,uint256,uint256)[]"], calldata[4:]
+    )
+    assert targets == tuple(tokens) and weights == (3334, 3333, 3333)
+    assert swaps[0] == (tokens[0], WETH, 20 * unit, 19_400_000_000_000_000_000)
+    assert sum(s[2] for s in swaps[1:]) == 19_400_000_000_000_000_000
+    assert all(s[0] == WETH and s[3] == s[2] * 97 // 100 for s in swaps[1:])
+
+
+def test_rebalance_skips_trades_when_current_allocation_matches_target() -> None:
+    from nti_oracle.keeper_tasks import rebalance_baskets
+
+    unit = 10**18
+    factory, basket, contracts, _ = _basket_fixture([3334, 3333, 3333], [unit, unit, unit])
+    result = asyncio.run(
+        rebalance_baskets(
+            factory, contracts.__getitem__, weth_address=WETH, private_key=KEY, now=1_000_000
+        )
+    )
+    assert result["status"] == "idle" and basket.sent == []
+
+
+def test_redeem_basket_fees_passes_real_proportional_twap_floor() -> None:
+    from nti_oracle.keeper_tasks import redeem_basket_fees
+
+    unit = 10**18
+    factory, _, contracts, _ = _basket_fixture(
+        [3334, 3333, 3333], [5 * unit, 3 * unit, 2 * unit], fee_shares=unit
+    )
+    router = FakeContract({})
+    result = asyncio.run(
+        redeem_basket_fees(
+            factory,
+            router,
+            contracts.__getitem__,
+            fee_router_address="0x" + "bb" * 20,
+            weth_address=WETH,
+            private_key=KEY,
+            now=1_000_000,
+        )
+    )
+    assert result["status"] == "ok"
+    tx = router.sent[0]
+    assert tx[:4] == sel("redeemBasketFees(address,uint256,uint256)")
+    assert abi_decode(["address", "uint256", "uint256"], tx[4:]) == (
+        "0x" + "aa" * 20,
+        unit,
+        97_000_000_000_000_000,
+    )

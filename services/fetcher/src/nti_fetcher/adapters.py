@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 from nti_core.types import KolProfile, RawPost
 
-from nti_fetcher.accounts import AccountPool
+from nti_fetcher.accounts import AccountPool, AccountPoolExhaustedError
 
 
 class BudgetExceededError(RuntimeError):
@@ -70,8 +70,61 @@ class TwscrapeSource:
                 qc.XClIdGenStore.get = _safe_xclid_get  # type: ignore[method-assign]
                 qc.XClIdGenStore._nti_fallback = True  # type: ignore[attr-defined]
 
-            self._api = twscrape.API(self._db_path)
+            api = twscrape.API(self._db_path)
+            if self._account_pool is not None:
+                self._bind_account_pool(api)
+            self._api = api
         return self._api
+
+    def _bind_account_pool(self, api: Any) -> None:
+        """Enforce lane/validator isolation and pre-send daily budget accounting on twscrape."""
+        acct_pool = self._account_pool
+        assert acct_pool is not None
+        pool_key = self._pool_key
+        tw_pool = api.pool
+
+        class _BudgetedClient:
+            def __init__(self, inner: Any, username: str) -> None:
+                self._inner = inner
+                self._username = username
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(self._inner, name)
+
+            async def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                acct_pool.record_request(self._username)
+                rep = await self._inner.request(method, url, **kwargs)
+                if getattr(rep, "status_code", None) == 429:
+                    acct_pool.mark_rate_limited(self._username)
+                elif getattr(rep, "status_code", None) == 403:
+                    acct_pool.mark_locked(self._username)
+                return rep
+
+            async def aclose(self) -> None:
+                await self._inner.aclose()
+
+        async def _get_for_queue_or_wait(queue: str) -> Any:  # noqa: ARG001
+            all_accounts = await tw_pool.get_all()
+            by_name = {a.username.casefold(): a for a in all_accounts}
+            for _ in range(max(1, len(acct_pool.accounts_for(pool_key)))):
+                chosen = acct_pool.acquire(pool_key)
+                tw_acc = by_name.get(chosen.username.casefold())
+                if tw_acc is None or not getattr(tw_acc, "active", True):
+                    continue
+                orig_make = tw_acc.make_client
+
+                def _make_budgeted(
+                    proxy: str | None = None,
+                    _orig: Any = orig_make,
+                    _uname: str = chosen.username,
+                ) -> Any:
+                    return _BudgetedClient(_orig(proxy=proxy), _uname)
+
+                tw_acc.make_client = _make_budgeted
+                return tw_acc
+            raise AccountPoolExhaustedError(f"No active twscrape account in pool {pool_key}")
+
+        tw_pool.get_for_queue_or_wait = _get_for_queue_or_wait
 
     async def user_timeline(
         self,
@@ -81,7 +134,12 @@ class TwscrapeSource:
         *,
         max_id: int | None = None,
     ) -> list[RawPost]:
-        acct = self._account_pool.acquire(self._pool_key) if self._account_pool else None
+        injected_api = self._api is not None and not hasattr(self._api, "pool")
+        acct = (
+            self._account_pool.acquire(self._pool_key)
+            if (self._account_pool and injected_api)
+            else None
+        )
         api = self._ensure_api()
         now = datetime.now(UTC)
         posts: list[RawPost] = []
@@ -115,7 +173,12 @@ class TwscrapeSource:
         return posts[:limit]
 
     async def user_profile(self, user_id: int) -> KolProfile:
-        acct = self._account_pool.acquire(self._pool_key) if self._account_pool else None
+        injected_api = self._api is not None and not hasattr(self._api, "pool")
+        acct = (
+            self._account_pool.acquire(self._pool_key)
+            if (self._account_pool and injected_api)
+            else None
+        )
         api = self._ensure_api()
         try:
             u = await api.user_by_id(user_id)

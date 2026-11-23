@@ -35,6 +35,7 @@ export function handleStakingEvent(ctx: DecodedEventContext): MirrorUpsert[] {
     case "RewardNotified":
     case "FeesDistributed":
     case "BuybackExecuted":
+    case "BasketFeeRedeemed":
       return [
         {
           table: "fee_router_events",

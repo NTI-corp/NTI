@@ -1,4 +1,4 @@
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 
 export type EpochStatus =
   | "collecting"
@@ -39,7 +39,7 @@ export interface NarrativeIndexItem {
 
 export interface IndexesSnapshot {
   awaitingFirstEpoch: boolean;
-  dataSource: "supabase" | "preview";
+  dataSource: "supabase" | "unavailable";
   latestFinalEpoch: EpochSummary | null;
   latestObservedEpoch: EpochSummary | null;
   pendingFinalization: boolean;
@@ -77,7 +77,7 @@ export interface TokenItem {
   address: string;
   symbol: string;
   name: string;
-  source: "pons_v1" | "pons_v2" | "uniswap" | null;
+  source: "pons_v1" | "pons_v2" | "uniswap" | "testnet_mock" | null;
   graduated: boolean;
   liquidityEth: number;
   narrativeId: number | null;
@@ -101,7 +101,7 @@ export interface TopPostItem {
 
 export interface NarrativeHistoryResponse {
   awaitingFirstEpoch: boolean;
-  dataSource: "supabase" | "preview";
+  dataSource: "supabase" | "unavailable";
   narrative: {
     id: number;
     slug: string;
@@ -121,7 +121,7 @@ export interface ValidatorAttestationItem {
   vBps: number[];
   signature: string;
   createdAt: string;
-  matchesMedian: boolean;
+  matchesMedian: boolean | null;
 }
 
 export interface DisputeItem {
@@ -138,8 +138,8 @@ export interface DisputeItem {
 
 export interface EpochDetailResponse {
   awaitingFirstEpoch: boolean;
-  dataSource: "supabase" | "preview";
-  epoch: EpochSummary;
+  dataSource: "supabase" | "unavailable";
+  epoch: EpochSummary | null;
   narratives: NarrativeIndexItem[];
   attestations: ValidatorAttestationItem[];
   disputes: DisputeItem[];
@@ -169,7 +169,7 @@ export interface RadarAlertItem {
 
 export interface RadarResponse {
   awaitingFirstEpoch: boolean;
-  dataSource: "supabase" | "preview";
+  dataSource: "supabase" | "unavailable";
   realtimeUnlocked: boolean;
   wallet: Address | null;
   stakeFormatted: string;
@@ -195,7 +195,7 @@ export interface HeatmapPoint {
 
 export interface HeatmapResponse {
   awaitingFirstEpoch: boolean;
-  dataSource: "supabase" | "preview";
+  dataSource: "supabase" | "unavailable";
   latestFinalEpoch: EpochSummary | null;
   points: HeatmapPoint[];
 }
@@ -208,7 +208,7 @@ export interface MarketItem {
   narrativeBLabel: string;
   baseEpoch: number;
   settleEpoch: number;
-  horizonLabel: "24H (6 epochs)" | "7D (42 epochs)";
+  horizonLabel: string;
   cutoffAt: string;
   settleAt: string;
   status: "open" | "locked" | "settled" | "refunded";
@@ -218,8 +218,8 @@ export interface MarketItem {
   maxPoolEth: number;
   baseIA: number;
   baseIB: number;
-  currentIA: number;
-  currentIB: number;
+  currentIA: number | null;
+  currentIB: number | null;
   seriesId: number;
 }
 
@@ -228,8 +228,8 @@ export interface BasketHolding {
   name: string;
   address: string;
   weightBps: number;
-  liquidityEth: number;
-  twap30mEth: number;
+  liquidityEth: number | null;
+  twap30mEth: number | null;
 }
 
 export interface BasketItem {
@@ -242,9 +242,9 @@ export interface BasketItem {
   navEth: number;
   tvlEth: number;
   tvlCapEth: number;
-  sharePriceEth: number;
+  sharePriceEth: number | null;
   managementFeeBps: number;
-  lastRebalancedAt: string;
+  lastRebalancedAt: string | null;
   holdings: BasketHolding[];
 }
 
@@ -253,7 +253,7 @@ export interface GrantProposalItem {
   roundId: number;
   title: string;
   summary: string;
-  narrativeId: number;
+  narrativeId: number | null;
   proposer: string;
   recipient: string;
   metadataHash: string;
@@ -265,26 +265,28 @@ export interface GrantProposalItem {
 
 export interface GrantRoundItem {
   roundId: number;
-  status: "active" | "finalized" | "upcoming";
+  status: "active" | "awaiting_finalization" | "finalized";
   budgetEth: number;
   snapshotBlock: number;
   voteEnd: string;
   totalVotesNti: number;
-  quorumNti: number;
+  quorumNti: number | null;
   proposals: GrantProposalItem[];
 }
 
 export interface GovernorProposalItem {
   proposalId: string;
   title: string;
-  category: "Config" | "Validators" | "Risk Limits" | "Basket Whitelist" | "Insurance";
   proposer: string;
-  status: "Active" | "Queued" | "Executed" | "Succeeded" | "Defeated";
-  forVotesNti: number;
-  againstVotesNti: number;
-  abstainVotesNti: number;
-  quorumNti: number;
-  voteEndAt: string;
+  status: "Pending" | "Active" | "Canceled" | "Defeated" | "Succeeded" | "Queued" | "Expired" | "Executed" | "Unavailable";
+  forVotesNti: number | null;
+  againstVotesNti: number | null;
+  abstainVotesNti: number | null;
+  quorumNti: number | null;
+  voteDeadline: string | null;
+  clockMode: "blocknumber" | "timestamp" | null;
+  executeAfter: string | null;
+  actions: Array<{ target: Address; value: string; calldata: Hex }> | null;
   summary: string;
 }
 

@@ -9,7 +9,7 @@ import { IndexChart } from "@/components/IndexChart";
 import { ContributorsTable } from "@/components/ContributorsTable";
 import { AwaitingEpochBanner } from "@/components/AwaitingEpochBanner";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export default async function NarrativeDetailPage({
   params,
@@ -34,6 +34,7 @@ export default async function NarrativeDetailPage({
   return (
     <div className="space-y-4">
       {data.awaitingFirstEpoch && <AwaitingEpochBanner />}
+      {data.dataSource === "unavailable" && <AwaitingEpochBanner unavailable message="Narrative history is temporarily unavailable." />}
 
       {/* Breadcrumb & Narrative Switcher */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#26262A] pb-4">
@@ -192,7 +193,7 @@ export default async function NarrativeDetailPage({
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-[10px] text-[#71717A]">
                       <span>{truncateHex(tok.address, 8, 6)}</span>
-                      <span className="uppercase">{tok.source ?? "dex"}</span>
+                      <span className="uppercase">{tok.source === "testnet_mock" ? "Testnet market fixture" : tok.source ?? "dex"}</span>
                       <span
                         className={
                           tok.graduated ? "text-[#4ADE80]" : "text-[#E2A856]"

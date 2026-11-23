@@ -16,12 +16,18 @@ export interface ChainEventRow {
   contract_address: Address;
   event_name: string;
   args: Record<string, unknown>;
+  block_time?: string | null;
 }
 
 export interface MirrorUpsert {
   table: string;
   conflictColumns: string[];
   row: Record<string, unknown>;
+  /** Update an existing projection. Supply insert defaults only for events that can create it. */
+  updateOnly?: boolean;
+  insertDefaults?: Record<string, unknown>;
+  /** Safely fill one missing locator or replace the exact legacy value. */
+  fillMissing?: { column: string; value: string | null; legacyValue: string };
 }
 
 export interface DecodedEventContext {
@@ -32,8 +38,8 @@ export interface DecodedEventContext {
   contractAddress: Address;
   eventName: string;
   args: Record<string, unknown>;
-  /** ISO timestamp of the block containing the log (falls back to indexing time when unavailable). */
-  blockTimeIso: string;
+  /** ISO timestamp of the block containing the log, if known. */
+  blockTimeIso?: string;
 }
 
 export type EventHandler = (ctx: DecodedEventContext) => MirrorUpsert[];
@@ -43,6 +49,10 @@ export interface IndexerStore {
   setLastBlock(chainId: number, blockNumber: bigint): Promise<void>;
   upsertChainEvents(events: ChainEventRow[]): Promise<void>;
   upsertMirror(upserts: MirrorUpsert[]): Promise<void>;
+}
+
+export interface ReplayStore extends IndexerStore {
+  readChainEvents(chainId: number, after: ChainEventRow | undefined, limit: number): Promise<ChainEventRow[]>;
 }
 
 export function serializeArgs(raw: Record<string, unknown>): Record<string, unknown> {

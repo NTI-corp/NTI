@@ -55,7 +55,7 @@ P_i = A_k · E_i · exp( -λ · Δt_i ),   λ = ln(2) / half_life_hours`}
                 • <strong className="text-[#F5F5F7]">Engagement snapshot</strong>: reading closest to post age = 24h (tie-breaker: age ≥ 24h, earliest fetched_at).
               </li>
               <li>
-                • <strong className="text-[#F5F5F7]">Lookback window</strong>: posts older than {p.lookback_hours}h from epoch boundary B are dropped; Δt_i is anchored to B.
+                • <strong className="text-[#F5F5F7]">Lookback window</strong>: posts are selected through epoch boundary B using a {p.lookback_hours}h lookback; engagement is observed through the cutoff recorded in the public archive before commit; Δt_i is anchored to B.
               </li>
             </ul>
           </div>
@@ -190,7 +190,7 @@ V_n = NULL if:
           <li className="p-4">
             <span className="text-[10.5px] text-[#CCFF00]">STEP 04 · OMISSION AUDIT &amp; DISPUTE</span>
             <p className="mt-1 font-sans text-xs text-[#71717A]">
-              Optionally audit 10% omission sample via <code className="font-mono text-[#F5F5F7]">seed = keccak256(prevCommitHash, epochId)</code>. If any narrative deviates &gt;100 bps or post-ID overlap falls below 95%, call <code className="font-mono text-[#F5F5F7]">Dispute.openDispute()</code> within the 2-hour window.
+              Optionally audit 10% omission sample via <code className="font-mono text-[#F5F5F7]">seed = keccak256(prevCommitHash, epochId)</code>. If any narrative deviates &gt;100 bps or post-ID overlap falls below 95%, call <code className="font-mono text-[#F5F5F7]">Dispute.openDispute()</code> within the contract-defined window.
             </p>
           </li>
         </ol>

@@ -1,7 +1,9 @@
-import { unstable_cache } from "next/cache";
 import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
+import { encodeAbiParameters, isAddress, keccak256, maxUint256, stringToHex, type Address, type Hex } from "viem";
+import { getActiveChainId, getProtocolAddresses } from "./contracts";
 import {
   readLiveBasketsFromChain,
+  readGovernorStates,
   readLiveGrantRoundsFromChain,
   readLiveMarketsFromChain,
 } from "./onchain";
@@ -58,124 +60,16 @@ export async function supabaseSelect<T>(
         Authorization: `Bearer ${key}`,
         Accept: "application/json",
       },
-      next: mode === "anon" ? { revalidate: 60 } : { revalidate: 0 },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return null;
-    return (await res.json()) as T[];
+    const data: unknown = await res.json();
+    return Array.isArray(data) ? (data as T[]) : null;
   } catch {
     return null;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Deterministic preview generators (used ONLY when DB has 0 finalized epochs)
-// ---------------------------------------------------------------------------
-
-// Sums to exactly 10,000 bps (Hamilton largest-remainder invariant)
-const PREVIEW_I_BPS = [620, 1890, 1140, 1280, 740, 960, 1080, 1120, 760, 410] as const;
-const PREVIEW_M_BPS = [660, 2040, 1090, 1220, 710, 1030, 1110, 1040, 720, 380] as const;
-const PREVIEW_V_BPS: Array<number | null> = [
-  1480, 5620, -420, 310, -860, 5180, 1940, -610, -1240, null,
-];
-const PREVIEW_V_FLAG: VFlag[] = [
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  null,
-  "too_small",
-];
-const PREVIEW_WEIGHTED_POSTS = [84, 312, 168, 195, 92, 146, 174, 159, 132, 22] as const;
-const PREVIEW_ACTIVE_TOKENS = [4, 7, 5, 9, 6, 3, 8, 18, 29, 11] as const;
-const PREVIEW_CURATED = [3, 4, 6, 8, 5, 3, 5, 14, 2, 7] as const;
-
-function buildPreviewSeries(narrativeId: number): HistoryPoint[] {
-  const idx = Math.max(0, Math.min(9, narrativeId - 1));
-  const baseI = PREVIEW_I_BPS[idx] ?? 1000;
-  const baseV = PREVIEW_V_BPS[idx] ?? 0;
-  const now = Date.now();
-  const points: HistoryPoint[] = [];
-
-  for (let step = 0; step < 18; step++) {
-    const epochId = 101 + step;
-    const isSeriesBreak = step === 6;
-    const isIncomplete = step === 11;
-    const seriesId = step >= 6 ? 2 : 1;
-    const wave = Math.round(Math.sin((step + narrativeId) * 0.65) * 140 + (step - 9) * 18);
-    const iBps = isIncomplete ? 0 : Math.max(120, baseI + wave);
-    const mBps = isIncomplete ? 0 : Math.max(100, iBps + Math.round(Math.cos(step * 0.9) * 90));
-
-    let vBps: number | null = Math.round(baseV * 0.5 + wave * 6);
-    let vFlag: VFlag = null;
-
-    if (isIncomplete) {
-      vBps = null;
-      vFlag = "incomplete_gap";
-    } else if (isSeriesBreak) {
-      vBps = null;
-      vFlag = "series_break";
-    } else if (narrativeId === 10 && step >= 14) {
-      vBps = null;
-      vFlag = "too_small";
-    }
-
-    points.push({
-      epochId,
-      seriesId,
-      status: isIncomplete ? "incomplete" : "final",
-      sN: Number((mBps * 0.14).toFixed(2)),
-      mBps,
-      iBps,
-      vBps,
-      vFlag,
-      weightedPosts: isIncomplete ? 0 : Math.max(12, (PREVIEW_WEIGHTED_POSTS[idx] ?? 40) + (step % 7) * 3),
-      seriesBreak: isSeriesBreak,
-      incomplete: isIncomplete,
-      finalizedAt: isIncomplete
-        ? null
-        : new Date(now - (18 - step) * 4 * 3600 * 1000).toISOString(),
-    });
-  }
-  return points;
-}
-
-function buildPreviewNarratives(): NarrativeIndexItem[] {
-  return NARRATIVES.map((n, idx) => ({
-    narrativeId: n.id,
-    slug: n.slug,
-    label: n.label,
-    description: n.description,
-    sN: Number(((PREVIEW_M_BPS[idx] ?? 1000) * 0.142).toFixed(2)),
-    mBps: PREVIEW_M_BPS[idx] ?? 1000,
-    iBps: PREVIEW_I_BPS[idx] ?? 1000,
-    vBps: PREVIEW_V_BPS[idx] ?? null,
-    vFlag: PREVIEW_V_FLAG[idx] ?? null,
-    weightedPosts: PREVIEW_WEIGHTED_POSTS[idx] ?? 40,
-  }));
-}
-
-function buildPreviewEpoch(epochId = 118, status: EpochStatus = "collecting"): EpochSummary {
-  const now = Date.now();
-  return {
-    epochId,
-    seriesId: 2,
-    status,
-    datasetHash: "0x4c9a71b0e44f21c8a9d63f78b2a109e3c5560f2d1e8b4a7799c0e11234a8b6f2",
-    arweaveTx: "ar_preview_epoch_awaiting_first_commit",
-    configHash: "0x9f12b7c4e82100a3f4c8d1e7a2b56c9031d4e6f8a0b2c4d6e8f0a1b3c5d7e9f1",
-    commitTx: null,
-    committedAt: status === "committed" || status === "final" ? new Date(now - 90 * 60_000).toISOString() : null,
-    finalizedAt: status === "final" ? new Date(now - 20 * 60_000).toISOString() : null,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Public & Gated Domain Fetchers
-// ---------------------------------------------------------------------------
 
 interface DbEpochRow {
   epoch_id: number;
@@ -183,6 +77,7 @@ interface DbEpochRow {
   status: EpochStatus;
   dataset_hash: string | null;
   arweave_tx: string | null;
+  arweave_tx_bytes32?: string | null;
   config_hash: string | null;
   commit_tx: string | null;
   committed_at: string | null;
@@ -200,15 +95,29 @@ interface DbNarrativeEpochRow {
   weighted_posts: number | string;
 }
 
-/** Public download URL for an epoch dataset: Supabase Storage mirror for local ids, Arweave otherwise. */
-function datasetUrlFor(arweaveTx: string | null): string | null {
-  if (!arweaveTx) return null;
-  if (arweaveTx.startsWith("local_")) {
+/** Recover an overwritten local locator only if the chain commitment authenticates it. */
+function datasetUrlFor(row: DbEpochRow): string | null {
+  const datasetHash = normalizeHex(row.dataset_hash)?.toLowerCase();
+  const expectedLocal = datasetHash && /^0x[0-9a-f]{64}$/.test(datasetHash)
+    ? `local_${row.epoch_id}_${datasetHash.slice(2, 18)}`
+    : null;
+  const stored = normalizeHex(row.arweave_tx);
+  const commitment = normalizeHex(row.arweave_tx_bytes32) ??
+    (stored && /^0x[0-9a-fA-F]{64}$/.test(stored) ? stored : null);
+
+  if (expectedLocal && (
+    commitment ? keccak256(stringToHex(expectedLocal)) === commitment.toLowerCase() : stored === expectedLocal
+  )) {
     const base = getSupabaseConfig().url;
-    return base ? `${base}/storage/v1/object/public/nti-datasets/${arweaveTx}.jsonl.gz` : null;
+    return base ? `${base}/storage/v1/object/public/nti-datasets/${expectedLocal}.jsonl.gz` : null;
   }
-  if (arweaveTx.startsWith("ar_preview")) return null;
-  return `https://arweave.net/${arweaveTx}`;
+
+  if (!stored || (commitment && keccak256(stringToHex(stored)) !== commitment.toLowerCase())) return null;
+  if (/^[A-Za-z0-9_-]{43}$/.test(stored)) return `https://arweave.net/${stored}`;
+
+  const cid = stored.startsWith("ipfs://") ? stored.slice(7) : stored;
+  if (/^(Qm[1-9A-HJ-NP-Za-km-z]{44}|baf[a-z2-7]{25,})$/.test(cid)) return `https://ipfs.io/ipfs/${cid}`;
+  return null;
 }
 
 function mapEpoch(r: DbEpochRow): EpochSummary {
@@ -218,7 +127,7 @@ function mapEpoch(r: DbEpochRow): EpochSummary {
     status: r.status,
     datasetHash: normalizeHex(r.dataset_hash),
     arweaveTx: r.arweave_tx,
-    datasetUrl: datasetUrlFor(r.arweave_tx),
+    datasetUrl: datasetUrlFor(r),
     configHash: normalizeHex(r.config_hash),
     commitTx: normalizeHex(r.commit_tx),
     committedAt: r.committed_at,
@@ -226,174 +135,129 @@ function mapEpoch(r: DbEpochRow): EpochSummary {
   };
 }
 
-async function load_fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
-  const epochs = await supabaseSelect<DbEpochRow>(
-    "epochs?select=*&order=epoch_id.desc&limit=20",
-    "anon",
-  );
-
-  const latestObserved = epochs && epochs.length > 0 ? mapEpoch(epochs[0]!) : null;
-  const latestFinalRow = epochs?.find((e) => e.status === "final") ?? null;
-
-  if (!latestFinalRow) {
-    const previewSeries: IndexesSnapshot["recentSeries"] = {};
-    for (const n of NARRATIVES) {
-      previewSeries[n.id] = buildPreviewSeries(n.id).map((p) => ({
-        epochId: p.epochId,
-        iBps: p.iBps,
-        vBps: p.vBps,
-        vFlag: p.vFlag,
-        seriesId: p.seriesId,
-        incomplete: p.incomplete,
-      }));
-    }
-    return {
-      awaitingFirstEpoch: true,
-      dataSource: "preview",
-      latestFinalEpoch: null,
-      latestObservedEpoch: latestObserved ?? buildPreviewEpoch(1, "collecting"),
-      pendingFinalization: latestObserved?.status === "committed",
-      narratives: buildPreviewNarratives(),
-      recentSeries: previewSeries,
-      updatedAt: new Date().toISOString(),
-    };
-  }
-
-  const epochIds = (epochs ?? []).map((e) => e.epoch_id);
-  const statusByEpoch = new Map((epochs ?? []).map((e) => [e.epoch_id, e]));
-  const rows =
-    (await supabaseSelect<DbNarrativeEpochRow>(
-      `narrative_epoch?select=*&epoch_id=in.(${epochIds.join(",")})&order=epoch_id.asc`,
-      "anon",
-    )) ?? [];
-
-  const latestByNarrative = new Map<number, DbNarrativeEpochRow>();
-  const recentSeries: IndexesSnapshot["recentSeries"] = {};
-  for (const n of NARRATIVES) recentSeries[n.id] = [];
-
-  for (const r of rows) {
-    const ep = statusByEpoch.get(r.epoch_id);
-    if (r.epoch_id === latestFinalRow.epoch_id) {
-      latestByNarrative.set(r.narrative_id, r);
-    }
-    if (ep && (ep.status === "final" || ep.status === "incomplete")) {
-      recentSeries[r.narrative_id]?.push({
-        epochId: r.epoch_id,
-        iBps: r.i_bps,
-        vBps: r.v_bps,
-        vFlag: r.v_flag,
-        seriesId: ep.series_id,
-        incomplete: ep.status === "incomplete",
-      });
-    }
-  }
-
-  const narratives: NarrativeIndexItem[] = NARRATIVES.map((meta) => {
-    const row = latestByNarrative.get(meta.id);
-    return {
-      narrativeId: meta.id,
-      slug: meta.slug,
-      label: meta.label,
-      description: meta.description,
-      sN: row ? Number(row.s_n) : 0,
-      mBps: row ? row.m_bps : 0,
-      iBps: row ? row.i_bps : 0,
-      vBps: row ? row.v_bps : null,
-      vFlag: row ? row.v_flag : null,
-      weightedPosts: row ? Number(row.weighted_posts) : 0,
-    };
-  });
-
+function mapNarrative(meta: (typeof NARRATIVES)[number], row: DbNarrativeEpochRow): NarrativeIndexItem {
   return {
-    awaitingFirstEpoch: false,
-    dataSource: "supabase",
-    latestFinalEpoch: mapEpoch(latestFinalRow),
-    latestObservedEpoch: latestObserved,
-    pendingFinalization:
-      latestObserved !== null &&
-      latestObserved.epochId > latestFinalRow.epoch_id &&
-      latestObserved.status === "committed",
-    narratives,
-    recentSeries,
-    updatedAt: new Date().toISOString(),
+    narrativeId: meta.id,
+    slug: meta.slug,
+    label: meta.label,
+    description: meta.description,
+    sN: Number(row.s_n),
+    mBps: row.m_bps,
+    iBps: row.i_bps,
+    vBps: row.v_bps,
+    vFlag: row.v_flag,
+    weightedPosts: Number(row.weighted_posts),
   };
 }
 
-async function load_fetchNarrativeHistory(
+function mapHistory(epochs: DbEpochRow[], rows: DbNarrativeEpochRow[]): HistoryPoint[] {
+  const byEpoch = new Map(rows.map((row) => [row.epoch_id, row]));
+  const history: HistoryPoint[] = [];
+  let previous: DbEpochRow | undefined;
+  for (const epoch of epochs) {
+    if (epoch.status !== "final" && epoch.status !== "incomplete") continue;
+    const row = byEpoch.get(epoch.epoch_id);
+    const incomplete = epoch.status === "incomplete";
+    const seriesBreak = row?.v_flag === "series_break" ||
+      (previous !== undefined && epoch.series_id !== previous.series_id);
+    const vFlag: VFlag = seriesBreak ? "series_break" :
+      incomplete || previous?.status === "incomplete" ? "incomplete_gap" : row?.v_flag ?? null;
+    previous = epoch;
+    if (!incomplete && !row) continue;
+
+    history.push({
+      epochId: epoch.epoch_id,
+      seriesId: epoch.series_id,
+      status: epoch.status,
+      sN: incomplete || !row ? 0 : Number(row.s_n),
+      mBps: incomplete || !row ? 0 : row.m_bps,
+      iBps: incomplete || !row ? 0 : row.i_bps,
+      vBps: vFlag ? null : row?.v_bps ?? null,
+      vFlag,
+      weightedPosts: incomplete || !row ? 0 : Number(row.weighted_posts),
+      seriesBreak,
+      incomplete,
+      finalizedAt: epoch.finalized_at,
+    });
+  }
+  return history;
+}
+
+export async function fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
+  const [epochs, finals] = await Promise.all([
+    supabaseSelect<DbEpochRow>("epochs?select=*&order=epoch_id.desc&limit=20"),
+    supabaseSelect<DbEpochRow>("epochs?select=*&status=eq.final&order=epoch_id.desc&limit=1"),
+  ]);
+  const latestObserved = epochs?.[0] ? mapEpoch(epochs[0]) : null;
+  const latestFinalRow = epochs?.find((epoch) =>
+    epoch.status === "final" && epoch.epoch_id > (finals?.[0]?.epoch_id ?? 0),
+  ) ?? finals?.[0];
+  const latestFinalEpoch = latestFinalRow ? mapEpoch(latestFinalRow) : null;
+  const unavailable = epochs === null || finals === null;
+  const snapshot: IndexesSnapshot = {
+    awaitingFirstEpoch: !unavailable && !latestFinalEpoch,
+    dataSource: unavailable ? "unavailable" : "supabase",
+    latestFinalEpoch,
+    latestObservedEpoch: latestObserved,
+    pendingFinalization: latestObserved?.status === "committed" || latestObserved?.status === "disputed",
+    narratives: [],
+    recentSeries: {},
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (unavailable) return snapshot;
+  const relevant = epochs.filter((epoch) => epoch.status === "final" || epoch.status === "incomplete");
+  if (latestFinalRow && !relevant.some((epoch) => epoch.epoch_id === latestFinalRow.epoch_id)) {
+    relevant.push(latestFinalRow);
+  }
+  relevant.sort((a, b) => a.epoch_id - b.epoch_id);
+  if (relevant.length === 0) return snapshot;
+
+  const epochIds = relevant.map((epoch) => epoch.epoch_id).join(",");
+  const rows = await supabaseSelect<DbNarrativeEpochRow>(
+    `narrative_epoch?select=*&epoch_id=in.(${epochIds})&order=epoch_id.asc`,
+  );
+  if (!rows) return { ...snapshot, dataSource: "unavailable" };
+
+  for (const meta of NARRATIVES) {
+    const series = mapHistory(relevant, rows.filter((row) => row.narrative_id === meta.id));
+    snapshot.recentSeries[meta.id] = series;
+    const latest = rows.find((row) => row.epoch_id === latestFinalRow?.epoch_id && row.narrative_id === meta.id);
+    if (latest) snapshot.narratives.push(mapNarrative(meta, latest));
+  }
+  if (latestFinalEpoch && snapshot.narratives.length !== NARRATIVES.length) {
+    return { ...snapshot, dataSource: "unavailable", narratives: [] };
+  }
+  return snapshot;
+}
+
+export async function fetchNarrativeHistory(
   narrativeId: number,
   fromEpoch?: number,
   toEpoch?: number,
 ): Promise<NarrativeHistoryResponse> {
   const meta = NARRATIVE_BY_ID.get(narrativeId) ?? NARRATIVES[0]!;
 
-  const epochs = await supabaseSelect<DbEpochRow>(
-    "epochs?select=*&order=epoch_id.asc&limit=120",
-    "anon",
-  );
-  const finalEpochs = (epochs ?? []).filter((e) => e.status === "final");
+  const filters: string[] = [];
+  if (Number.isSafeInteger(fromEpoch)) filters.push(`epoch_id=gte.${fromEpoch}`);
+  if (Number.isSafeInteger(toEpoch)) filters.push(`epoch_id=lte.${toEpoch}`);
 
-  if (finalEpochs.length === 0) {
-    const previewSeries = buildPreviewSeries(meta.id).filter(
-      (p) =>
-        (fromEpoch === undefined || p.epochId >= fromEpoch) &&
-        (toEpoch === undefined || p.epochId <= toEpoch),
-    );
-    const previewContributors: ContributorRow[] = [
-      { userId: "1001", handle: `${meta.slug}_research`, followers: 184200, shareBps: 1000, capped: true },
-      { userId: "1002", handle: `0x${meta.slug.slice(0, 5)}alpha`, followers: 96400, shareBps: 1000, capped: true },
-      { userId: "1003", handle: "chain_telemetry", followers: 72100, shareBps: 785, capped: false },
-      { userId: "1004", handle: "macro_desk_rh", followers: 51300, shareBps: 640, capped: false },
-      { userId: "1005", handle: "onchain_verif", followers: 38900, shareBps: 520, capped: false },
-      { userId: "1006", handle: "dev_shipper_x", followers: 27400, shareBps: 415, capped: false },
-    ];
-    const previewTokens: TokenItem[] = [
-      {
-        address: `0x${meta.id.toString(16).padStart(2, "0")}a7e4f891b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6`,
-        symbol: `${meta.slug.slice(0, 4).toUpperCase()}`,
-        name: `${meta.label} Core Protocol`,
-        source: "pons_v2",
-        graduated: true,
-        liquidityEth: 28.4,
-        narrativeId: meta.id,
-        txs7d: 412,
-        createdAt: new Date(Date.now() - 4 * 86400_000).toISOString(),
-      },
-      {
-        address: `0x${meta.id.toString(16).padStart(2, "0")}b9f1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8`,
-        symbol: `X${meta.slug.slice(0, 3).toUpperCase()}`,
-        name: `${meta.label} Indexer Pool`,
-        source: "uniswap",
-        graduated: true,
-        liquidityEth: 14.2,
-        narrativeId: meta.id,
-        txs7d: 189,
-        createdAt: new Date(Date.now() - 12 * 86400_000).toISOString(),
-      },
-    ];
-    return {
-      awaitingFirstEpoch: true,
-      dataSource: "preview",
-      narrative: meta,
-      latestFinalEpoch: null,
-      series: previewSeries,
-      contributors: previewContributors,
-      tokens: previewTokens,
-    };
-  }
-
-  const filterClauses = [`narrative_id=eq.${meta.id}`];
-  if (fromEpoch !== undefined && !Number.isNaN(fromEpoch)) {
-    filterClauses.push(`epoch_id=gte.${fromEpoch}`);
-  }
-  if (toEpoch !== undefined && !Number.isNaN(toEpoch)) {
-    filterClauses.push(`epoch_id=lte.${toEpoch}`);
-  }
-
+  const [epochs, finals] = await Promise.all([
+    supabaseSelect<DbEpochRow>([
+      "epochs?select=*", "status=in.(final,incomplete)", ...filters, "order=epoch_id.desc", "limit=120",
+    ].join("&")),
+    supabaseSelect<DbEpochRow>("epochs?select=*&status=eq.final&order=epoch_id.desc&limit=1"),
+  ]);
+  const latestFinalRow = finals?.[0];
+  const latestFinalEpoch = latestFinalRow ? mapEpoch(latestFinalRow) : null;
+  const epochIds = (epochs ?? []).map((epoch) => epoch.epoch_id);
   const [neRows, contribRows, tokenRows, postRows] = await Promise.all([
-    supabaseSelect<DbNarrativeEpochRow>(
-      `narrative_epoch?select=*&${filterClauses.join("&")}&order=epoch_id.asc`,
-      "anon",
-    ),
+    epochIds.length > 0
+      ? supabaseSelect<DbNarrativeEpochRow>(
+          `narrative_epoch?select=*&narrative_id=eq.${meta.id}&epoch_id=in.(${epochIds.join(",")})&order=epoch_id.asc`,
+        )
+      : Promise.resolve([]),
+    latestFinalRow ?
     supabaseSelect<{
       user_id: number;
       share_bps: number;
@@ -405,14 +269,14 @@ async function load_fetchNarrativeHistory(
         avatar_url?: string | null;
       } | null;
     }>(
-      `kol_contribution?select=user_id,share_bps,capped,kols(handle,followers,display_name,avatar_url)&epoch_id=eq.${finalEpochs[finalEpochs.length - 1]!.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
+      `kol_contribution?select=user_id,share_bps,capped,kols(handle,followers,display_name,avatar_url)&epoch_id=eq.${latestFinalRow.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
       "service",
-    ),
+    ) : Promise.resolve([]),
     supabaseSelect<{
       address: string;
       symbol: string | null;
       name: string | null;
-      source: "pons_v1" | "pons_v2" | "uniswap" | null;
+      source: "pons_v1" | "pons_v2" | "uniswap" | "testnet_mock" | null;
       graduated: boolean;
       liquidity_eth: number | string | null;
       narrative_id: number | null;
@@ -448,33 +312,7 @@ async function load_fetchNarrativeHistory(
     ),
   ]);
 
-  const epochMap = new Map((epochs ?? []).map((e) => [e.epoch_id, e]));
-  let prevSeriesId: number | null = null;
-
-  const series: HistoryPoint[] = (neRows ?? [])
-    .filter((r) => {
-      const ep = epochMap.get(r.epoch_id);
-      return ep && (ep.status === "final" || ep.status === "incomplete");
-    })
-    .map((r) => {
-      const ep = epochMap.get(r.epoch_id)!;
-      const seriesBreak = prevSeriesId !== null && ep.series_id !== prevSeriesId;
-      prevSeriesId = ep.series_id;
-      return {
-        epochId: r.epoch_id,
-        seriesId: ep.series_id,
-        status: ep.status,
-        sN: Number(r.s_n),
-        mBps: r.m_bps,
-        iBps: r.i_bps,
-        vBps: r.v_bps,
-        vFlag: r.v_flag,
-        weightedPosts: Number(r.weighted_posts),
-        seriesBreak,
-        incomplete: ep.status === "incomplete",
-        finalizedAt: ep.finalized_at,
-      };
-    });
+  const series = mapHistory([...(epochs ?? [])].reverse(), neRows ?? []);
 
   const contributors: ContributorRow[] = (contribRows ?? []).map((c) => ({
     userId: String(c.user_id),
@@ -557,10 +395,10 @@ async function load_fetchNarrativeHistory(
     .map((x) => x.item);
 
   return {
-    awaitingFirstEpoch: false,
-    dataSource: "supabase",
+    awaitingFirstEpoch: finals !== null && !latestFinalEpoch,
+    dataSource: epochs && finals && neRows ? "supabase" : "unavailable",
     narrative: meta,
-    latestFinalEpoch: mapEpoch(finalEpochs[finalEpochs.length - 1]!),
+    latestFinalEpoch,
     series,
     contributors,
     tokens,
@@ -568,56 +406,29 @@ async function load_fetchNarrativeHistory(
   };
 }
 
-async function load_fetchEpochDetail(epochId?: number): Promise<EpochDetailResponse> {
-  const recentRows = await supabaseSelect<DbEpochRow>(
-    "epochs?select=*&order=epoch_id.desc&limit=12",
-    "anon",
-  );
-
-  if (!recentRows || recentRows.length === 0) {
-    const previewEpoch = buildPreviewEpoch(epochId ?? 1, "collecting");
-    const previewNarratives = buildPreviewNarratives();
-    const previewAtts: ValidatorAttestationItem[] = [
-      {
-        validator: "0x71C04f92a38D4bE21970bA19e39a8E224a77f101",
-        iBps: [...PREVIEW_I_BPS],
-        vBps: PREVIEW_V_BPS.map((v) => v ?? -2147483648),
-        signature: "0x91ab44d8f209c8e12a3b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d71b",
-        createdAt: new Date(Date.now() - 45 * 60_000).toISOString(),
-        matchesMedian: true,
-      },
-      {
-        validator: "0x82D15a03b49E5cF32081cB20f40b9F335b88a202",
-        iBps: [...PREVIEW_I_BPS],
-        vBps: PREVIEW_V_BPS.map((v) => v ?? -2147483648),
-        signature: "0x82bc55e9a310d9f23b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e81c",
-        createdAt: new Date(Date.now() - 44 * 60_000).toISOString(),
-        matchesMedian: true,
-      },
-      {
-        validator: "0x93E26b14c50F6dA43192dC31a51c0A446c99b303",
-        iBps: [...PREVIEW_I_BPS],
-        vBps: PREVIEW_V_BPS.map((v) => v ?? -2147483648),
-        signature: "0x73cd66fab421e0a34c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f91b",
-        createdAt: new Date(Date.now() - 43 * 60_000).toISOString(),
-        matchesMedian: true,
-      },
-    ];
+export async function fetchEpochDetail(epochId?: number): Promise<EpochDetailResponse> {
+  const [recentRows, requestedRows] = await Promise.all([
+    supabaseSelect<DbEpochRow>("epochs?select=*&order=epoch_id.desc&limit=12"),
+    epochId === undefined
+      ? Promise.resolve(undefined)
+      : supabaseSelect<DbEpochRow>(`epochs?select=*&epoch_id=eq.${epochId}&limit=1`),
+  ]);
+  const target = epochId === undefined ? recentRows?.[0] : requestedRows?.[0];
+  const recentEpochs = (recentRows ?? []).map(mapEpoch);
+  if (!target) {
     return {
-      awaitingFirstEpoch: true,
-      dataSource: "preview",
-      epoch: previewEpoch,
-      narratives: previewNarratives,
-      attestations: previewAtts,
+      awaitingFirstEpoch: epochId === undefined && recentRows !== null,
+      dataSource: recentRows === null || requestedRows === null ? "unavailable" : "supabase",
+      epoch: null,
+      narratives: [],
+      attestations: [],
       disputes: [],
-      recentEpochs: [previewEpoch],
+      recentEpochs,
     };
   }
-
-  const target =
-    (epochId !== undefined
-      ? recentRows.find((r) => r.epoch_id === epochId)
-      : recentRows[0]) ?? recentRows[0]!;
+  if (!recentEpochs.some((epoch) => epoch.epochId === target.epoch_id)) {
+    recentEpochs.push(mapEpoch(target));
+  }
 
   const [neRows, attRows, dispRows] = await Promise.all([
     supabaseSelect<DbNarrativeEpochRow>(
@@ -644,24 +455,12 @@ async function load_fetchEpochDetail(epochId?: number): Promise<EpochDetailRespo
     }>(`disputes?select=*&epoch_id=eq.${target.epoch_id}&order=opened_at.desc`, "anon"),
   ]);
 
-  const byId = new Map((neRows ?? []).map((r) => [r.narrative_id, r]));
-  const narratives: NarrativeIndexItem[] = NARRATIVES.map((meta) => {
-    const r = byId.get(meta.id);
-    return {
-      narrativeId: meta.id,
-      slug: meta.slug,
-      label: meta.label,
-      description: meta.description,
-      sN: r ? Number(r.s_n) : 0,
-      mBps: r ? r.m_bps : 0,
-      iBps: r ? r.i_bps : 0,
-      vBps: r ? r.v_bps : null,
-      vFlag: r ? r.v_flag : null,
-      weightedPosts: r ? Number(r.weighted_posts) : 0,
-    };
+  const byId = new Map((neRows ?? []).map((row) => [row.narrative_id, row]));
+  const narratives = NARRATIVES.flatMap((meta) => {
+    const row = byId.get(meta.id);
+    return row ? [mapNarrative(meta, row)] : [];
   });
-
-  const medianVec = narratives.map((n) => n.iBps);
+  const medianVec = NARRATIVES.map((meta) => byId.get(meta.id)?.i_bps);
   const attestations: ValidatorAttestationItem[] = (attRows ?? []).map((a) => {
     const maxDelta = a.i_bps.reduce(
       (max, val, idx) => Math.max(max, Math.abs(val - (medianVec[idx] ?? 0))),
@@ -673,7 +472,9 @@ async function load_fetchEpochDetail(epochId?: number): Promise<EpochDetailRespo
       vBps: a.v_bps,
       signature: normalizeHex(a.signature) ?? a.signature,
       createdAt: a.created_at,
-      matchesMedian: maxDelta <= 100,
+      matchesMedian: a.i_bps.length === NARRATIVES.length && narratives.length === NARRATIVES.length
+        ? maxDelta === 0
+        : null,
     };
   });
 
@@ -691,12 +492,12 @@ async function load_fetchEpochDetail(epochId?: number): Promise<EpochDetailRespo
 
   return {
     awaitingFirstEpoch: false,
-    dataSource: "supabase",
+    dataSource: neRows && attRows && dispRows ? "supabase" : "unavailable",
     epoch: mapEpoch(target),
     narratives,
     attestations,
     disputes,
-    recentEpochs: recentRows.map(mapEpoch),
+    recentEpochs,
   };
 }
 
@@ -733,118 +534,8 @@ export async function fetchRadarAlerts(params: {
     tokenRows.map((t) => [(normalizeHex(t.address) ?? t.address).toLowerCase(), t]),
   );
 
-  if (!rows || rows.length === 0) {
-    // Deterministic preview alerts demonstrating BOTH real-time locked & public delayed alerts
-    const previewRaw: Array<{
-      id: number;
-      kind: "velocity" | "new_token";
-      narrativeId: number;
-      vBps: number | null;
-      token: RadarAlertItem["token"];
-      detectedAgoMin: number;
-    }> = [
-      {
-        id: 1,
-        kind: "velocity",
-        narrativeId: 2,
-        vBps: 5620,
-        token: null,
-        detectedAgoMin: 14,
-      },
-      {
-        id: 2,
-        kind: "new_token",
-        narrativeId: 6,
-        vBps: 5180,
-        token: {
-          address: "0x6a9f0c21b3e4d5f6a7b8c9d0e1f2a3b4c5d6e7f8",
-          symbol: "PRDX",
-          name: "PredictX Settlement",
-          liquidityEth: 6.8,
-          graduated: true,
-          source: "pons_v2",
-        },
-        detectedAgoMin: 28,
-      },
-      {
-        id: 3,
-        kind: "new_token",
-        narrativeId: 2,
-        vBps: 5410,
-        token: {
-          address: "0x2c8e1d44a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0",
-          symbol: "AGNT",
-          name: "Agentic Router",
-          liquidityEth: 3.4,
-          graduated: false,
-          source: "pons_v2",
-        },
-        detectedAgoMin: 76,
-      },
-      {
-        id: 4,
-        kind: "velocity",
-        narrativeId: 7,
-        vBps: 5040,
-        token: null,
-        detectedAgoMin: 112,
-      },
-      {
-        id: 5,
-        kind: "new_token",
-        narrativeId: 1,
-        vBps: 5120,
-        token: {
-          address: "0x1e4d9a77c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3",
-          symbol: "ZKSH",
-          name: "ZK Shield Pool",
-          liquidityEth: 11.2,
-          graduated: true,
-          source: "uniswap",
-        },
-        detectedAgoMin: 165,
-      },
-    ];
-
-    let lockedCount = 0;
-    const alerts: RadarAlertItem[] = previewRaw.map((item) => {
-      const detectedMs = nowMs - item.detectedAgoMin * 60_000;
-      const publicMs = detectedMs + 60 * 60_000;
-      const isDelayedWindow = publicMs > nowMs;
-      const locked = isDelayedWindow && !params.realtimeUnlocked;
-      if (locked) lockedCount += 1;
-      const meta = NARRATIVE_BY_ID.get(item.narrativeId) ?? NARRATIVES[0]!;
-
-      return {
-        id: item.id,
-        kind: item.kind,
-        narrativeId: meta.id,
-        narrativeLabel: meta.label,
-        narrativeSlug: meta.slug,
-        locked,
-        vBps: locked ? null : item.vBps,
-        token: locked ? null : item.token,
-        detectedAt: new Date(detectedMs).toISOString(),
-        publicAt: new Date(publicMs).toISOString(),
-        unlocksInSeconds: Math.max(0, Math.floor((publicMs - nowMs) / 1000)),
-      };
-    });
-
-    return {
-      awaitingFirstEpoch: true,
-      dataSource: "preview",
-      realtimeUnlocked: params.realtimeUnlocked,
-      wallet: params.wallet,
-      stakeFormatted: params.stakeFormatted,
-      minStakeRequired: params.minStakeRequired,
-      lockedCount,
-      alerts,
-      serverTime: new Date(nowMs).toISOString(),
-    };
-  }
-
   let lockedCount = 0;
-  const alerts: RadarAlertItem[] = rows.map((r) => {
+  const alerts: RadarAlertItem[] = (rows ?? []).map((r) => {
     const publicMs = new Date(r.public_at).getTime();
     const locked = publicMs > nowMs && !params.realtimeUnlocked;
     if (locked) lockedCount += 1;
@@ -879,7 +570,7 @@ export async function fetchRadarAlerts(params: {
 
   return {
     awaitingFirstEpoch: false,
-    dataSource: "supabase",
+    dataSource: rows ? "supabase" : "unavailable",
     realtimeUnlocked: params.realtimeUnlocked,
     wallet: params.wallet,
     stakeFormatted: params.stakeFormatted,
@@ -890,7 +581,7 @@ export async function fetchRadarAlerts(params: {
   };
 }
 
-async function load_fetchHeatmapData(): Promise<HeatmapResponse> {
+export async function fetchHeatmapData(): Promise<HeatmapResponse> {
   const snapshot = await fetchIndexesSnapshot();
   const [tokenRows, projectRows] = await Promise.all([
     supabaseSelect<{ narrative_id: number | null; liquidity_eth: number | string | null; txs_7d: number }>(
@@ -903,32 +594,26 @@ async function load_fetchHeatmapData(): Promise<HeatmapResponse> {
     ),
   ]);
 
-  const usePreviewCounts =
-    snapshot.awaitingFirstEpoch || ((!tokenRows || tokenRows.length === 0) && (!projectRows || projectRows.length === 0));
+  if (!tokenRows || !projectRows) {
+    return { awaitingFirstEpoch: snapshot.awaitingFirstEpoch, dataSource: "unavailable", latestFinalEpoch: snapshot.latestFinalEpoch, points: [] };
+  }
 
   const tokenCountByNar = new Map<number, number>();
   const curatedByNar = new Map<number, number>();
-
-  if (!usePreviewCounts) {
-    for (const t of tokenRows ?? []) {
-      if (t.narrative_id && Number(t.liquidity_eth ?? 0) >= 1 && t.txs_7d >= 10) {
-        tokenCountByNar.set(t.narrative_id, (tokenCountByNar.get(t.narrative_id) ?? 0) + 1);
-      }
+  for (const t of tokenRows) {
+    if (t.narrative_id && Number(t.liquidity_eth ?? 0) >= 1 && t.txs_7d >= 10) {
+      tokenCountByNar.set(t.narrative_id, (tokenCountByNar.get(t.narrative_id) ?? 0) + 1);
     }
-    for (const p of projectRows ?? []) {
-      if (p.active) {
-        curatedByNar.set(p.narrative_id, (curatedByNar.get(p.narrative_id) ?? 0) + 1);
-      }
+  }
+  for (const p of projectRows) {
+    if (p.active && p.curated) {
+      curatedByNar.set(p.narrative_id, (curatedByNar.get(p.narrative_id) ?? 0) + 1);
     }
   }
 
-  const rawPoints = snapshot.narratives.map((n, idx) => {
-    const activeTokens = usePreviewCounts
-      ? PREVIEW_ACTIVE_TOKENS[idx] ?? 4
-      : tokenCountByNar.get(n.narrativeId) ?? 0;
-    const curatedProjects = usePreviewCounts
-      ? PREVIEW_CURATED[idx] ?? 3
-      : curatedByNar.get(n.narrativeId) ?? 0;
+  const rawPoints = snapshot.narratives.map((n) => {
+    const activeTokens = tokenCountByNar.get(n.narrativeId) ?? 0;
+    const curatedProjects = curatedByNar.get(n.narrativeId) ?? 0;
     const activeProjects = activeTokens + curatedProjects;
     const mindsharePct = n.mBps / 100;
     const opportunityScore = Number((mindsharePct / Math.max(activeProjects, 1)).toFixed(3));
@@ -976,456 +661,78 @@ async function load_fetchHeatmapData(): Promise<HeatmapResponse> {
   };
 }
 
-async function load_fetchMarketsData(): Promise<{
-  awaitingDeployment: boolean;
-  markets: MarketItem[];
-}> {
-  const rows = await supabaseSelect<{
-    market_id: number;
-    narrative_a: number;
-    narrative_b: number;
-    base_epoch: number;
-    settle_epoch: number;
-    cutoff_at: string;
-    status: "open" | "locked" | "settled" | "refunded";
-    outcome: "side_a" | "side_b" | "refund" | null;
-    pool_a_eth?: number;
-    pool_b_eth?: number;
-  }>("markets?select=*&order=market_id.desc&limit=30", "anon");
-
+export async function fetchMarketsData(): Promise<{ awaitingDeployment: boolean; markets: MarketItem[] }> {
   const snapshot = await fetchIndexesSnapshot();
-  const iById = new Map(snapshot.narratives.map((n) => [n.narrativeId, n.iBps]));
-
-  // On-chain state is the source of truth; the Supabase mirror only fills in if the RPC read fails.
-  const liveMarkets = await readLiveMarketsFromChain(iById);
-  if (liveMarkets !== null) {
-    // A successful chain read is authoritative even when it is empty; the mirror may hold stale rows.
-    return { awaitingDeployment: false, markets: liveMarkets };
-  }
-
-  if (!rows || rows.length === 0) {
-    const now = Date.now();
-    const previewMarkets: MarketItem[] = [
-      {
-        marketId: 1,
-        narrativeA: 2,
-        narrativeB: 8,
-        narrativeALabel: "AI Agents",
-        narrativeBLabel: "DeFi",
-        baseEpoch: 118,
-        settleEpoch: 124,
-        horizonLabel: "24H (6 epochs)",
-        cutoffAt: new Date(now + 14 * 3600_000).toISOString(),
-        settleAt: new Date(now + 22 * 3600_000).toISOString(),
-        status: "open",
-        outcome: null,
-        poolAEth: 1.85,
-        poolBEth: 1.15,
-        maxPoolEth: 5.0,
-        baseIA: 1840,
-        baseIB: 1140,
-        currentIA: iById.get(2) ?? 1890,
-        currentIB: iById.get(8) ?? 1120,
-        seriesId: 2,
-      },
-      {
-        marketId: 2,
-        narrativeA: 6,
-        narrativeB: 7,
-        narrativeALabel: "Prediction Markets",
-        narrativeBLabel: "Perp DEX",
-        baseEpoch: 118,
-        settleEpoch: 160,
-        horizonLabel: "7D (42 epochs)",
-        cutoffAt: new Date(now + 158 * 3600_000).toISOString(),
-        settleAt: new Date(now + 166 * 3600_000).toISOString(),
-        status: "open",
-        outcome: null,
-        poolAEth: 2.4,
-        poolBEth: 1.9,
-        maxPoolEth: 5.0,
-        baseIA: 920,
-        baseIB: 1090,
-        currentIA: iById.get(6) ?? 960,
-        currentIB: iById.get(7) ?? 1080,
-        seriesId: 2,
-      },
-      {
-        marketId: 3,
-        narrativeA: 1,
-        narrativeB: 0,
-        narrativeALabel: "Privacy / ZK",
-        narrativeBLabel: "All-Narrative Average",
-        baseEpoch: 116,
-        settleEpoch: 122,
-        horizonLabel: "24H (6 epochs)",
-        cutoffAt: new Date(now - 2 * 3600_000).toISOString(),
-        settleAt: new Date(now + 6 * 3600_000).toISOString(),
-        status: "locked",
-        outcome: null,
-        poolAEth: 0.95,
-        poolBEth: 1.35,
-        maxPoolEth: 5.0,
-        baseIA: 590,
-        baseIB: 1000,
-        currentIA: iById.get(1) ?? 620,
-        currentIB: 1000,
-        seriesId: 2,
-      },
-      {
-        marketId: 4,
-        narrativeA: 3,
-        narrativeB: 9,
-        narrativeALabel: "RWA",
-        narrativeBLabel: "Memecoin",
-        baseEpoch: 110,
-        settleEpoch: 116,
-        horizonLabel: "24H (6 epochs)",
-        cutoffAt: new Date(now - 18 * 3600_000).toISOString(),
-        settleAt: new Date(now - 10 * 3600_000).toISOString(),
-        status: "settled",
-        outcome: "side_a",
-        poolAEth: 2.1,
-        poolBEth: 1.65,
-        maxPoolEth: 5.0,
-        baseIA: 1080,
-        baseIB: 840,
-        currentIA: iById.get(3) ?? 1140,
-        currentIB: iById.get(9) ?? 760,
-        seriesId: 2,
-      },
-    ];
-    return { awaitingDeployment: true, markets: previewMarkets };
-  }
-
-  const markets: MarketItem[] = rows.map((r) => {
-    const labelA = NARRATIVE_BY_ID.get(r.narrative_a)?.label ?? `Narrative #${r.narrative_a}`;
-    const labelB =
-      r.narrative_b === 0
-        ? "All-Narrative Average"
-        : NARRATIVE_BY_ID.get(r.narrative_b)?.label ?? `Narrative #${r.narrative_b}`;
-    const horizon = r.settle_epoch - r.base_epoch > 10 ? "7D (42 epochs)" : "24H (6 epochs)";
-    const rawCutoffMs = r.cutoff_at ? new Date(r.cutoff_at).getTime() : NaN;
-    const cutoffMs = Number.isFinite(rawCutoffMs) ? rawCutoffMs : Date.now();
-    const cutoffAt = r.cutoff_at || new Date(cutoffMs).toISOString();
-    return {
-      marketId: r.market_id,
-      narrativeA: r.narrative_a,
-      narrativeB: r.narrative_b,
-      narrativeALabel: labelA,
-      narrativeBLabel: labelB,
-      baseEpoch: r.base_epoch,
-      settleEpoch: r.settle_epoch,
-      horizonLabel: horizon,
-      cutoffAt,
-      settleAt: new Date(cutoffMs + 8 * 3600_000).toISOString(),
-      status: r.status,
-      outcome: r.outcome,
-      poolAEth: Number(r.pool_a_eth ?? 0),
-      poolBEth: Number(r.pool_b_eth ?? 0),
-      maxPoolEth: 5.0,
-      baseIA: iById.get(r.narrative_a) ?? 1000,
-      baseIB: r.narrative_b === 0 ? 1000 : iById.get(r.narrative_b) ?? 1000,
-      currentIA: iById.get(r.narrative_a) ?? 1000,
-      currentIB: r.narrative_b === 0 ? 1000 : iById.get(r.narrative_b) ?? 1000,
-      seriesId: snapshot.latestFinalEpoch?.seriesId ?? 1,
-    };
-  });
-
-  return { awaitingDeployment: false, markets };
+  const indexes = new Map(snapshot.narratives.map((item) => [item.narrativeId, item.iBps]));
+  const markets = await readLiveMarketsFromChain(indexes);
+  return { awaitingDeployment: markets === null, markets: markets ?? [] };
 }
 
-async function load_fetchBasketsData(): Promise<{
-  awaitingDeployment: boolean;
-  baskets: BasketItem[];
-}> {
-  const rows = await supabaseSelect<{
-    basket_address: string;
-    narrative_id: number;
-    name: string;
-    symbol: string;
-    nav_eth?: string | number;
-    tokens?: string[];
-    weights_bps?: number[];
-  }>("baskets?select=*&order=narrative_id.asc", "anon");
-
-  const liveBaskets = await readLiveBasketsFromChain();
-  if (liveBaskets !== null) {
-    return { awaitingDeployment: false, baskets: liveBaskets };
-  }
-
-  if (!rows || rows.length === 0) {
-    const now = Date.now();
-    const previewBaskets: BasketItem[] = [
-      {
-        id: "ai-agents",
-        basketAddress: "0x0000000000000000000000000000000000000000",
-        narrativeId: 2,
-        narrativeLabel: "AI Agents",
-        name: "NTI AI Agents Basket",
-        symbol: "ntiAI",
-        navEth: 4.82,
-        tvlEth: 4.82,
-        tvlCapEth: 10.0,
-        sharePriceEth: 0.01042,
-        managementFeeBps: 50,
-        lastRebalancedAt: new Date(now - 5 * 3600_000).toISOString(),
-        holdings: [
-          { symbol: "AGNT", name: "Agentic Router", address: "0x2c8e1d44a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0", weightBps: 4000, liquidityEth: 42.5, twap30mEth: 0.00084 },
-          { symbol: "MIND", name: "Mind Mesh Compute", address: "0x2d9f2e55b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1", weightBps: 3500, liquidityEth: 31.2, twap30mEth: 0.00112 },
-          { symbol: "PAYX", name: "Autonomous Pay Rail", address: "0x2eaf3f66c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2", weightBps: 2500, liquidityEth: 24.8, twap30mEth: 0.00051 },
-        ],
-      },
-      {
-        id: "defi",
-        basketAddress: "0x0000000000000000000000000000000000000000",
-        narrativeId: 8,
-        narrativeLabel: "DeFi",
-        name: "NTI Core DeFi Basket",
-        symbol: "ntiDEFI",
-        navEth: 6.15,
-        tvlEth: 6.15,
-        tvlCapEth: 10.0,
-        sharePriceEth: 0.01018,
-        managementFeeBps: 50,
-        lastRebalancedAt: new Date(now - 11 * 3600_000).toISOString(),
-        holdings: [
-          { symbol: "LEND", name: "Robinhood Money Market", address: "0x8a1c3d44a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0", weightBps: 3800, liquidityEth: 68.0, twap30mEth: 0.0021 },
-          { symbol: "YLDX", name: "Yield Aggregator V3", address: "0x8b2d4e55b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1", weightBps: 3400, liquidityEth: 51.4, twap30mEth: 0.00145 },
-          { symbol: "LIQX", name: "Liquid Staking ETH", address: "0x8c3e5f66c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2", weightBps: 2800, liquidityEth: 37.9, twap30mEth: 0.00308 },
-        ],
-      },
-      {
-        id: "rwa",
-        basketAddress: "0x0000000000000000000000000000000000000000",
-        narrativeId: 3,
-        narrativeLabel: "RWA",
-        name: "NTI RWA Yield Basket",
-        symbol: "ntiRWA",
-        navEth: 3.4,
-        tvlEth: 3.4,
-        tvlCapEth: 10.0,
-        sharePriceEth: 0.01009,
-        managementFeeBps: 50,
-        lastRebalancedAt: new Date(now - 8 * 3600_000).toISOString(),
-        holdings: [
-          { symbol: "TBIL", name: "Tokenized T-Bill Pool", address: "0x3a1c3d44a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0", weightBps: 4000, liquidityEth: 54.0, twap30mEth: 0.00042 },
-          { symbol: "CRDT", name: "Private Credit Vault", address: "0x3b2d4e55b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1", weightBps: 3500, liquidityEth: 29.6, twap30mEth: 0.00095 },
-          { symbol: "GLDX", name: "On-Chain Gold Reserve", address: "0x3c3e5f66c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2", weightBps: 2500, liquidityEth: 22.1, twap30mEth: 0.00178 },
-        ],
-      },
-    ];
-    return { awaitingDeployment: true, baskets: previewBaskets };
-  }
-
-  return {
-    awaitingDeployment: false,
-    baskets: rows.map((r) => {
-      const meta = NARRATIVE_BY_ID.get(r.narrative_id);
-      const nav = Number(r.nav_eth ?? 0) / 1e18;
-      return {
-        id: (meta?.slug ?? String(r.narrative_id)).replaceAll("_", "-"),
-        basketAddress: normalizeHex(r.basket_address) ?? r.basket_address,
-        narrativeId: r.narrative_id,
-        narrativeLabel: meta?.label ?? `Narrative #${r.narrative_id}`,
-        name: r.name,
-        symbol: r.symbol,
-        navEth: nav,
-        tvlEth: nav,
-        tvlCapEth: 10.0,
-        sharePriceEth: 0.01,
-        managementFeeBps: 50,
-        lastRebalancedAt: new Date().toISOString(),
-        holdings: (r.tokens ?? []).map((tok, i) => ({
-          symbol: `TOK${i + 1}`,
-          name: tok,
-          address: tok,
-          weightBps: r.weights_bps?.[i] ?? 0,
-          liquidityEth: 25,
-          twap30mEth: 0.001,
-        })),
-      };
-    }),
-  };
+export async function fetchBasketsData(): Promise<{ awaitingDeployment: boolean; baskets: BasketItem[] }> {
+  const baskets = await readLiveBasketsFromChain();
+  return { awaitingDeployment: baskets === null, baskets: baskets ?? [] };
 }
 
-async function load_fetchGrantsData(): Promise<{
-  awaitingDeployment: boolean;
-  rounds: GrantRoundItem[];
-}> {
-  const rows = await supabaseSelect<{
-    round_id: number;
-    budget_eth: string;
-    snapshot_block: string;
-    vote_end: string;
-    status: "active" | "finalized" | "upcoming";
-  }>("grant_rounds?select=*&order=round_id.desc&limit=5", "anon");
-
-  const liveRounds = await readLiveGrantRoundsFromChain();
-  if (liveRounds !== null) {
-    return { awaitingDeployment: false, rounds: liveRounds };
-  }
-
-  if (!rows || rows.length === 0) {
-    const now = Date.now();
-    const previewRound: GrantRoundItem = {
-      roundId: 1,
-      status: "active",
-      budgetEth: 2.4,
-      snapshotBlock: 18_420_000,
-      voteEnd: new Date(now + 4 * 86400_000).toISOString(),
-      totalVotesNti: 14_200_000,
-      quorumNti: 10_000_000,
-      proposals: [
-        {
-          proposalId: 1,
-          roundId: 1,
-          title: "Open-Source X Omission Verifier CLI",
-          summary: "Independent Rust validator kit for verifying 10% omission samples and Arweave dataset hashes locally.",
-          narrativeId: 1,
-          proposer: "0x41a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0",
-          recipient: "0x41a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0",
-          metadataHash: "0x11aa22bb33cc44dd55ee66ff77889900aabbccddeeff00112233445566778899",
-          votesNti: 5_400_000,
-          projectedShareBps: 3802,
-          projectedEth: 0.9125,
-          claimed: false,
-        },
-        {
-          proposalId: 2,
-          roundId: 1,
-          title: "Pons V2 Liquidity & Graduation Subgraph",
-          summary: "Low-latency indexer feed tracking Pons V2 phase-2 graduations and Uniswap V4 pool depth on Robinhood Chain.",
-          narrativeId: 2,
-          proposer: "0x52b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1",
-          recipient: "0x52b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1",
-          metadataHash: "0x22bb33cc44dd55ee66ff77889900aabbccddeeff00112233445566778899aabb",
-          votesNti: 4_100_000,
-          projectedShareBps: 2887,
-          projectedEth: 0.6929,
-          claimed: false,
-        },
-        {
-          proposalId: 3,
-          roundId: 1,
-          title: "Prediction Market Narrative SDK & Bot Templates",
-          summary: "Reference TypeScript strategies and Dune-compatible datasets for Prediction Markets & Perp DEX pairs.",
-          narrativeId: 6,
-          proposer: "0x63c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2",
-          recipient: "0x63c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2",
-          metadataHash: "0x33cc44dd55ee66ff77889900aabbccddeeff00112233445566778899aabbccdd",
-          votesNti: 2_900_000,
-          projectedShareBps: 2042,
-          projectedEth: 0.4901,
-          claimed: false,
-        },
-        {
-          proposalId: 4,
-          roundId: 1,
-          title: "Curated DePIN & RWA Builder Registry",
-          summary: "Community-curated verification registry for active non-tokenised infrastructure teams across the Heatmap.",
-          narrativeId: 5,
-          proposer: "0x74d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3",
-          recipient: "0x74d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3",
-          metadataHash: "0x44dd55ee66ff77889900aabbccddeeff00112233445566778899aabbccddeeff",
-          votesNti: 1_800_000,
-          projectedShareBps: 1269,
-          projectedEth: 0.3045,
-          claimed: false,
-        },
-      ],
-    };
-    return { awaitingDeployment: true, rounds: [previewRound] };
-  }
-
-  // Only reached when the chain read failed, so the mirror rows carry no live vote data.
-  const liveMap = new Map<number, GrantRoundItem>();
-
-  return {
-    awaitingDeployment: false,
-    rounds: rows.map((r) => {
-      const live = liveMap.get(r.round_id);
-      return {
-        roundId: r.round_id,
-        status: r.status,
-        budgetEth: Number(r.budget_eth) / 1e18,
-        snapshotBlock: Number(r.snapshot_block),
-        voteEnd: r.vote_end,
-        totalVotesNti: live?.totalVotesNti ?? 0,
-        quorumNti: live?.quorumNti ?? 100_000,
-        proposals: live?.proposals ?? [],
-      };
-    }),
-  };
+export async function fetchGrantsData(): Promise<{ awaitingDeployment: boolean; rounds: GrantRoundItem[] }> {
+  const rounds = await readLiveGrantRoundsFromChain();
+  return { awaitingDeployment: rounds === null, rounds: rounds ?? [] };
 }
 
-export async function fetchGovernorProposals(): Promise<GovernorProposalItem[]> {
-  const rows = await supabaseSelect<{
-    proposal_id: string;
-    proposer: string;
-    description: string;
-    status: string;
-    vote_end: string;
-  }>("governance_proposals?select=*&order=created_block.desc&limit=10", "anon");
+interface DbGovernorProposal {
+  proposal_id: string;
+  proposer: string;
+  description: string;
+  targets: Address[];
+  values: Array<string | number>;
+  calldatas: Hex[];
+}
 
-  if (!rows || rows.length === 0) {
-    const now = Date.now();
-    return [
-      {
-        proposalId: "104829104",
-        title: "NTI-GP-01: Enable Permissionless Validator Bonding (5M $NTI Minimum)",
-        category: "Validators",
-        proposer: "0x71C04f92a38D4bE21970bA19e39a8E224a77f101",
-        status: "Active",
-        forVotesNti: 34_500_000,
-        againstVotesNti: 2_100_000,
-        abstainVotesNti: 800_000,
-        quorumNti: 40_000_000,
-        voteEndAt: new Date(now + 44 * 3600_000).toISOString(),
-        summary: "Transitions OracleCommit from bootstrap validator set to open permissionless staking with 5M $NTI bond and 50/50 slash split.",
-      },
-      {
-        proposalId: "104829103",
-        title: "NTI-GP-02: Raise NarrativeMarket maxPoolPerMarket from 5 ETH to 15 ETH",
-        category: "Risk Limits",
-        proposer: "0x82D15a03b49E5cF32081cB20f40b9F335b88a202",
-        status: "Queued",
-        forVotesNti: 48_200_000,
-        againstVotesNti: 6_400_000,
-        abstainVotesNti: 1_200_000,
-        quorumNti: 40_000_000,
-        voteEndAt: new Date(now - 12 * 3600_000).toISOString(),
-        summary: "48h Timelock queue active after passing 4% quorum following 30 days of zero-incident market settlements.",
-      },
-      {
-        proposalId: "104829101",
-        title: "NTI-GP-03: Whitelist Uniswap V3 Pool for AI Agents Basket",
-        category: "Basket Whitelist",
-        proposer: "0x93E26b14c50F6dA43192dC31a51c0A446c99b303",
-        status: "Executed",
-        forVotesNti: 52_000_000,
-        againstVotesNti: 1_500_000,
-        abstainVotesNti: 500_000,
-        quorumNti: 40_000_000,
-        voteEndAt: new Date(now - 96 * 3600_000).toISOString(),
-        summary: "Verified >20 ETH liquidity and 30-minute TWAP observationCardinality on Robinhood Chain V3 factory.",
-      },
-    ];
-  }
+function governorActions(row: DbGovernorProposal): GovernorProposalItem["actions"] {
+  const { targets, values, calldatas, description } = row;
+  if (!Array.isArray(targets) || !Array.isArray(values) || !Array.isArray(calldatas) ||
+      targets.length === 0 || targets.length !== values.length || targets.length !== calldatas.length ||
+      !targets.every((target) => isAddress(target, { strict: false })) ||
+      !values.every((value) => /^\d{1,78}$/.test(String(value)) && BigInt(value) <= maxUint256 &&
+        (typeof value !== "number" || Number.isSafeInteger(value))) ||
+      !calldatas.every((calldata) => typeof calldata === "string" && /^0x(?:[0-9a-fA-F]{2})*$/.test(calldata))) return null;
 
-  return rows.map((r) => ({
-    proposalId: r.proposal_id,
-    title: r.description.split("\n")[0] || `Proposal #${r.proposal_id}`,
-    category: "Config",
-    proposer: r.proposer,
-    status: (r.status.charAt(0).toUpperCase() + r.status.slice(1)) as GovernorProposalItem["status"],
-    forVotesNti: 0,
-    againstVotesNti: 0,
-    abstainVotesNti: 0,
-    quorumNti: 40_000_000,
-    voteEndAt: new Date(Date.now() + 24 * 3600_000).toISOString(),
-    summary: r.description,
+  const hash = keccak256(encodeAbiParameters(
+    [{ type: "address[]" }, { type: "uint256[]" }, { type: "bytes[]" }, { type: "bytes32" }],
+    [targets, values.map(BigInt), calldatas, keccak256(stringToHex(description))],
+  ));
+  if (BigInt(hash) !== BigInt(row.proposal_id)) return null;
+  return targets.map((target, index) => ({
+    target, value: String(values[index]), calldata: calldatas[index]!,
   }));
+}
+
+export async function fetchGovernorProposals(): Promise<GovernorProposalItem[] | null> {
+  const chainId = getActiveChainId();
+  const governor = getProtocolAddresses(chainId).governor;
+  if (!governor) return null;
+
+  // Cast uint256 proposal IDs to strings before JSON serialization. A JSON number loses precision.
+  const query = `governance_proposals?select=proposal_id::text,proposer,description,targets,values,calldatas&chain_id=eq.${chainId}&created_block=not.is.null&order=created_block.desc&limit=20`;
+  const addressFilter = encodeURIComponent(`\\x${governor.slice(2).toLowerCase()}`);
+  const rows = (await supabaseSelect<DbGovernorProposal>(`${query}&governor_address=eq.${addressFilter}`)) ??
+    (await supabaseSelect<DbGovernorProposal>(query));
+  if (!rows) return null;
+
+  const validRows = rows.filter((row) => typeof row.proposal_id === "string" && /^\d{1,78}$/.test(row.proposal_id) && BigInt(row.proposal_id) <= maxUint256);
+  const states = await readGovernorStates(validRows.map((row) => BigInt(row.proposal_id)));
+  return validRows.flatMap((row, index) => {
+    const state = states[index];
+    if (!state) return [];
+    const description = row.description ?? "";
+    return [{
+      ...state,
+      proposalId: row.proposal_id,
+      title: description.split("\n")[0] || `Proposal #${row.proposal_id}`,
+      proposer: normalizeHex(row.proposer) ?? "",
+      summary: description,
+      actions: governorActions({ ...row, description }),
+    }];
+  });
 }
 
 export interface ActiveConfigVersion {
@@ -1506,12 +813,3 @@ export async function fetchActiveConfig(): Promise<ActiveConfigVersion> {
     payload: latest.payload ?? DEFAULT_NTI_V1_CONFIG.payload,
   };
 }
-
-// Server render cache: pages stay fresh within 20 seconds but no longer wait on RPC/Supabase every click.
-export const fetchIndexesSnapshot = unstable_cache(load_fetchIndexesSnapshot, ["nti-indexes"], { revalidate: 20 });
-export const fetchMarketsData = unstable_cache(load_fetchMarketsData, ["nti-markets"], { revalidate: 20 });
-export const fetchBasketsData = unstable_cache(load_fetchBasketsData, ["nti-baskets"], { revalidate: 20 });
-export const fetchGrantsData = unstable_cache(load_fetchGrantsData, ["nti-grants"], { revalidate: 20 });
-export const fetchHeatmapData = unstable_cache(load_fetchHeatmapData, ["nti-heatmap"], { revalidate: 20 });
-export const fetchEpochDetail = unstable_cache(load_fetchEpochDetail, ["nti-epoch-detail"], { revalidate: 20 });
-export const fetchNarrativeHistory = unstable_cache(load_fetchNarrativeHistory, ["nti-narrative-history"], { revalidate: 20 });

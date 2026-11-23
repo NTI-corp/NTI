@@ -139,7 +139,7 @@ export const NAV_ITEMS: NavItem[] = [
         links: [
           {
             label: "Oracle & Disputes",
-            description: "2-of-3 EIP-712 roots & 2h challenges",
+            description: "validator EIP-712 roots & bonded challenges",
             href: "/oracle",
             icon: "seal",
           },
@@ -348,7 +348,7 @@ export const GET_STARTED_CTA: {
     {
       label: "Verify Oracle",
       description:
-        "Audit dataset hashes, 2-of-3 validator signatures, and dispute bonds",
+        "Audit dataset hashes, validator signatures, and dispute bonds",
       href: "/oracle",
       icon: "connecting",
     },

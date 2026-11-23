@@ -1,0 +1,163 @@
+"""Production fetcher integration at the external HTTP boundary."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+import httpx
+import pytest
+from nti_core.types import EpochStatus, KolProfile
+from nti_fetcher.accounts import AccountPool, AccountPoolExhaustedError
+from nti_fetcher.adapters import InMemoryMockSource, TwscrapeSource
+from nti_fetcher.runner import CycleLock, CycleLockedError, FetchRunner
+from twscrape import API, account, queue_client
+from twscrape.http import Response
+
+
+def account_file(path: Path, *, lane: list[str], validators: list[str]) -> Path:
+    path.write_text(json.dumps({
+        "lanes": {"0": [{"username": name} for name in lane]},
+        "validator_pool": [{"username": name} for name in validators],
+    }), encoding="utf-8")
+    return path
+
+
+async def seed_accounts(db: Path, names: list[str]) -> None:
+    pool = API(str(db)).pool
+    for name in names:
+        await pool.add_account(name, "", "", "", cookies=f"auth_token={name}; ct0=fixture")
+
+
+def mock_x(monkeypatch: pytest.MonkeyPatch, status_codes: dict[str, list[int]]) -> list[str]:
+    attempts: list[str] = []
+
+    class TransactionId:
+        def calc(self, method: str, path: str) -> str:
+            return "fixture"
+
+    async def transaction_id(*args: Any, **kwargs: Any) -> TransactionId:
+        return TransactionId()
+
+    class Transport:
+        backend = "fixture"
+
+        def __init__(self, username: str) -> None:
+            self.username = username
+
+        async def request(self, method: str, url: str, **kwargs: Any) -> Response:
+            attempts.append(self.username)
+            status = status_codes.get(self.username, [])
+            code = status.pop(0) if status else 200
+            return Response(httpx.Response(
+                code, request=httpx.Request(method, url), json={"data": {"user": {}}},
+            ))
+
+        async def aclose(self) -> None:
+            pass
+
+    monkeypatch.setattr(queue_client.XClIdGenStore, "get", transaction_id)
+    monkeypatch.delattr(queue_client.XClIdGenStore, "_nti_fallback", raising=False)
+    monkeypatch.setattr(
+        account, "_make_http_client", lambda **kw: Transport(kw["cookies"]["auth_token"]),
+    )
+    return attempts
+
+
+@pytest.mark.asyncio
+async def test_real_twscrape_queue_rotation_cannot_cross_a_lane_or_validator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = tmp_path / "accounts.db"
+    await seed_accounts(db, ["a_outside", "b_lane", "c_lane", "d_val", "e_val", "f_val"])
+    cfg = account_file(tmp_path / "accounts.json", lane=["b_lane", "c_lane"],
+                       validators=["d_val", "e_val", "f_val"])
+    pool = AccountPool.from_file(cfg, state_path=tmp_path / "budget.json")
+    attempts = mock_x(monkeypatch, {"b_lane": [429], "e_val": [429]})
+
+    lane = TwscrapeSource(db, pool, "lane_0")
+    assert await lane.user_timeline(1, None) == []
+    validator = TwscrapeSource(db, pool, "validator_1")
+    with pytest.raises(AccountPoolExhaustedError):
+        await asyncio.wait_for(validator.user_timeline(1, None), timeout=2)
+
+    assert attempts == ["b_lane", "c_lane", "e_val"]
+    assert pool.daily_count("b_lane") == 1
+    assert pool.daily_count("c_lane") == 1
+    assert pool.daily_count("e_val") == 1
+
+
+@pytest.mark.asyncio
+async def test_real_twscrape_counts_404_retry_and_refuses_send_after_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = tmp_path / "accounts.db"
+    await seed_accounts(db, ["lane"])
+    cfg = account_file(tmp_path / "accounts.json", lane=["lane"], validators=[])
+    budget = tmp_path / "budget.json"
+    attempts = mock_x(monkeypatch, {"lane": [404, 200]})
+
+    src = TwscrapeSource(db, AccountPool.from_file(cfg, budget, daily_limit=2))
+    assert await src.user_timeline(1, None) == []
+    assert attempts == ["lane", "lane"]
+
+    restarted_pool = AccountPool.from_file(cfg, budget, daily_limit=2)
+    assert restarted_pool.daily_count("lane") == 2
+    with pytest.raises(AccountPoolExhaustedError):
+        await asyncio.wait_for(TwscrapeSource(db, restarted_pool).user_timeline(1, None), timeout=2)
+    assert attempts == ["lane", "lane"]
+
+
+def test_concurrent_budget_instances_never_overwrite_or_exceed_the_shared_cap(
+    tmp_path: Path,
+) -> None:
+    cfg = account_file(tmp_path / "accounts.json", lane=["lane"], validators=[])
+    state = tmp_path / "budget.json"
+    pools = [AccountPool.from_file(cfg, state, daily_limit=4) for _ in range(12)]
+
+    def reserve(pool: AccountPool) -> bool:
+        try:
+            pool.record_request("lane")
+        except AccountPoolExhaustedError:
+            return False
+        return True
+
+    with ThreadPoolExecutor(max_workers=len(pools)) as workers:
+        accepted = list(workers.map(reserve, pools))
+
+    assert sum(accepted) == 4
+    assert AccountPool.from_file(cfg, state).daily_count("lane") == 4
+
+
+def test_stale_marker_cannot_unlock_an_active_collection(tmp_path: Path) -> None:
+    path = tmp_path / "fetcher.lock"
+    with CycleLock(path):
+        old = (datetime.now(UTC) - timedelta(hours=3)).timestamp()
+        os.utime(path, (old, old))
+        with pytest.raises(CycleLockedError), CycleLock(path, stale_seconds=1):
+            pass
+
+
+@pytest.mark.asyncio
+async def test_cycle_records_omitted_due_kols_as_incomplete(tmp_path: Path) -> None:
+    boundary = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
+    kols = [
+        KolProfile(user_id=1, handle="high", followers=1_000, poll_tier=1),
+        KolProfile(user_id=2, handle="low", followers=1, poll_tier=4),
+    ]
+    runner = FetchRunner(
+        primary=InMemoryMockSource(name="mock", timelines={}),
+        output_dir=tmp_path / "snapshots", lock_path=tmp_path / "fetcher.lock",
+        jitter_range=(0, 0), max_kols=1,
+    )
+    result = await runner.run_cycle(4, boundary, kols)
+    assert result.status == EpochStatus.INCOMPLETE
+    manifest = json.loads(result.manifest_path.read_text())
+    assert manifest["due_user_ids"] == [1, 2]
+    assert manifest["omitted_user_ids"] == [2]
+    assert manifest["total_eligible"] == 2

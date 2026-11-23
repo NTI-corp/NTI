@@ -42,20 +42,30 @@ export function MarketsListClient({
   const [createOpen, setCreateOpen] = useState(false);
   const [newNarA, setNewNarA] = useState<number>(initialNarrativeId ?? 1);
   const [newNarB, setNewNarB] = useState<number>(initialNarrativeId === 2 ? 1 : 2);
-  const [horizonEpochs, setHorizonEpochs] = useState<6 | 42>(6);
+  const [longHorizon, setLongHorizon] = useState(false);
   const [createErr, setCreateErr] = useState<string | null>(null);
 
   const { isConnected } = useAccount();
   const activeChainId = getActiveChainId();
   const addrs = getProtocolAddresses(activeChainId);
 
-  const { data: onChainFinalEpoch } = useReadContract({
+  const { data: onChainFinalEpoch, refetch: refetchFinalEpoch } = useReadContract({
     address: addrs.oracleCommit ?? undefined,
     abi: oracleCommitAbi,
     functionName: "latestFinalEpoch",
     chainId: activeChainId,
     query: { enabled: Boolean(addrs.oracleCommit) },
   });
+
+  const { data: shortEpochs } = useReadContract({
+    address: addrs.narrativeMarket ?? undefined, abi: narrativeMarketAbi, functionName: "HORIZON_SHORT",
+    chainId: activeChainId, query: { enabled: Boolean(addrs.narrativeMarket) },
+  });
+  const { data: longEpochs } = useReadContract({
+    address: addrs.narrativeMarket ?? undefined, abi: narrativeMarketAbi, functionName: "HORIZON_LONG",
+    chainId: activeChainId, query: { enabled: Boolean(addrs.narrativeMarket) },
+  });
+  const horizonEpochs = longHorizon ? longEpochs : shortEpochs;
 
   const { txState, isBusy, explorerBase, execute, resetTx } = useChainAction();
 
@@ -97,7 +107,16 @@ export function MarketsListClient({
       return;
     }
 
-    const targetSettleEpoch = liveFinalEpoch + horizonEpochs;
+    if (!horizonEpochs) {
+      setCreateErr("Market horizons are temporarily unavailable.");
+      return;
+    }
+    const latest = await refetchFinalEpoch();
+    if (latest.isError || !latest.data) {
+      setCreateErr("Could not verify the latest finalized epoch on-chain.");
+      return;
+    }
+    const targetSettleEpoch = latest.data + horizonEpochs;
     const hash = await execute(
       `Create market #${newNarA} vs #${newNarB} (settle E${targetSettleEpoch})`,
       {
@@ -118,7 +137,7 @@ export function MarketsListClient({
     <div className="space-y-4">
       {awaitingDeployment && (
         <div className="border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-4 py-2.5 font-mono text-xs text-[#F59E0B]">
-          <strong>PREVIEW MARKETS</strong> · NarrativeMarket contract returned 0 markets. Showing parimutuel market structure with live contract hooks ready.
+          <strong>MARKET DATA UNAVAILABLE</strong>
         </div>
       )}
 
@@ -207,7 +226,7 @@ export function MarketsListClient({
                 Launch Permissionless Pair Market
               </h2>
               <p className="mt-0.5 text-xs text-[#71717A]">
-                Anchored to latest finalized OracleCommit epoch #{liveFinalEpoch || "—"}. Anyone can open a 24H (6 epochs) or 7D (42 epochs) market.
+                Anchored to latest finalized OracleCommit epoch #{liveFinalEpoch || "—"}. Choose one of the on-chain settlement horizons.
               </p>
             </div>
           </div>
@@ -253,19 +272,19 @@ export function MarketsListClient({
                 Settlement Horizon
               </label>
               <select
-                value={horizonEpochs}
-                onChange={(e) => setHorizonEpochs(Number(e.target.value) === 42 ? 42 : 6)}
+                value={longHorizon ? "long" : "short"}
+                onChange={(e) => setLongHorizon(e.target.value === "long")}
                 className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
               >
-                <option value={6}>24H (6 epochs · E{liveFinalEpoch + 6})</option>
-                <option value={42}>7D (42 epochs · E{liveFinalEpoch + 42})</option>
+                <option value="short" disabled={!shortEpochs}>{shortEpochs ? `Short (${shortEpochs} epochs)` : "Short horizon unavailable"}</option>
+                <option value="long" disabled={!longEpochs}>{longEpochs ? `Long (${longEpochs} epochs)` : "Long horizon unavailable"}</option>
               </select>
             </div>
 
             <div className="flex items-end">
               <button
                 type="button"
-                disabled={isBusy || !isConnected || liveFinalEpoch <= 0}
+                disabled={isBusy || !isConnected || liveFinalEpoch <= 0 || !horizonEpochs}
                 onClick={() => void handleCreateMarket()}
                 className="w-full bg-[#CCFF00] py-2 font-mono text-xs font-semibold text-[#0D0D0E] transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-45"
               >
@@ -314,9 +333,9 @@ export function MarketsListClient({
             const totalPool = m.poolAEth + m.poolBEth;
             const pctA = totalPool > 0 ? Math.round((m.poolAEth / totalPool) * 100) : 50;
             const pctB = 100 - pctA;
-            const relA = m.baseIA > 0 ? m.currentIA / m.baseIA : 1;
-            const relB = m.baseIB > 0 ? m.currentIB / m.baseIB : 1;
-            const delta = relA - relB;
+            const relA = m.currentIA !== null && m.baseIA > 0 ? m.currentIA / m.baseIA : null;
+            const relB = m.currentIB !== null && m.baseIB > 0 ? m.currentIB / m.baseIB : null;
+            const delta = relA !== null && relB !== null ? relA - relB : null;
 
             return (
               <div
@@ -360,7 +379,7 @@ export function MarketsListClient({
                         SIDE A ({m.narrativeALabel.slice(0, 10)})
                       </div>
                       <div className="text-[#F5F5F7]">
-                        {formatBpsPercent(m.baseIA, 1)} → {formatBpsPercent(m.currentIA, 1)}
+                        {formatBpsPercent(m.baseIA, 1)} → {m.currentIA === null ? "\u2014" : formatBpsPercent(m.currentIA, 1)}
                       </div>
                     </div>
                     <div>
@@ -368,22 +387,22 @@ export function MarketsListClient({
                         SIDE B ({m.narrativeBLabel.slice(0, 10)})
                       </div>
                       <div className="text-[#F5F5F7]">
-                        {formatBpsPercent(m.baseIB, 1)} → {formatBpsPercent(m.currentIB, 1)}
+                        {formatBpsPercent(m.baseIB, 1)} → {m.currentIB === null ? "\u2014" : formatBpsPercent(m.currentIB, 1)}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-[10px] text-[#71717A]">LIVE Δ LEAD</div>
                       <div
                         className={
-                          delta > 0
+                          delta !== null && delta > 0
                             ? "font-semibold text-[#4ADE80]"
-                            : delta < 0
+                            : delta !== null && delta < 0
                               ? "font-semibold text-[#CCFF00]"
                               : "text-[#71717A]"
                         }
                       >
-                        {delta >= 0 ? "+" : ""}
-                        {(delta * 100).toFixed(2)}%
+                        {delta !== null && delta >= 0 ? "+" : ""}
+                        {delta === null ? "\u2014" : `${(delta * 100).toFixed(2)}%`}
                       </div>
                     </div>
                   </div>

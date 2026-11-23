@@ -1,3 +1,4 @@
+import { keccak256, stringToHex } from "viem";
 import type { DecodedEventContext, MirrorUpsert } from "../types.js";
 
 export function handleOracleEvent(ctx: DecodedEventContext): MirrorUpsert[] {
@@ -5,29 +6,42 @@ export function handleOracleEvent(ctx: DecodedEventContext): MirrorUpsert[] {
   const nowIso = ctx.blockTimeIso;
 
   switch (eventName) {
-    case "EpochCommitted":
+    case "EpochCommitted": {
+      const epochId = Number(args.epochId);
+      const datasetHash = String(args.datasetHash);
+      const reference = String(args.arweaveTx).toLowerCase();
+      const local = `local_${epochId}_${datasetHash.slice(2, 18).toLowerCase()}`;
       return [
         {
           table: "epochs",
           conflictColumns: ["epoch_id"],
+          fillMissing: /^0x[0-9a-f]{64}$/.test(reference) ? {
+            column: "arweave_tx",
+            value: keccak256(stringToHex(local)) === reference ? local : null,
+            legacyValue: reference,
+          } : undefined,
           row: {
-            epoch_id: Number(args.epochId),
+            epoch_id: epochId,
             series_id: Number(args.seriesId),
             status: "committed",
-            dataset_hash: args.datasetHash,
+            dataset_hash: datasetHash,
             config_hash: args.configHash,
-            arweave_tx: String(args.arweaveTx),
+            arweave_tx_bytes32: reference,
             commit_tx: txHash,
             committed_at: nowIso,
+            finalized_at: null,
           },
         },
       ];
+    }
 
     case "EpochFinalized":
+    case "EpochDisputeResolved":
       return [
         {
           table: "epochs",
           conflictColumns: ["epoch_id"],
+          updateOnly: true,
           row: {
             epoch_id: Number(args.epochId),
             status: "final",
@@ -41,12 +55,23 @@ export function handleOracleEvent(ctx: DecodedEventContext): MirrorUpsert[] {
         {
           table: "epochs",
           conflictColumns: ["epoch_id"],
+          updateOnly: true,
+          // A gap has no commit, so OracleCommit.epochSeries returns zero.
+          insertDefaults: { series_id: 0 },
           row: {
             epoch_id: Number(args.epochId),
             status: "incomplete",
           },
         },
       ];
+
+    case "EpochDisputed":
+      return [{
+        table: "epochs",
+        conflictColumns: ["epoch_id"],
+        updateOnly: true,
+        row: { epoch_id: Number(args.epochId), status: "disputed" },
+      }];
 
     case "ValidatorJoined":
       return [
@@ -68,7 +93,8 @@ export function handleOracleEvent(ctx: DecodedEventContext): MirrorUpsert[] {
           table: "disputes",
           conflictColumns: ["dispute_id"],
           row: {
-            dispute_id: Number(args.disputeId),
+            dispute_id: String(args.disputeId),
+            contract_address: ctx.contractAddress,
             epoch_id: Number(args.epochId),
             narrative_id: Number(args.narrativeId),
             challenger: args.challenger,
@@ -76,14 +102,7 @@ export function handleOracleEvent(ctx: DecodedEventContext): MirrorUpsert[] {
             evidence_hash: args.evidenceHash,
             status: "open",
             opened_at: nowIso,
-          },
-        },
-        {
-          table: "epochs",
-          conflictColumns: ["epoch_id"],
-          row: {
-            epoch_id: Number(args.epochId),
-            status: "disputed",
+            resolved_at: null,
           },
         },
       ];
@@ -93,20 +112,12 @@ export function handleOracleEvent(ctx: DecodedEventContext): MirrorUpsert[] {
         {
           table: "disputes",
           conflictColumns: ["dispute_id"],
+          updateOnly: true,
           row: {
-            dispute_id: Number(args.disputeId),
-            epoch_id: Number(args.epochId),
+            dispute_id: String(args.disputeId),
+            contract_address: ctx.contractAddress,
             status: args.challengerWon ? "resolved_challenger" : "resolved_operator",
             resolved_at: nowIso,
-          },
-        },
-        {
-          table: "epochs",
-          conflictColumns: ["epoch_id"],
-          row: {
-            epoch_id: Number(args.epochId),
-            status: "final",
-            finalized_at: nowIso,
           },
         },
       ];
@@ -116,19 +127,12 @@ export function handleOracleEvent(ctx: DecodedEventContext): MirrorUpsert[] {
         {
           table: "disputes",
           conflictColumns: ["dispute_id"],
+          updateOnly: true,
           row: {
-            dispute_id: Number(args.disputeId),
-            epoch_id: Number(args.epochId),
+            dispute_id: String(args.disputeId),
+            contract_address: ctx.contractAddress,
             status: "expired",
             resolved_at: nowIso,
-          },
-        },
-        {
-          table: "epochs",
-          conflictColumns: ["epoch_id"],
-          row: {
-            epoch_id: Number(args.epochId),
-            status: "incomplete",
           },
         },
       ];

@@ -1,4 +1,5 @@
-import type { ChainEventRow, IndexerStore, MirrorUpsert } from "./types.js";
+import type { Address, Hex } from "viem";
+import type { ChainEventRow, IndexerStore, MirrorUpsert, ReplayStore } from "./types.js";
 
 const BYTEA_COLUMNS = new Set([
   "tx_hash",
@@ -6,11 +7,14 @@ const BYTEA_COLUMNS = new Set([
   "dataset_hash",
   "config_hash",
   "commit_tx",
+  "arweave_tx_bytes32",
   "address",
   "challenger",
   "evidence_hash",
   "wallet",
   "basket_address",
+  "factory_address",
+  "governor_address",
   "bettor",
   "proposer",
   "recipient",
@@ -43,21 +47,17 @@ export interface SupabaseRestStoreOptions {
   supabaseUrl: string;
   serviceKey: string;
   fetchImpl?: typeof fetch;
-  /** When true, 404/PGRST205 on optional mirror tables logs a warning instead of throwing. */
-  tolerateMissingMirrorTables?: boolean;
 }
 
-export class SupabaseRestStore implements IndexerStore {
+export class SupabaseRestStore implements ReplayStore {
   private readonly baseUrl: string;
   private readonly serviceKey: string;
   private readonly fetchImpl: typeof fetch;
-  private readonly tolerateMissingMirrorTables: boolean;
 
   constructor(options: SupabaseRestStoreOptions) {
     this.baseUrl = options.supabaseUrl.replace(/\/+$/, "");
     this.serviceKey = options.serviceKey;
     this.fetchImpl = options.fetchImpl ?? fetch;
-    this.tolerateMissingMirrorTables = options.tolerateMissingMirrorTables ?? true;
   }
 
   private headers(prefer?: string): Record<string, string> {
@@ -104,92 +104,109 @@ export class SupabaseRestStore implements IndexerStore {
   }
 
   async upsertChainEvents(events: ChainEventRow[]): Promise<void> {
-    if (events.length === 0) return;
-    const url = `${this.baseUrl}/rest/v1/chain_events?on_conflict=chain_id,tx_hash,log_index`;
-    const payload = events.map((e) => formatRowForPostgres(e as unknown as Record<string, unknown>));
-    const res = await this.fetchImpl(url, {
-      method: "POST",
-      headers: this.headers("resolution=merge-duplicates,return=minimal"),
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      throw new Error(`Supabase upsertChainEvents failed (${res.status}): ${await res.text()}`);
+    // Keep PostgREST batches uniform. A lookup without a timestamp must leave any stored time intact.
+    const undated: Record<string, unknown>[] = [];
+    const dated: Record<string, unknown>[] = [];
+    for (const { block_time, ...event } of events) {
+      if (block_time) dated.push(formatRowForPostgres({ ...event, block_time }));
+      else undated.push(formatRowForPostgres(event));
     }
+    for (const rows of [undated, dated]) {
+      for (let i = 0; i < rows.length; i += 500) {
+        await this.postRows("chain_events", ["chain_id", "tx_hash", "log_index"], rows.slice(i, i + 500));
+      }
+    }
+  }
+
+  async readChainEvents(chainId: number, after: ChainEventRow | undefined, limit: number): Promise<ChainEventRow[]> {
+    const query = new URLSearchParams({
+      chain_id: `eq.${chainId}`,
+      select: "chain_id,tx_hash,log_index,block_number,contract_address,event_name,args,block_time",
+      order: "block_number.asc,log_index.asc,tx_hash.asc",
+      limit: String(limit),
+    });
+    if (after) {
+      const { block_number: block, log_index: index, tx_hash } = after;
+      const tx = encodeByteaValue(tx_hash);
+      query.set("or", `(block_number.gt.${block},and(block_number.eq.${block},log_index.gt.${index}),and(block_number.eq.${block},log_index.eq.${index},tx_hash.gt."${String(tx).replace(/\\/g, "\\\\")}"))`);
+    }
+    const res = await this.fetchImpl(`${this.baseUrl}/rest/v1/chain_events?${query}`, {
+      method: "GET",
+      headers: this.headers(),
+    });
+    if (!res.ok) throw new Error(`Supabase readChainEvents failed (${res.status}): ${await res.text()}`);
+    const rows = await res.json() as ChainEventRow[];
+    return rows.map((row) => ({
+      ...row,
+      block_number: String(row.block_number),
+      tx_hash: row.tx_hash.replace(/^\\x/, "0x") as Hex,
+      contract_address: row.contract_address.replace(/^\\x/, "0x") as Address,
+    }));
   }
 
   async upsertMirror(upserts: MirrorUpsert[]): Promise<void> {
-    if (upserts.length === 0) return;
+    // Keep event order, including transitions whose column sets differ or whose parents just appeared.
+    for (const { table, conflictColumns, row, updateOnly, insertDefaults, fillMissing } of upserts) {
+      const formatted = formatRowForPostgres(row);
+      const key = new URLSearchParams();
+      for (const column of conflictColumns) {
+        if (formatted[column] == null) throw new Error(`Missing ${table} mirror key ${column}`);
+        key.set(column, `eq.${formatted[column]}`);
+      }
+      if (updateOnly) {
+        const patch = Object.fromEntries(Object.entries(formatted).filter(([column]) => !conflictColumns.includes(column)));
+        if (await this.patchRow(table, key, patch)) continue;
+        if (insertDefaults) {
+          const inserted = await this.postRows(
+            table, conflictColumns, [formatRowForPostgres({ ...insertDefaults, ...row })], true,
+          );
+          // A concurrent insert can win between the PATCH and POST. Reapply just the intended fields.
+          if (inserted || await this.patchRow(table, key, patch)) continue;
+        }
+        throw new Error(`Supabase patch(${table}) missing mirror row for ${key}`);
+      }
 
-    // Group by table + conflict columns so each group is batched cleanly.
-    // PostgREST requires every object in one batch to share the same key set, and Postgres rejects an
-    // upsert that touches the same conflict key twice, so group by key signature and collapse duplicates
-    // (later rows win, in event order).
-    const grouped = new Map<
-      string,
-      { table: string; conflict: string; rows: Map<string, Record<string, unknown>> }
-    >();
-    for (const u of upserts) {
-      const conflict = u.conflictColumns.join(",");
-      const formatted = formatRowForPostgres(u.row);
-      const signature = Object.keys(formatted).sort().join(",");
-      const key = `${u.table}::${conflict}::${signature}`;
-      const bucket = grouped.get(key) ?? { table: u.table, conflict, rows: new Map() };
-      const rowKey = u.conflictColumns.map((c) => String(formatted[c])).join("|");
-      bucket.rows.set(rowKey, formatted);
-      grouped.set(key, bucket);
-    }
-
-    for (const { table, conflict, rows: rowMap } of grouped.values()) {
-      const rows = [...rowMap.values()];
-      const url = `${this.baseUrl}/rest/v1/${encodeURIComponent(table)}?on_conflict=${encodeURIComponent(conflict)}`;
-      const res = await this.fetchImpl(url, {
-        method: "POST",
-        headers: this.headers("resolution=merge-duplicates,return=minimal"),
-        body: JSON.stringify(rows),
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        if (this.tolerateMissingMirrorTables && (res.status === 404 || body.includes("PGRST205"))) {
-          continue;
-        }
-        // Partial-column rows (e.g. epoch status flips) violate NOT NULL on the INSERT half of an
-        // upsert even when the row already exists. Fall back to updating just the provided columns.
-        if (body.includes('"23502"')) {
-          await this.patchPartialRows(table, conflict.split(","), rows);
-          continue;
-        }
-        // Referenced parent row not mirrored yet (e.g. dispute on an epoch older than the first DB epoch).
-        if (body.includes('"23503"')) {
-          console.warn(`[nti-indexer] skipped ${table} mirror rows with missing parent row: ${body}`);
-          continue;
-        }
-        throw new Error(`Supabase upsertMirror(${table}) failed (${res.status}): ${body}`);
+      if (fillMissing && formatted.arweave_tx_bytes32 != null) {
+        const supersedeKey = new URLSearchParams(key);
+        supersedeKey.set("arweave_tx_bytes32", `neq.${formatted.arweave_tx_bytes32}`);
+        await this.patchRow(table, supersedeKey, { [fillMissing.column]: fillMissing.value });
+      }
+      await this.postRows(table, conflictColumns, [formatted]);
+      if (fillMissing) {
+        const { column, value, legacyValue } = fillMissing;
+        const filters = [`${column}.eq.${legacyValue}`];
+        if (value !== null) filters.push(`${column}.is.null`);
+        key.set("or", `(${filters.join(",")})`);
+        await this.patchRow(table, key, { [column]: value });
       }
     }
   }
 
-  private async patchPartialRows(
+  private async postRows(
     table: string,
     conflictColumns: string[],
     rows: Record<string, unknown>[],
-  ): Promise<void> {
-    for (const row of rows) {
-      const filter = conflictColumns
-        .map((c) => `${encodeURIComponent(c)}=eq.${encodeURIComponent(String(row[c]))}`)
-        .join("&");
-      const patch: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(row)) {
-        if (!conflictColumns.includes(k)) patch[k] = v;
-      }
-      const res = await this.fetchImpl(`${this.baseUrl}/rest/v1/${encodeURIComponent(table)}?${filter}`, {
-        method: "PATCH",
-        headers: this.headers("return=minimal"),
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) {
-        throw new Error(`Supabase patch(${table}) failed (${res.status}): ${await res.text()}`);
-      }
-    }
+    ignoreDuplicates = false,
+  ): Promise<boolean> {
+    const query = new URLSearchParams({ on_conflict: conflictColumns.join(",") });
+    const strategy = ignoreDuplicates ? "ignore-duplicates,return=representation" : "merge-duplicates,return=minimal";
+    const res = await this.fetchImpl(`${this.baseUrl}/rest/v1/${encodeURIComponent(table)}?${query}`, {
+      method: "POST",
+      headers: this.headers(`resolution=${strategy},missing=default`),
+      body: JSON.stringify(rows),
+    });
+    if (!res.ok) throw new Error(`Supabase upsert(${table}) failed (${res.status}): ${await res.text()}`);
+    return !ignoreDuplicates || (await res.json() as unknown[]).length === 1;
+  }
+
+  private async patchRow(table: string, query: URLSearchParams, patch: Record<string, unknown>): Promise<boolean> {
+    const res = await this.fetchImpl(`${this.baseUrl}/rest/v1/${encodeURIComponent(table)}?${query}`, {
+      method: "PATCH",
+      headers: this.headers("return=representation"),
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) throw new Error(`Supabase patch(${table}) failed (${res.status}): ${await res.text()}`);
+    return (await res.json() as unknown[]).length === 1;
   }
 }
 
@@ -229,8 +246,24 @@ export class InMemoryStore implements IndexerStore {
       const pk = u.conflictColumns
         .map((col) => String(u.row[col] ?? "").toLowerCase())
         .join("|");
-      const existing = tableMap.get(pk) ?? {};
-      tableMap.set(pk, { ...existing, ...structuredClone(u.row) });
+      const existing = tableMap.get(pk);
+      if (u.updateOnly && !existing && !u.insertDefaults) throw new Error(`Missing ${u.table} mirror row for ${pk}`);
+      const row = { ...(existing ?? u.insertDefaults), ...structuredClone(u.row) };
+      const locator = u.fillMissing;
+      const commitmentChanged =
+        existing != null &&
+        existing.arweave_tx_bytes32 != null &&
+        u.row.arweave_tx_bytes32 != null &&
+        existing.arweave_tx_bytes32 !== u.row.arweave_tx_bytes32;
+      if (
+        locator &&
+        (commitmentChanged ||
+          row[locator.column] === locator.legacyValue ||
+          (locator.value !== null && row[locator.column] == null))
+      ) {
+        row[locator.column] = locator.value;
+      }
+      tableMap.set(pk, row);
     }
   }
 

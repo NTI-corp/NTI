@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Abi, Address } from "viem";
+import { BaseError, ContractFunctionRevertedError, type Abi, type Address } from "viem";
 import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import { getActiveChainId, getChain } from "./contracts";
 
@@ -24,10 +24,10 @@ export interface TxActionState {
 const KNOWN_ERROR_HINTS: Array<[RegExp, string]> = [
   [/AllocationNotConfigured/i, "Vault constituent tokens have not been configured on-chain yet."],
   [/InsufficientStake/i, "Wallet active stake is below the required amount."],
-  [/InsufficientProposalStake/i, "Minimum 50,000 $NTI staked required to submit a proposal."],
-  [/CooldownNotElapsed/i, "7-day unstake cooldown has not elapsed yet."],
+  [/InsufficientProposalStake/i, "Active stake is below this round?s proposal threshold."],
+  [/CooldownNotElapsed/i, "The unstake cooldown is still running."],
   [/NothingToWithdraw|NothingToClaim/i, "No unlocked balance or claimable reward available yet."],
-  [/FaucetCooldownActive/i, "Faucet cooldown active (10,000 tNTI per 24h per wallet)."],
+  [/FaucetCooldownActive/i, "This wallet?s faucet cooldown is still running."],
   [/BetBelowMinimum/i, "Bet size is below market minimum."],
   [/BettingClosed/i, "Betting window has already closed for this market."],
   [/SettlementNotReady/i, "Market settlement epoch is not finalized yet."],
@@ -36,14 +36,21 @@ const KNOWN_ERROR_HINTS: Array<[RegExp, string]> = [
   [/AlreadyVoted/i, "This wallet has already voted in the active round."],
   [/ExceedsVotingPower/i, "Vote weight exceeds snapshot voting power at the round block."],
   [/RoundNotActive|RoundNotEnded/i, "Grant round state does not allow this action right now."],
-  [/DisputeWindowClosed|EpochNotCommitted/i, "Disputes can only be opened on committed epochs within the 2h window."],
-  [/DisputeWindowActive/i, "Cannot finalize until the 2-hour dispute window completes."],
+  [/DisputeWindowClosed|EpochNotCommitted/i, "Disputes require a committed epoch with an open challenge window."],
+  [/DisputeWindowActive/i, "The dispute window must close before finalization."],
   [/ERC20InsufficientAllowance/i, "Token allowance insufficient — approve $NTI first."],
+  [/GovernorAlreadyCastVote/i, "This wallet already voted on this proposal."],
+  [/GovernorInsufficientProposerVotes/i, "Voting power is below the on-chain proposal threshold."],
+  [/GovernorUnexpectedProposalState|TimelockUnexpectedOperationState/i, "The proposal is ineligible for this action at the current block."],
   [/User rejected|User denied/i, "Transaction cancelled in wallet."],
 ];
 
 export function formatChainError(err: unknown): string {
+  const reverted = err instanceof BaseError
+    ? err.walk((cause) => cause instanceof ContractFunctionRevertedError)
+    : null;
   const raw =
+    (reverted instanceof ContractFunctionRevertedError ? reverted.data?.errorName : undefined) ??
     (err as { shortMessage?: string; message?: string } | null)?.shortMessage ??
     (err instanceof Error ? err.message : "Transaction failed.");
   for (const [pattern, friendly] of KNOWN_ERROR_HINTS) {
@@ -60,7 +67,8 @@ export function formatChainError(err: unknown): string {
  */
 export function useChainAction(onConfirmed?: () => Promise<void> | void) {
   const router = useRouter();
-  const { isConnected, chainId: walletChainId } = useAccount();
+  const { address, isConnected, chainId: walletChainId } = useAccount();
+  const submitting = useRef(false);
   const targetChainId = getActiveChainId();
   const targetChain = getChain(targetChainId);
   const explorerBase =
@@ -107,8 +115,14 @@ export function useChainAction(onConfirmed?: () => Promise<void> | void) {
       txParams: ChainTxParams,
       customSuccessLabel?: string,
     ): Promise<`0x${string}` | null> => {
+      if (submitting.current) return null;
+      submitting.current = true;
+      let hash: `0x${string}` | null = null;
       try {
+        if (!address || !publicClient) throw new Error("Connect a wallet and retry when the chain RPC is available.");
         await ensureChain();
+        setTxState({ status: "wallet", label: `Checking ${label} on-chain?`, hash: null, error: null });
+        await publicClient.simulateContract({ ...txParams, account: address });
         setTxState({
           status: "wallet",
           label: `Confirm ${label} in wallet...`,
@@ -116,7 +130,7 @@ export function useChainAction(onConfirmed?: () => Promise<void> | void) {
           error: null,
         });
 
-        const hash = await writeContractAsync({
+        hash = await writeContractAsync({
           ...txParams,
           chainId: targetChainId,
         } as Parameters<typeof writeContractAsync>[0]);
@@ -128,12 +142,11 @@ export function useChainAction(onConfirmed?: () => Promise<void> | void) {
           error: null,
         });
 
-        if (publicClient) {
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
-          if (receipt.status === "reverted") {
-            throw new Error(`Transaction reverted on-chain (${hash.slice(0, 10)}…).`);
-          }
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        if (receipt.status !== "success") {
+          throw new Error(`Transaction reverted on-chain (${receipt.transactionHash.slice(0, 10)}?).`);
         }
+        hash = receipt.transactionHash;
 
         setTxState({
           status: "confirmed",
@@ -142,20 +155,23 @@ export function useChainAction(onConfirmed?: () => Promise<void> | void) {
           error: null,
         });
 
-        if (onConfirmed) await onConfirmed();
+        // A refresh problem cannot invalidate a successful receipt.
+        if (onConfirmed) void Promise.resolve().then(onConfirmed).catch(() => {});
         router.refresh();
         return hash;
       } catch (err) {
-        setTxState((prev) => ({
+        setTxState({
           status: "error",
           label: null,
-          hash: prev.hash,
+          hash,
           error: formatChainError(err),
-        }));
+        });
         return null;
+      } finally {
+        submitting.current = false;
       }
     },
-    [ensureChain, writeContractAsync, targetChainId, publicClient, targetChain.name, onConfirmed, router],
+    [address, ensureChain, writeContractAsync, targetChainId, publicClient, targetChain.name, onConfirmed, router],
   );
 
   const resetTx = useCallback(() => {

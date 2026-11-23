@@ -40,6 +40,7 @@ class EpochDataset:
     posts: tuple[EnginePost, ...]
     kols: tuple[EngineKol, ...]
     a_max: Decimal | None = None
+    observation_cutoff_unix: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

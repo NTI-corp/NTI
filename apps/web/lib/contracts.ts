@@ -49,6 +49,7 @@ export const stakingAbi = parseAbi([
   "function discountBps(address account) view returns (uint16)",
   "function pendingReward(address account) view returns (uint256)",
   "function getPastVotes(address account, uint256 timepoint) view returns (uint256)",
+  "function getPastTotalSupply(uint256 timepoint) view returns (uint256)",
   "function radarMinStake() view returns (uint256)",
   "function tier1Stake() view returns (uint256)",
   "function tier2Stake() view returns (uint256)",
@@ -61,6 +62,8 @@ export const oracleCommitAbi = parseAbi([
   "function finalIndex(uint32 epochId, uint8 narrativeId) view returns (uint16)",
   "function isFinal(uint32 epochId) view returns (bool)",
   "function latestFinalEpoch() view returns (uint32)",
+  "function MIN_VALIDATORS() view returns (uint256)",
+  "function DISPUTE_WINDOW() view returns (uint64)",
   "function lastProcessedEpoch() view returns (uint32)",
   "function epochBoundary(uint32 epochId) view returns (uint64)",
 ]);
@@ -69,6 +72,7 @@ export const disputeAbi = parseAbi([
   "function openDispute(uint32 epochId, uint8 narrativeId, uint16 claimedI, bytes32 evidenceHash)",
   "function expire(uint256 disputeId)",
   "function disputeBond() view returns (uint256)",
+  "function RESOLUTION_WINDOW() view returns (uint64)",
   "function nextDisputeId() view returns (uint256)",
   "function disputes(uint256 disputeId) view returns (uint32 epochId, uint8 narrativeId, uint16 claimedI, bytes32 evidenceHash, address challenger, uint256 bondReceived, uint64 openedAt, uint8 state)",
 ]);
@@ -81,6 +85,12 @@ export const narrativeMarketAbi = parseAbi([
   "function minBet() view returns (uint256)",
   "function maxPoolPerMarket() view returns (uint256)",
   "function nextMarketId() view returns (uint256)",
+  "function HORIZON_SHORT() view returns (uint32)",
+  "function HORIZON_LONG() view returns (uint32)",
+  "function BET_CUTOFF_EPOCHS() view returns (uint32)",
+  "error InvalidHorizon(uint32 baseEpoch, uint32 settleEpoch)",
+  "error BettingClosed(uint64 cutoffAt)",
+  "error SettlementNotReady()",
   "function markets(uint256 id) view returns (uint8 narrativeA, uint8 narrativeB, uint32 baseEpoch, uint32 settleEpoch, uint32 baseSeriesId, uint256 pool0Net, uint256 pool1Net, uint256 pool0Gross, uint256 pool1Gross, uint256 escrowedFees, uint8 outcome, bool settled)",
   "function positions(uint256 id, address bettor) view returns (uint256 gross0, uint256 net0, uint256 gross1, uint256 net1, bool claimed)",
 ]);
@@ -99,6 +109,8 @@ export const basketAbi = parseAbi([
   "function totalNavWeth() view returns (uint256)",
   "function paused() view returns (bool)",
   "function maxTVL() view returns (uint256)",
+  "function lastRebalanceAt() view returns (uint64)",
+  "function MGMT_FEE_BPS() view returns (uint16)",
   "function narrativeId() view returns (uint8)",
   "function name() view returns (string)",
   "function symbol() view returns (string)",
@@ -111,16 +123,43 @@ export const grantsAbi = parseAbi([
   "function finalizeRound(uint256 round)",
   "function claim(uint256 round, uint256 id) returns (uint256)",
   "function currentRoundId() view returns (uint256)",
+  "function QUORUM_BPS() view returns (uint16)",
+  "function staking() view returns (address)",
+  "error RoundNotEnded(uint64 endsAt)",
+  "error RoundNotActive()",
+  "error AlreadyVoted()",
+  "error NothingToClaim()",
   "function minProposalStake() view returns (uint256)",
   "function hasVoted(uint256 round, address voter) view returns (bool)",
   "function rounds(uint256 roundId) view returns (uint256 budget, uint64 snapshotBlock, uint64 startedAt, uint64 endsAt, uint256 totalVotes, uint256 proposalCount, bool finalized)",
   "function proposals(uint256 roundId, uint256 proposalId) view returns (address proposer, address recipient, bytes32 metadataHash, uint256 votes, uint256 allocation, bool claimed)",
 ]);
 
+export const kolRegistryAbi = parseAbi([
+  "function register(address wallet, bytes32 handleHash, uint256 deadline, bytes sig)",
+  "function unregister()",
+  "function handleOf(address wallet) view returns (bytes32)",
+  "error SignatureExpired(uint256 deadline)",
+  "error DigestAlreadyUsed()",
+  "error InvalidAttesterSignature(address recovered)",
+  "error HandleAlreadyBound(bytes32 handleHash, address existingWallet)",
+]);
+
 export const governorAbi = parseAbi([
   "function castVote(uint256 proposalId, uint8 support) returns (uint256)",
   "function castVoteWithReason(uint256 proposalId, uint8 support, string reason) returns (uint256)",
   "function state(uint256 proposalId) view returns (uint8)",
+  "function proposalVotes(uint256 proposalId) view returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes)",
+  "function proposalSnapshot(uint256 proposalId) view returns (uint256)",
+  "function proposalDeadline(uint256 proposalId) view returns (uint256)",
+  "function proposalEta(uint256 proposalId) view returns (uint256)",
+  "function quorum(uint256 timepoint) view returns (uint256)",
+  "function clock() view returns (uint48)",
+  "function CLOCK_MODE() view returns (string)",
+  "function propose(address[] targets, uint256[] values, bytes[] calldatas, string description) returns (uint256)",
+  "function queue(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) returns (uint256)",
+  "function execute(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) payable returns (uint256)",
+  "error GovernorNonexistentProposal(uint256 proposalId)",
 ]);
 
 export function getActiveChainId(): SupportedChainId {

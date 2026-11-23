@@ -45,6 +45,7 @@ export const narrativeMarketEventsAbi = parseAbi([
 export const feeRouterEventsAbi = parseAbi([
   "event FeesDistributed(uint256 totalDistributed, uint256 buybackShare, uint256 stakingShare, uint256 grantsShare, uint256 insuranceShare)",
   "event BuybackExecuted(address indexed adapter, uint256 ethIn, uint256 ntiBurned)",
+  "event BasketFeeRedeemed(address indexed basket, uint256 shares, uint256 ethOut)",
 ]);
 
 export const basketFactoryEventsAbi = parseAbi([
@@ -52,6 +53,9 @@ export const basketFactoryEventsAbi = parseAbi([
 ]);
 
 export const basketEventsAbi = parseAbi([
+  "event TokenWhitelisted(address indexed token, address indexed pool, uint24 fee)",
+  "event TokenDelisted(address indexed token)",
+  "event AllocationSet(address[] tokens, uint16[] weightsBps)",
   "event Deposited(address indexed account, uint256 ethIn, uint256 addedNav, uint256 sharesMinted)",
   "event Redeemed(address indexed account, uint256 sharesBurned, uint256 ethOut)",
   "event Rebalanced(address[] tokens, uint16[] weightsBps, uint256 navBefore, uint256 navAfter)",
@@ -69,6 +73,7 @@ export const grantsEventsAbi = parseAbi([
 export const governorEventsAbi = parseAbi([
   "event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)",
   "event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason)",
+  "event VoteCastWithParams(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason, bytes params)",
   "event ProposalQueued(uint256 proposalId, uint256 etaSeconds)",
   "event ProposalExecuted(uint256 proposalId)",
   "event ProposalCanceled(uint256 proposalId)",

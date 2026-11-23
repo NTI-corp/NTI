@@ -3,14 +3,67 @@
 from __future__ import annotations
 
 import json
+import os
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from errno import EACCES, EAGAIN, EDEADLK
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 
 
 class AccountPoolExhaustedError(RuntimeError):
     """Raised when no unlocked, non-rate-limited account under daily cap remains."""
+
+
+class FileLockBusyError(RuntimeError):
+    """Another process holds the advisory lock."""
+
+
+@contextmanager
+def locked_file(path: Path, *, timeout: float = 10) -> Iterator[None]:
+    """Hold a process-owned lock on a stable inode, including across atomic replacement."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + timeout
+    with path.open("a+b") as stream:
+        while True:
+            try:
+                if os.name == "nt":
+                    import msvcrt
+
+                    stream.seek(0)
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError as exc:
+                if exc.errno not in {EACCES, EAGAIN, EDEADLK}:
+                    raise
+                if time.monotonic() >= deadline:
+                    raise FileLockBusyError(f"Lock already held: {path}") from exc
+                time.sleep(0.025)
+        yield
+
+
+def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with NamedTemporaryFile(
+        mode="w", encoding="utf-8", dir=path.parent, delete=False,
+    ) as stream:
+        temporary = Path(stream.name)
+        try:
+            json.dump(payload, stream, sort_keys=True)
+            stream.flush()
+            os.fsync(stream.fileno())
+            stream.close()
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +85,15 @@ class AccountPool:
         daily_limit: int = 800,
     ) -> None:
         self._pools = {k: list(v) for k, v in pools.items()}
+        names = [a.username.casefold() for accounts in self._pools.values() for a in accounts]
+        if len(names) != len(set(names)):
+            raise ValueError("X accounts must be unique across primary and validator pools")
+        self._pools.update({
+            f"validator_{i}": [account]
+            for i, account in enumerate(self._pools.get("validator", []))
+        })
+        if not 1 <= daily_limit <= 800:
+            raise ValueError("The X daily request limit must be between 1 and 800")
         self._state_path = state_path
         self._daily_limit = daily_limit
         self._cursors: dict[str, int] = {k: 0 for k in self._pools}
@@ -39,7 +101,6 @@ class AccountPool:
         self._cooldown_until: dict[str, float] = {}
         # { "YYYY-MM-DD": { username: count } }
         self._daily_counts: dict[str, dict[str, int]] = {}
-        self._load_state()
 
     @classmethod
     def from_file(
@@ -48,7 +109,8 @@ class AccountPool:
         state_path: str | Path | None = None,
         daily_limit: int = 800,
     ) -> AccountPool:
-        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        path = Path(path)
+        raw = json.loads(path.read_text(encoding="utf-8"))
         pools: dict[str, list[XAccount]] = {}
 
         lanes_raw = raw.get("lanes")
@@ -102,15 +164,19 @@ class AccountPool:
 
         return cls(
             pools=pools,
-            state_path=Path(state_path) if state_path is not None else None,
+            state_path=Path(state_path) if state_path is not None else
+            path.resolve().parent.parent / "data/state/x_budget.json",
             daily_limit=daily_limit,
         )
 
     def lane_accounts(self, lane: int) -> list[XAccount]:
-        return list(self._pools.get(f"lane_{lane}", []))
+        return self.accounts_for(f"lane_{lane}")
 
     def validator_accounts(self) -> list[XAccount]:
-        return list(self._pools.get("validator", []))
+        return self.accounts_for("validator")
+
+    def accounts_for(self, pool_key: str) -> list[XAccount]:
+        return list(self._pools.get(pool_key, []))
 
     @staticmethod
     def _day_key(now: datetime | None) -> str:
@@ -119,14 +185,23 @@ class AccountPool:
 
     def daily_count(self, username: str, now: datetime | None = None) -> int:
         day = self._day_key(now)
-        return self._daily_counts.get(day, {}).get(username, 0)
+        with self._state():
+            return self._daily_counts.get(day, {}).get(username.casefold(), 0)
 
     def record_request(self, username: str, count: int = 1, now: datetime | None = None) -> int:
-        day = self._day_key(now)
-        day_map = self._daily_counts.setdefault(day, {})
-        day_map[username] = day_map.get(username, 0) + count
-        self._save_state()
-        return day_map[username]
+        """Reserve attempts before sending. An uncertain send still consumes its reservation."""
+        username = username.casefold()
+        now = now or datetime.now(UTC)
+        if count < 1:
+            raise ValueError("The number of X requests must be positive")
+        with self._state():
+            day_map = self._daily_counts.setdefault(self._day_key(now), {})
+            new_count = day_map.get(username, 0) + count
+            if not self._is_available(username, now) or new_count > self._daily_limit:
+                raise AccountPoolExhaustedError("X account is unavailable for another request")
+            day_map[username] = new_count
+            self._save_state()
+            return new_count
 
     def mark_rate_limited(
         self,
@@ -135,21 +210,35 @@ class AccountPool:
         now: datetime | None = None,
     ) -> None:
         ts = now or datetime.now(UTC)
-        self._cooldown_until[username] = (ts + timedelta(seconds=cooldown_seconds)).timestamp()
-        self._save_state()
+        username = username.casefold()
+        end = (ts + timedelta(seconds=cooldown_seconds)).timestamp()
+        with self._state():
+            self._cooldown_until[username] = max(self._cooldown_until.get(username, 0), end)
+            self._save_state()
 
     def mark_locked(self, username: str) -> None:
-        self._locked.add(username)
-        self._save_state()
+        with self._state():
+            self._locked.add(username.casefold())
+            self._save_state()
 
     def is_available(self, username: str, now: datetime | None = None) -> bool:
+        with self._state():
+            return self._is_available(username.casefold(), now or datetime.now(UTC))
+
+    def _is_available(self, username: str, now: datetime) -> bool:
         if username in self._locked:
             return False
-        if self.daily_count(username, now=now) >= self._daily_limit:
+        if self._daily_counts.get(self._day_key(now), {}).get(username, 0) >= self._daily_limit:
             return False
-        ts = (now or datetime.now(UTC)).timestamp()
-        until = self._cooldown_until.get(username, 0.0)
-        return ts >= until
+        return now.timestamp() >= self._cooldown_until.get(username, 0.0)
+
+    def available_names(self, pool_key: str) -> list[str]:
+        now = datetime.now(UTC)
+        with self._state():
+            return [
+                account.username for account in self.accounts_for(pool_key)
+                if self._is_available(account.username.casefold(), now)
+            ]
 
     def acquire(self, pool_key: str, now: datetime | None = None) -> XAccount:
         accounts = self._pools.get(pool_key, [])
@@ -157,12 +246,14 @@ class AccountPool:
             raise AccountPoolExhaustedError(f"No accounts configured for pool {pool_key}")
 
         start = self._cursors.get(pool_key, 0) % len(accounts)
-        for offset in range(len(accounts)):
-            idx = (start + offset) % len(accounts)
-            candidate = accounts[idx]
-            if self.is_available(candidate.username, now=now):
-                self._cursors[pool_key] = (idx + 1) % len(accounts)
-                return candidate
+        now = now or datetime.now(UTC)
+        with self._state():
+            for offset in range(len(accounts)):
+                idx = (start + offset) % len(accounts)
+                candidate = accounts[idx]
+                if self._is_available(candidate.username.casefold(), now):
+                    self._cursors[pool_key] = (idx + 1) % len(accounts)
+                    return candidate
 
         raise AccountPoolExhaustedError(f"All accounts exhausted in pool {pool_key}")
 
@@ -173,32 +264,42 @@ class AccountPool:
     ) -> list[tuple[str, int]]:
         cutoff = int(self._daily_limit * threshold_ratio)
         day = self._day_key(now)
-        day_map = self._daily_counts.get(day, {})
-        return sorted((u, c) for u, c in day_map.items() if c >= cutoff)
+        with self._state():
+            day_map = self._daily_counts.get(day, {})
+            return sorted((u, c) for u, c in day_map.items() if c >= cutoff)
 
     def locked_accounts(self) -> set[str]:
-        return set(self._locked)
+        with self._state():
+            return set(self._locked)
+
+    @contextmanager
+    def _state(self) -> Iterator[None]:
+        if self._state_path is None:
+            yield
+            return
+        with locked_file(self._state_path.with_suffix(self._state_path.suffix + ".lock")):
+            self._load_state()
+            yield
 
     def _load_state(self) -> None:
         if self._state_path is None or not self._state_path.exists():
             return
         data: dict[str, Any] = json.loads(self._state_path.read_text(encoding="utf-8"))
         self._daily_counts = {
-            str(day): {str(u): int(c) for u, c in counts.items()}
+            str(day): {str(u).casefold(): int(c) for u, c in counts.items()}
             for day, counts in data.get("daily_counts", {}).items()
         }
-        self._locked = set(data.get("locked", []))
+        self._locked = {str(u).casefold() for u in data.get("locked", [])}
         self._cooldown_until = {
-            str(u): float(ts) for u, ts in data.get("cooldown_until", {}).items()
+            str(u).casefold(): float(ts) for u, ts in data.get("cooldown_until", {}).items()
         }
 
     def _save_state(self) -> None:
         if self._state_path is None:
             return
-        self._state_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "daily_counts": self._daily_counts,
             "locked": sorted(self._locked),
             "cooldown_until": self._cooldown_until,
         }
-        self._state_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        atomic_write_json(self._state_path, payload)

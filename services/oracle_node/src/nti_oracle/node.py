@@ -81,6 +81,7 @@ class CommitPayload:
     max_operator_delta_bps: int
     attestations: tuple[SignedAttestation, ...]
     epoch_result: EpochResult
+    input_post_count: int = 0
 
 
 class ValidatorNode:
@@ -116,6 +117,13 @@ class ValidatorNode:
         prev_commit_hash: str,
     ) -> ValidationDecision:
         header, _, delta_posts, _, chain_hash = parse_delta_blob(delta_blob)
+        if header.previous_state is not None and header.previous_state != prev_state:
+            raise ConsensusError("Archived previous state differs from validator replay state")
+        if header.provenance is not None:
+            from nti_engine.calc import ENGINE_VERSION
+
+            if header.provenance.get("engine_version") != ENGINE_VERSION:
+                raise ConsensusError("Dataset requires a different deterministic engine version")
 
         if chain_hash.lower() != expected_dataset_hash.lower():
             return ValidationDecision(
@@ -258,6 +266,8 @@ class OperatorNode:
         prev_commit_hash: str,
         validators: Sequence[ValidatorNode],
         a_max: Decimal | None = None,
+        observation_cutoff_unix: int | None = None,
+        provenance: dict | None = None,
     ) -> CommitPayload:
         config_hash = self._cfg.config_hash()
         artifact = build_delta_dataset(
@@ -270,6 +280,9 @@ class OperatorNode:
             prev_dataset_hash=prev_dataset_hash,
             prev_arweave_tx=prev_arweave_tx,
             a_max=a_max,
+            observation_cutoff_unix=observation_cutoff_unix,
+            provenance=provenance,
+            previous_state=prev_state if provenance is not None else None,
         )
         arweave_tx = await self._uploader.upload(epoch_id, artifact.chain_hash, artifact.gzipped)
 
@@ -338,6 +351,7 @@ class OperatorNode:
             max_operator_delta_bps=op_delta,
             attestations=tuple(valid_atts),
             epoch_result=op_result,
+            input_post_count=len(reconstructed.posts),
         )
 
 
