@@ -28,8 +28,8 @@ contract SeedTestnetDiscovery is Script {
         }
         uint256 narrative = vm.envUint("DISCOVERY_TESTNET_NARRATIVE_ID");
         require(narrative > 0 && narrative <= 32, "invalid narrative id");
-        uint256 liquidity = vm.envOr("DISCOVERY_TESTNET_LIQUIDITY_WEI", uint256(1 ether));
-        require(liquidity >= 1 ether, "Radar and Heatmap require at least 1 test ETH");
+        uint256 liquidity = vm.envOr("DISCOVERY_TESTNET_LIQUIDITY_WEI", uint256(0.0003 ether));
+        require(liquidity > 0, "liquidity must be positive");
         uint256 trade = vm.envOr("DISCOVERY_TESTNET_TRADE_WEI", uint256(0.00001 ether));
         string memory name = vm.envOr("DISCOVERY_TESTNET_TOKEN_NAME", string("Fixture"));
         string memory symbol = vm.envOr("DISCOVERY_TESTNET_TOKEN_SYMBOL", string("tNTI"));
