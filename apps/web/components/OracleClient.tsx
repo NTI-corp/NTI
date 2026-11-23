@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { formatEther, keccak256, stringToBytes } from "viem";
 import { useAccount, useReadContract } from "wagmi";
 import { TxStatusBanner } from "@/components/TxStatusBanner";
+import { ModalShell } from "@/components/ui/ModalShell";
 import { EpochTimeline, ValidatorSpread } from "@/components/ui/Visuals";
 import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
 import {
@@ -532,125 +533,131 @@ export function OracleClient({ initial }: OracleClientProps) {
       )}
 
       {/* Open Dispute Modal */}
-      {disputeModalOpen && (
-        <div
-          className="modal-backdrop-enter fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="modal-card-enter w-full max-w-md border border-[#26262A] bg-[#161618] p-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#26262A] pb-3">
-              <h3 className="text-sm font-semibold text-[#EF4444]">
+      <ModalShell
+        open={disputeModalOpen}
+        onClose={() => setDisputeModalOpen(false)}
+        canClose={!isBusy}
+        labelledBy="nti-dispute-modal-title"
+      >
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-3 border-b border-[#26262A] pb-3">
+            <div>
+              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#EF4444]">
+                ORACLE CHALLENGE
+              </span>
+              <h3 id="nti-dispute-modal-title" className="mt-0.5 text-sm font-semibold text-[#F5F5F7]">
                 Open Oracle Dispute · Epoch #{detail.epoch.epochId}
               </h3>
-              <button
-                type="button"
-                onClick={() => setDisputeModalOpen(false)}
-                className="border border-[#26262A] bg-[#111113] px-2 py-0.5 font-mono text-[11px] text-[#71717A] hover:text-[#F5F5F7]"
-              >
-                ESC
-              </button>
             </div>
-            <p className="mt-2.5 text-xs leading-relaxed text-[#71717A]">
-              Locks {formatCompactNumber(bondNti)} $NTI bond. If validators confirm &gt;100 bps deviation, bond returns plus slashing reward; otherwise 50% is burned and 50% goes to validators.
-            </p>
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => setDisputeModalOpen(false)}
+              aria-label="Close dispute modal"
+              className="shrink-0 cursor-pointer border border-[#26262A] bg-[#0D0D0E] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA] transition-colors hover:border-[#3A3A40] hover:text-[#F5F5F7] disabled:opacity-40"
+            >
+              ESC
+            </button>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-[#A1A1AA]">
+            Locks {formatCompactNumber(bondNti)} $NTI bond. If validators confirm &gt;100 bps deviation, bond returns plus slashing reward; otherwise 50% is burned and 50% goes to validators.
+          </p>
 
-            {/* Bond Balance & Allowance Check */}
-            <div className="mt-3 border border-[#26262A] bg-[#111113] p-2.5 font-mono text-[11px] tabular-nums">
-              <div className="flex justify-between">
-                <span className="text-[#71717A]">$NTI Balance</span>
-                <span className={hasEnoughBalance ? "text-[#4ADE80]" : "text-[#EF4444]"}>
-                  {isConnected
-                    ? `${formatCompactNumber(Math.floor(Number(formatEther(balanceWei))))} / ${formatCompactNumber(bondNti)} $NTI`
-                    : "Not connected"}
-                </span>
-              </div>
-              <div className="mt-1 flex justify-between">
-                <span className="text-[#71717A]">Dispute Allowance</span>
-                <span className={!needsApproval ? "text-[#4ADE80]" : "text-[#F59E0B]"}>
-                  {needsApproval ? "Approval required" : "Approved"}
-                </span>
-              </div>
+          {/* Bond Balance & Allowance Check */}
+          <div className="mt-3 border border-[#26262A] bg-[#0D0D0E] p-3 font-mono text-[11px] tabular-nums">
+            <div className="flex justify-between">
+              <span className="text-[#71717A]">$NTI Balance</span>
+              <span className={hasEnoughBalance ? "text-[#4ADE80]" : "text-[#EF4444]"}>
+                {isConnected
+                  ? `${formatCompactNumber(Math.floor(Number(formatEther(balanceWei))))} / ${formatCompactNumber(bondNti)} $NTI`
+                  : "Not connected"}
+              </span>
             </div>
-
-            <div className="mt-3 space-y-3">
-              <div>
-                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
-                  Disputed Narrative
-                </label>
-                <select
-                  value={disputeNarrativeId}
-                  onChange={(e) => setDisputeNarrativeId(Number(e.target.value))}
-                  className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
-                >
-                  {NARRATIVES.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      #{n.id} {n.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
-                  Claimed True I_n (0..10000 bps)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="10000"
-                  value={claimedIBps}
-                  onChange={(e) => setClaimedIBps(e.target.value)}
-                  className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
-                  Evidence Hash (0x + 64 hex) or Replay URI
-                </label>
-                <input
-                  type="text"
-                  placeholder="0x... or Arweave replay URI"
-                  value={evidenceNote}
-                  onChange={(e) => setEvidenceNote(e.target.value)}
-                  className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
-                />
-              </div>
-
-              {validationError && (
-                <div className="border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
-                  {validationError}
-                </div>
-              )}
-
-              <TxStatusBanner state={txState} explorerBase={explorerBase} onDismiss={resetTx} />
-
-              {needsApproval ? (
-                <button
-                  type="button"
-                  disabled={isBusy || !isConnected || !hasEnoughBalance}
-                  onClick={() => void handleApproveBond()}
-                  className="w-full bg-[#CCFF00] py-2.5 font-mono text-xs font-semibold text-[#0D0D0E] transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {!isConnected
-                    ? "CONNECT WALLET TO APPROVE"
-                    : !hasEnoughBalance
-                      ? `NEED ${formatCompactNumber(bondNti)} $NTI`
-                      : `1. APPROVE ${formatCompactNumber(bondNti)} $NTI BOND`}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={isBusy || !isConnected || !hasEnoughBalance}
-                  onClick={() => void handleOpenDispute()}
-                  className="w-full border border-[#EF4444]/50 bg-[#EF4444]/15 py-2.5 font-mono text-xs font-semibold text-[#EF4444] transition-colors hover:bg-[#EF4444]/25 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  2. LOCK {formatCompactNumber(bondNti)} $NTI &amp; OPEN DISPUTE
-                </button>
-              )}
+            <div className="mt-1.5 flex justify-between">
+              <span className="text-[#71717A]">Dispute Allowance</span>
+              <span className={!needsApproval ? "text-[#4ADE80]" : "text-[#F59E0B]"}>
+                {needsApproval ? "Approval required" : "Approved"}
+              </span>
             </div>
           </div>
+
+          <div className="mt-3 space-y-3">
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+                Disputed Narrative
+              </label>
+              <select
+                value={disputeNarrativeId}
+                onChange={(e) => setDisputeNarrativeId(Number(e.target.value))}
+                className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
+              >
+                {NARRATIVES.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    #{n.id} {n.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+                Claimed True I_n (0..10000 bps)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="10000"
+                value={claimedIBps}
+                onChange={(e) => setClaimedIBps(e.target.value)}
+                className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] focus:border-[#CCFF00] focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
+                Evidence Hash (0x + 64 hex) or Replay URI
+              </label>
+              <input
+                type="text"
+                placeholder="0x... or Arweave replay URI"
+                value={evidenceNote}
+                onChange={(e) => setEvidenceNote(e.target.value)}
+                className="mt-1 w-full border border-[#26262A] bg-[#0D0D0E] px-3 py-2 font-mono text-xs text-[#F5F5F7] placeholder-[#52525B] focus:border-[#CCFF00] focus:outline-none"
+              />
+            </div>
+
+            {validationError && (
+              <div className="border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
+                {validationError}
+              </div>
+            )}
+
+            <TxStatusBanner state={txState} explorerBase={explorerBase} onDismiss={resetTx} />
+
+            {needsApproval ? (
+              <button
+                type="button"
+                disabled={isBusy || !isConnected || !hasEnoughBalance}
+                onClick={() => void handleApproveBond()}
+                className="w-full cursor-pointer bg-[#CCFF00] py-2.5 font-mono text-xs font-semibold text-[#0D0D0E] transition-colors hover:bg-[#B8E600] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {!isConnected
+                  ? "CONNECT WALLET TO APPROVE"
+                  : !hasEnoughBalance
+                    ? `NEED ${formatCompactNumber(bondNti)} $NTI`
+                    : `1. APPROVE ${formatCompactNumber(bondNti)} $NTI BOND`}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={isBusy || !isConnected || !hasEnoughBalance}
+                onClick={() => void handleOpenDispute()}
+                className="w-full cursor-pointer border border-[#EF4444]/50 bg-[#EF4444]/15 py-2.5 font-mono text-xs font-semibold text-[#EF4444] transition-colors hover:bg-[#EF4444]/25 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                2. LOCK {formatCompactNumber(bondNti)} $NTI &amp; OPEN DISPUTE
+              </button>
+            )}
+          </div>
         </div>
-      )}
+      </ModalShell>
     </div>
   );
 }

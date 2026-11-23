@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { encodeFunctionData, formatEther, parseEther } from "viem";
 import { useAccount, useBalance, usePublicClient, useReadContract } from "wagmi";
 import { TxStatusBanner } from "@/components/TxStatusBanner";
+import { ModalShell } from "@/components/ui/ModalShell";
 import {
   estimateTxGas,
   getActiveChainId,
@@ -54,6 +55,11 @@ export function BetModal({
   const [amountInput, setAmountInput] = useState("0.01");
   const [gasEstimate, setGasEstimate] = useState<GasEstimateDisplay | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSide(initialSide);
+    setValidationError(null);
+  }, [market.marketId, initialSide]);
 
   const { data: ethBalanceData, refetch: refetchBalance } = useBalance({
     address,
@@ -187,10 +193,10 @@ export function BetModal({
   };
 
   const content = (
-    <div className="border border-[#26262A] bg-[#161618] p-4 shadow-2xl">
-      <div className="mb-3 flex items-center justify-between border-b border-[#26262A] pb-3">
-        <div>
-          <h3 className="text-sm font-semibold text-[#F5F5F7]">
+    <div className={embedded ? "border border-[#26262A] bg-[#161618] p-4" : "p-5"}>
+      <div className="mb-3 flex items-start justify-between gap-3 border-b border-[#26262A] pb-3">
+        <div className="min-w-0">
+          <h3 id={`bet-modal-title-${market.marketId}`} className="text-sm font-semibold text-[#F5F5F7]">
             Place Parimutuel Bet · Market #{market.marketId}
           </h3>
           <p className="mt-0.5 font-mono text-[11px] text-[#71717A]">
@@ -200,8 +206,10 @@ export function BetModal({
         {onClose && (
           <button
             type="button"
+            disabled={isBusy}
             onClick={onClose}
-            className="border border-[#26262A] bg-[#111113] px-2 py-1 font-mono text-[11px] text-[#71717A] hover:text-[#F5F5F7]"
+            aria-label="Close bet modal"
+            className="shrink-0 cursor-pointer border border-[#26262A] bg-[#0D0D0E] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA] transition-colors hover:border-[#3A3A40] hover:text-[#F5F5F7] disabled:opacity-40"
           >
             ESC
           </button>
@@ -386,12 +394,13 @@ export function BetModal({
   if (embedded) return content;
 
   return (
-    <div
-      className="modal-backdrop-enter fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
+    <ModalShell
+      open
+      onClose={() => onClose?.()}
+      canClose={!isBusy}
+      labelledBy={`bet-modal-title-${market.marketId}`}
     >
-      <div className="modal-card-enter w-full max-w-md">{content}</div>
-    </div>
+      {content}
+    </ModalShell>
   );
 }
