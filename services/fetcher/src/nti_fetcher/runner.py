@@ -27,12 +27,22 @@ class CycleLockedError(RuntimeError):
 class CycleLock:
     """Cross-platform atomic lockfile preventing overlapping fetch cycles."""
 
-    def __init__(self, lock_path: str | Path) -> None:
+    def __init__(self, lock_path: str | Path, stale_seconds: int = 2700) -> None:
         self.lock_path = Path(lock_path)
+        self._stale_seconds = stale_seconds
         self._acquired = False
+
+    def _reap_if_stale(self) -> None:
+        try:
+            age = datetime.now(UTC).timestamp() - self.lock_path.stat().st_mtime
+            if age > self._stale_seconds:
+                self.lock_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     def acquire(self) -> None:
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+        self._reap_if_stale()
         flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
         try:
             fd = os.open(str(self.lock_path), flags)
@@ -161,6 +171,7 @@ class FetchRunner:
         failover_threshold: float = 0.10,
         incomplete_threshold: float = 0.01,
         rng_seed: int | None = None,
+        max_kols: int | None = None,
     ) -> None:
         self._primary = primary
         self._fallback = fallback
@@ -174,6 +185,7 @@ class FetchRunner:
         self._failover_threshold = failover_threshold
         self._incomplete_threshold = incomplete_threshold
         self._rng = random.Random(rng_seed)
+        self._max_kols = max_kols
 
     @staticmethod
     def eligible_kols(kols: Sequence[KolProfile], epoch_id: int) -> list[KolProfile]:
@@ -303,6 +315,8 @@ class FetchRunner:
             epoch_dir.mkdir(parents=True, exist_ok=True)
 
             eligible = self.eligible_kols(kols, epoch_id)
+            if self._max_kols is not None and self._max_kols > 0:
+                eligible = eligible[: self._max_kols]
             partitions: list[list[KolProfile]] = [[] for _ in range(self._num_lanes)]
             for idx, kol in enumerate(eligible):
                 partitions[idx % self._num_lanes].append(kol)

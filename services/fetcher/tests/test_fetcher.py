@@ -319,6 +319,19 @@ async def test_runner_tiered_polling_and_3_page_60_post_cap(tmp_path: Path) -> N
         epoch_id=4,
     )
     assert [k.handle for k in prioritized] == ["t1_top", "t1_low", "t2_big"]
+
+    # Stale lockfile auto-recovery prevents deadlock after OOM/crash
+    from nti_fetcher.runner import CycleLock
+
+    stale_lock = tmp_path / "stale.lock"
+    stale_lock.write_text('{"pid": 999999}', encoding="utf-8")
+    old_ts = datetime.now(UTC).timestamp() - 3600
+    import os as _os
+
+    _os.utime(stale_lock, (old_ts, old_ts))
+    with CycleLock(stale_lock, stale_seconds=1800):
+        assert stale_lock.exists()
+    assert not stale_lock.exists()
     # 3 pages x 20 fetched = 60 raw posts; 1 post after boundary dropped -> 59 eligible
     assert res.total_posts == 59
     assert 9999 not in {p.tweet_id for p in res.posts}

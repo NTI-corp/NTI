@@ -50,7 +50,8 @@ async def _load_kols_from_supabase(storage: SupabaseStorage) -> list[KolProfile]
         "kols",
         columns="user_id,handle,followers,h_k,r_k,poll_tier,active",
         filters={"active": "eq.true"},
-        order="user_id.asc",
+        order="followers.desc",
+        limit=2000,
     )
     return [
         KolProfile(
@@ -207,6 +208,7 @@ async def _main_async(args: argparse.Namespace) -> int:
 
     out_dir = args.output_dir if args.output_dir.is_absolute() else (REPO_ROOT / args.output_dir)
     lock_file = args.lock_path if args.lock_path.is_absolute() else (REPO_ROOT / args.lock_path)
+    max_kols = int(os.environ.get("FETCHER_MAX_KOLS_PER_CYCLE", "120"))
     runner = FetchRunner(
         primary=primary,
         fallback=fallback,
@@ -214,6 +216,7 @@ async def _main_async(args: argparse.Namespace) -> int:
         lock_path=lock_file,
         page_limit=60,
         max_pages=1,
+        max_kols=max_kols,
     )
     result = await runner.run_cycle(epoch_id=epoch_id, boundary=boundary, kols=kols)
 

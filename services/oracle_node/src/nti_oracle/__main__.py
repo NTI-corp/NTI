@@ -97,9 +97,10 @@ def _parse_dt_unix(iso_str: str) -> int:
 async def _load_active_kols(storage: SupabaseStorage) -> list[KolProfile]:
     rows = await storage.select(
         "kols",
-        columns="user_id,handle,followers,h_k,poll_tier,active",
+        columns="user_id,handle,followers,h_k,r_k,poll_tier,active",
         filters={"active": "eq.true"},
-        order="user_id.asc",
+        order="followers.desc",
+        limit=2000,
     )
     return [
         KolProfile(
@@ -107,6 +108,7 @@ async def _load_active_kols(storage: SupabaseStorage) -> list[KolProfile]:
             handle=str(r["handle"]),
             followers=int(r.get("followers", 0)),
             h_k=int(r.get("h_k", 1)),
+            r_k=Decimal(str(r.get("r_k", "1"))),
             poll_tier=int(r.get("poll_tier", 1)),
             active=bool(r.get("active", True)),
         )
@@ -158,10 +160,14 @@ async def _ensure_classified_posts(
         else 0
     )
     if not post_rows or last_fetch_unix < boundary_unix:
+        max_kols = int(os.environ.get("FETCHER_MAX_KOLS_PER_CYCLE", "120"))
         runner = FetchRunner(
             primary=source,
             output_dir=REPO_ROOT / "data" / "snapshots",
             lock_path=REPO_ROOT / "data" / "state" / "oracle_fetch.lock",
+            page_limit=60,
+            max_pages=1,
+            max_kols=max_kols,
         )
         fetch_res = await runner.run_cycle(
             epoch_id=epoch_id,
