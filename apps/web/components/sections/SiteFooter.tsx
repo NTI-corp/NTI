@@ -87,32 +87,12 @@ export function SiteFooter() {
               {/* Brand Column */}
               <div className="flex flex-col gap-[0.9em]">
                 <a href="/" className="inline-flex items-center gap-[0.6em] group w-fit">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 32 32"
-                    fill="none"
-                    aria-hidden="true"
-                    className="h-[1.85em] w-[1.85em] shrink-0"
-                  >
-                    <rect
-                      x="1"
-                      y="1"
-                      width="30"
-                      height="30"
-                      rx="6"
-                      fill="#131518"
-                      stroke="#343940"
-                      strokeWidth="1.5"
-                    />
-                    <path
-                      d="M7.5 21.5L13 12.5L17.5 17.5L24.5 9.5"
-                      stroke="#FFFFFF"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <circle cx="24.5" cy="9.5" r="2.3" fill="#CCFF00" />
-                  </svg>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/nti-logo.png"
+                    alt="NTI"
+                    className="h-[1.95em] w-[1.95em] shrink-0 object-contain"
+                  />
                   <span className="text-[1.25em] font-semibold tracking-[-0.03em] text-white group-hover:text-[#CCFF00] transition-colors leading-none">
                     NTI
                   </span>

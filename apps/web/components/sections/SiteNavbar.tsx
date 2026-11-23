@@ -427,32 +427,12 @@ export function SiteNavbar() {
               }}
               className="flex items-center gap-[0.55em] shrink-0 h-[2em] md:h-[2.063em]"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 32 32"
-                fill="none"
-                aria-hidden="true"
-                className="h-[1.65em] w-[1.65em] shrink-0"
-              >
-                <rect
-                  x="1"
-                  y="1"
-                  width="30"
-                  height="30"
-                  rx="6"
-                  fill="#0B0D12"
-                  stroke="#343940"
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M7.5 21.5L13 12.5L17.5 17.5L24.5 9.5"
-                  stroke="#FFFFFF"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="24.5" cy="9.5" r="2.3" fill="#CCFF00" />
-              </svg>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/nti-logo.png"
+                alt="NTI"
+                className="h-[1.75em] w-[1.75em] shrink-0 object-contain"
+              />
               <span className="text-[1.15em] font-semibold tracking-[-0.03em] text-white leading-none">
                 NTI
               </span>

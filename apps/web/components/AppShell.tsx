@@ -246,7 +246,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }`}
       >
         <Link href="/" className="inline-flex items-center gap-2.5 text-[#F5F5F7]" aria-label="NTI home">
-          <NtiBrandMark className="h-6 w-6 shrink-0" />
+          <NtiBrandMark className="h-7 w-7 shrink-0" />
           {!rail && (
             <span className="leading-none">
               <span className="block text-[15px] font-semibold tracking-[-0.03em] text-[#F5F5F7]">
