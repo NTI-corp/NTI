@@ -152,22 +152,24 @@ class GeminiAdapter:
 
 
 class MiMoAdapter:
-    """Fallback classifier adapter using OpenAI-compatible /chat/completions with thinking off."""
+    """Primary classifier adapter using Xiaomi MiMo OpenAI-compatible /chat/completions with thinking off."""
 
     def __init__(
         self,
         api_key: str | None = None,
         base_url: str | None = None,
-        model: str = "mimo-v2.5",
+        model: str | None = None,
         client: httpx.AsyncClient | None = None,
-        timeout: float = 60.0,
+        timeout: float = 120.0,
     ) -> None:
         self._api_key = api_key or os.environ.get("MIMO_API_KEY", "")
         self._base_url = (
-            base_url or os.environ.get("MIMO_API_BASE_URL", "https://api.xiaomimimo.com/v1")
+            base_url
+            or os.environ.get("MIMO_API_BASE_URL")
+            or "https://token-plan-sgp.xiaomimimo.com/v1"
         ).rstrip("/")
-        self._model = model
-        self.version = model
+        self._model = model or os.environ.get("MIMO_MODEL", "mimo-v2.6-pro")
+        self.version = self._model
         self._client = client
         self._timeout = timeout
 
@@ -188,14 +190,31 @@ class MiMoAdapter:
                 {"role": "user", "content": _format_user_payload(batch)},
             ],
         }
-        if self._client is not None:
-            resp = await self._client.post(url, headers=headers, json=payload)
-        else:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.post(url, headers=headers, json=payload)
+        resp: httpx.Response | None = None
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                if self._client is not None:
+                    resp = await self._client.post(url, headers=headers, json=payload)
+                else:
+                    async with httpx.AsyncClient(timeout=self._timeout) as client:
+                        resp = await client.post(url, headers=headers, json=payload)
+                last_exc = None
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                last_exc = exc
+                resp = None
+                if attempt == 2:
+                    break
+                await asyncio.sleep(1.0 * (attempt + 1))
+                continue
+            if resp.status_code not in (500, 502, 503, 504) or attempt == 2:
+                break
+            await asyncio.sleep(1.0 * (attempt + 1))
 
-        if resp.status_code == 429:
-            raise RateLimitError(f"MiMo HTTP 429 rate limit: {resp.text}")
+        if resp is None:
+            raise RateLimitError(f"MiMo transport/timeout after retries: {last_exc}")
+        if resp.status_code in (429, 503):
+            raise RateLimitError(f"MiMo HTTP {resp.status_code} rate/capacity limit: {resp.text}")
         if resp.status_code >= 400:
             raise InvalidResponseError(f"MiMo HTTP {resp.status_code}: {resp.text}")
 

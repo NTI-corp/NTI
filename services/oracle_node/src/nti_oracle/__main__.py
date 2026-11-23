@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from eth_account import Account
-from nti_classifier.adapters import GeminiAdapter
+from nti_classifier.adapters import MiMoAdapter
 from nti_classifier.pipeline import ClassifierPipeline, load_prompt_spec
 from nti_classifier.protocol import PostIn
 from nti_core.config import NTIConfig, load_config
@@ -268,16 +268,15 @@ async def _ensure_classified_posts(
         if int(r["tweet_id"]) not in q_by_tid and r.get("body")
     ]
 
-    model_name = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
-    fallback_model = os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-3.1-flash-lite")
+    model_name = os.environ.get("MIMO_MODEL", "mimo-v2.6-pro")
+    mimo_base = os.environ.get("MIMO_API_BASE_URL") or "https://token-plan-sgp.xiaomimimo.com/v1"
     if unclassified:
-        gemini_key = os.environ.get("GEMINI_API_KEY", "")
-        primary = GeminiAdapter(api_key=gemini_key, model=model_name)
-        fallback = GeminiAdapter(api_key=gemini_key, model=fallback_model)
+        mimo_key = os.environ.get("MIMO_API_KEY", "")
+        primary = MiMoAdapter(api_key=mimo_key, base_url=mimo_base, model=model_name)
         eff_batch = min(cfg.classifier.batch_size, 40)
         pipeline = ClassifierPipeline(
             primary=primary,
-            fallback=fallback,
+            fallback=None,
             batch_size=eff_batch,
         )
         spec = load_prompt_spec(
@@ -302,7 +301,7 @@ async def _ensure_classified_posts(
             [
                 {
                     "epoch_id": epoch_id,
-                    "provider": "gemini",
+                    "provider": "mimo",
                     "model_version": cls_out.run_record.model_version,
                     "prompt_version": spec.version,
                     "batch_size": cfg.classifier.batch_size,

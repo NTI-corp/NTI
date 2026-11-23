@@ -112,10 +112,10 @@ async def test_mimo_adapter_openai_compatible_with_thinking_disabled() -> None:
         adapter = MiMoAdapter(
             api_key="mimo-key", base_url="https://api.mimo.example/v1", client=client
         )
-        assert "mimo-v2.5" in adapter.version
+        assert "mimo-v2.6-pro" in adapter.version
         res = await adapter.classify([PostIn(2001, "bob", "zk privacy")], spec)
         assert len(res) == 1 and res[0].q[1] == pytest.approx(0.85)
-        assert captured_body["model"] == "mimo-v2.5"
+        assert captured_body["model"] == "mimo-v2.6-pro"
         assert captured_body["temperature"] == 0
         assert captured_body["thinking"] == {"type": "disabled"}
 
