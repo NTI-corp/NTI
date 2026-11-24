@@ -21,7 +21,8 @@ module.exports = {
       cwd: "/home/ubuntu/apps/nti/services",
       script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
       args: "uv run python -m nti_fetcher",
-      cron_restart: "0 */4 * * *",
+      // Aligned to UTC 4h epoch boundaries (00,04,08,12,16,20 UTC) on WIB (UTC+7) VPS.
+      cron_restart: "0 3,7,11,15,19,23 * * *",
       autorestart: false,
       max_memory_restart: "256M",
       env: {
@@ -48,7 +49,8 @@ module.exports = {
       cwd: "/home/ubuntu/apps/nti/services",
       script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
       args: "uv run python -m nti_oracle --role validator",
-      cron_restart: "28 1,5,9,13,17,21 * * *",
+      // Idempotent: exits early when already attested. Every 20m keeps attestations timezone-independent.
+      cron_restart: "15,35,55 * * * *",
       autorestart: false,
       max_memory_restart: "200M",
       env: {
