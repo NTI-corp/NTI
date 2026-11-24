@@ -28,6 +28,8 @@ from nti_oracle.keeper_tasks import (
     accrue_basket_fees,
     distribute_fees,
     manage_grant_round,
+    rebalance_baskets,
+    redeem_basket_fees,
     run_buyback,
     settle_markets,
     sync_radar_alerts,
@@ -356,15 +358,22 @@ async def _run_keeper_tasks(
     oracle: OracleCommitClient,
     keeper_key: str,
 ) -> list[dict[str, Any]]:
-    """Market settlement, fee split, buyback, grant rounds and Radar alerts (each isolated)."""
+    """Run the guarded market, basket, fee, buyback, grant and Radar maintenance cycle."""
     dep = _load_deployment(args.chain_id)
     rpc_url = _rpc_url_for_chain(args.chain_id)
+    chain_state = await oracle.read_state()
+    chain_timestamp = chain_state.block_timestamp
+
+    def at_address(addr: str) -> OracleCommitClient:
+        if not addr or int(addr, 16) == 0:
+            raise ValueError("Cannot construct a contract client for the zero address")
+        return OracleCommitClient(rpc_url=rpc_url, contract_address=addr, chain_id=args.chain_id)
 
     def at(name: str) -> OracleCommitClient | None:
         addr = dep.get(name, "")
         if not addr or int(addr, 16) == 0:
             return None
-        return OracleCommitClient(rpc_url=rpc_url, contract_address=addr, chain_id=args.chain_id)
+        return at_address(addr)
 
     market, fee_router, registry, grants = (
         at("narrativeMarket"),
@@ -381,6 +390,35 @@ async def _run_keeper_tasks(
                 lambda: settle_markets(market, oracle, private_key=keeper_key),
             )
         )
+    basket_factory = at("basketFactory")
+    if basket_factory is not None:
+        results.append(
+            await _guard(
+                "accrue_basket_fees",
+                lambda: accrue_basket_fees(
+                    basket_factory,
+                    at_address,
+                    private_key=keeper_key,
+                    now=chain_timestamp,
+                ),
+            )
+        )
+        if fee_router is not None and dep.get("weth"):
+            results.append(
+                await _guard(
+                    "redeem_basket_fees",
+                    lambda: redeem_basket_fees(
+                        basket_factory,
+                        fee_router,
+                        at_address,
+                        fee_router_address=dep["feeRouter"],
+                        weth_address=dep["weth"],
+                        private_key=keeper_key,
+                        now=chain_timestamp,
+                    ),
+                )
+            )
+
     if fee_router is not None:
         results.append(
             await _guard(
@@ -392,9 +430,44 @@ async def _run_keeper_tasks(
             results.append(
                 await _guard(
                     "buyback",
-                    lambda: run_buyback(fee_router, registry, private_key=keeper_key),
+                    lambda: run_buyback(
+                        fee_router,
+                        registry,
+                        private_key=keeper_key,
+                        at_address=at_address,
+                        deployment=dep,
+                        v4_pools_json=os.environ.get("BUYBACK_V4_POOLS_JSON"),
+                        now=chain_timestamp,
+                    ),
                 )
             )
+
+    if basket_factory is not None and dep.get("weth"):
+        allocation_index: dict[int, int] | None = None
+        if chain_state.latest_final_epoch > 0:
+            final_rows = await storage.select(
+                "narrative_epoch",
+                columns="narrative_id,i_bps",
+                filters={"epoch_id": f"eq.{chain_state.latest_final_epoch}"},
+                order="narrative_id.asc",
+            )
+            candidate = {int(row["narrative_id"]): int(row["i_bps"]) for row in final_rows}
+            if len(candidate) == 10 and sum(candidate.values()) == 10_000:
+                allocation_index = candidate
+        results.append(
+            await _guard(
+                "rebalance_baskets",
+                lambda: rebalance_baskets(
+                    basket_factory,
+                    at_address,
+                    weth_address=dep["weth"],
+                    private_key=keeper_key,
+                    now=chain_timestamp,
+                    allocation_index=allocation_index,
+                ),
+            )
+        )
+
     if grants is not None:
         grants_addr = dep["grants"]
 
@@ -405,23 +478,10 @@ async def _run_keeper_tasks(
                 private_key=keeper_key,
                 grants_balance_wei=bal,
                 round_seconds=int(os.environ.get("GRANT_ROUND_SECONDS", 14 * 24 * 3600)),
+                now=chain_timestamp,
             )
 
         results.append(await _guard("grant_round", _grants))
-    basket_factory = at("basketFactory")
-    if basket_factory is not None:
-        results.append(
-            await _guard(
-                "accrue_basket_fees",
-                lambda: accrue_basket_fees(
-                    basket_factory,
-                    lambda addr: OracleCommitClient(
-                        rpc_url=rpc_url, contract_address=addr, chain_id=args.chain_id
-                    ),
-                    private_key=keeper_key,
-                ),
-            )
-        )
     results.append(await _guard("radar_alerts", lambda: sync_radar_alerts(storage)))
     return results
 
