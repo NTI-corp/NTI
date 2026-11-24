@@ -88,6 +88,29 @@ def _parse_dt_unix(iso_str: str) -> int:
     return int(datetime.fromisoformat(cleaned).timestamp())
 
 
+def _due_operator_epoch(
+    block_timestamp: int,
+    genesis_timestamp: int,
+    epoch_seconds: int,
+    commit_delay: int,
+    last_processed_epoch: int,
+    ready_fetch_epochs: set[int],
+) -> int | None:
+    """Return the earliest mature epoch with usable fetch evidence."""
+    mature_epoch = max(
+        0,
+        (block_timestamp - genesis_timestamp - commit_delay) // epoch_seconds,
+    )
+    if mature_epoch <= last_processed_epoch:
+        return None
+    candidates = (
+        epoch
+        for epoch in ready_fetch_epochs
+        if last_processed_epoch < epoch <= mature_epoch
+    )
+    return min(candidates, default=None)
+
+
 async def _load_active_kols(storage: SupabaseStorage) -> list[KolProfile]:
     rows = await storage.select(
         "kols",
@@ -144,12 +167,54 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
     )
     state = await client.read_state()
 
-    target_epoch = (
-        args.epoch
-        if args.epoch is not None
-        else (state.block_timestamp - state.genesis_timestamp - await client.get_commit_delay())
-        // cfg.epoch_seconds
-    )
+    if args.epoch is not None:
+        target_epoch = args.epoch
+    else:
+        from nti_oracle.operator import FetchEvidenceError, require_complete_fetch_evidence
+
+        commit_delay = await client.get_commit_delay()
+        mature_epoch = max(
+            0,
+            (state.block_timestamp - state.genesis_timestamp - commit_delay)
+            // cfg.epoch_seconds,
+        )
+        if mature_epoch <= state.last_processed_epoch:
+            target_epoch = state.last_processed_epoch
+        else:
+            ready_epochs: set[int] = set()
+            min_success_ratio = float(os.environ.get("FETCHER_MIN_SUCCESS_RATIO", "0.95"))
+            for epoch_id in range(state.last_processed_epoch + 1, mature_epoch + 1):
+                epoch_start = state.genesis_timestamp + epoch_id * cfg.epoch_seconds
+                try:
+                    await require_complete_fetch_evidence(
+                        storage=storage,
+                        epoch_id=epoch_id,
+                        epoch_start=epoch_start,
+                        now=state.block_timestamp,
+                        freshness_seconds=cfg.epoch_seconds,
+                        expected_due_user_ids=None,
+                        min_success_ratio=min_success_ratio,
+                    )
+                except FetchEvidenceError:
+                    continue
+                ready_epochs.add(epoch_id)
+                break
+            target_epoch = _due_operator_epoch(
+                state.block_timestamp,
+                state.genesis_timestamp,
+                cfg.epoch_seconds,
+                commit_delay,
+                state.last_processed_epoch,
+                ready_epochs,
+            )
+            if target_epoch is None:
+                return {
+                    "role": "operator",
+                    "status": "waiting_for_fresh_fetch_evidence",
+                    "mature_epoch": mature_epoch,
+                    "last_processed_epoch": state.last_processed_epoch,
+                    "latest_final_epoch": state.latest_final_epoch,
+                }
     if target_epoch <= state.last_processed_epoch:
         return {
             "role": "operator",

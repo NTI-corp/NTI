@@ -15,7 +15,6 @@ from nti_engine.calc import ENGINE_VERSION
 from nti_engine.models import EngineKol
 from nti_fetcher.accounts import AccountPool
 from nti_fetcher.adapters import TwscrapeSource
-from nti_fetcher.runner import FetchRunner, stagger_tiers_enabled
 from nti_fetcher.storage import SupabaseStorage
 
 from nti_oracle.archive import load_archive_chain, normalize_hash
@@ -32,6 +31,10 @@ from nti_oracle.live_inputs import prepare_engine_posts
 from nti_oracle.node import CommitPayload, OperatorNode, ValidatorNode
 
 
+class FetchEvidenceError(RuntimeError):
+    """The target epoch has no usable, complete fetch-cycle evidence."""
+
+
 async def require_complete_fetch_evidence(
     *,
     storage: SupabaseStorage,
@@ -39,7 +42,7 @@ async def require_complete_fetch_evidence(
     epoch_start: int,
     now: int,
     freshness_seconds: int,
-    expected_due_user_ids: set[int],
+    expected_due_user_ids: set[int] | None,
     min_success_ratio: float = 0.95,
 ) -> dict[str, Any]:
     """Fail closed unless the target epoch has a recent, complete scrape run."""
@@ -54,10 +57,10 @@ async def require_complete_fetch_evidence(
         limit=1,
     )
     if not rows:
-        raise RuntimeError(f"No persisted fetch-cycle evidence for epoch {epoch_id}")
+        raise FetchEvidenceError(f"No persisted fetch-cycle evidence for epoch {epoch_id}")
     run = rows[0]
     if run.get("status") != "collecting":
-        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} is not complete")
+        raise FetchEvidenceError(f"Fetch cycle for epoch {epoch_id} is not complete")
     try:
         started = int(
             datetime.fromisoformat(str(run["started_at"]).replace("Z", "+00:00")).timestamp()
@@ -68,29 +71,60 @@ async def require_complete_fetch_evidence(
         eligible = int(run["total_eligible"])
         ok = int(run["accounts_ok"])
         failed = int(run["accounts_failed"])
-        due = {int(value) for value in run["due_user_ids"]}
+        due_values = [int(value) for value in run["due_user_ids"]]
+        due = set(due_values)
         omitted = {int(value) for value in (run.get("omitted_user_ids") or [])}
     except (KeyError, TypeError, ValueError) as exc:
-        raise RuntimeError(f"Malformed fetch-cycle evidence for epoch {epoch_id}") from exc
+        raise FetchEvidenceError(f"Malformed fetch-cycle evidence for epoch {epoch_id}") from exc
     if not run.get("manifest_sha256"):
-        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} has no manifest digest")
-    if due != expected_due_user_ids:
-        raise RuntimeError(
+        raise FetchEvidenceError(f"Fetch cycle for epoch {epoch_id} has no manifest digest")
+    if len(due_values) != len(due):
+        raise FetchEvidenceError(f"Fetch cycle for epoch {epoch_id} contains duplicate due KOL IDs")
+    if expected_due_user_ids is not None and due != expected_due_user_ids:
+        raise FetchEvidenceError(
             f"Fetch cycle for epoch {epoch_id} does not match expected KOL schedule"
         )
     if now - finished > freshness_seconds:
-        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} is stale")
+        raise FetchEvidenceError(f"Fetch cycle for epoch {epoch_id} is stale")
     if started < epoch_start or finished < started or finished > now:
-        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} is outside the current epoch")
+        raise FetchEvidenceError(f"Fetch cycle for epoch {epoch_id} is outside the current epoch")
     if eligible != len(due) or due & omitted or omitted or ok + failed != eligible:
-        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} omitted or lost eligible accounts")
+        raise FetchEvidenceError(
+            f"Fetch cycle for epoch {epoch_id} omitted or lost eligible accounts"
+        )
     success_ratio = (ok / eligible) if eligible else 1.0
     if success_ratio < min_success_ratio:
-        raise RuntimeError(
+        raise FetchEvidenceError(
             f"Fetch cycle for epoch {epoch_id} success ratio {success_ratio:.1%} "
             f"is below {min_success_ratio:.0%}"
         )
     return run
+
+
+def kols_for_fetch_snapshot(
+    kols: list[KolProfile],
+    *,
+    due_user_ids: list[int],
+) -> list[KolProfile]:
+    """Use captured fetch order and only profiles still active at commit time."""
+    active_by_id = {profile.user_id: profile for profile in kols if profile.active}
+    return [
+        active_by_id[user_id]
+        for user_id in due_user_ids
+        if user_id in active_by_id
+    ]
+
+
+def engine_kols_for_fetch_snapshot(
+    kols: list[KolProfile],
+    *,
+    due_user_ids: list[int],
+) -> list[EngineKol]:
+    """Build the engine population from the same captured fetch-cycle cohort."""
+    return [
+        EngineKol(profile.user_id, profile.followers, profile.h_k, profile.r_k)
+        for profile in kols_for_fetch_snapshot(kols, due_user_ids=due_user_ids)
+    ]
 
 
 async def prepare_commit(
@@ -107,24 +141,27 @@ async def prepare_commit(
 ) -> tuple[CommitPayload, str]:
     boundary = state.genesis_timestamp + epoch_id * cfg.epoch_seconds
     cutoff = min(state.block_timestamp, boundary + (cfg.observation_window_seconds or 0))
-    kol_profiles = FetchRunner.eligible_kols(
-        kols,
-        epoch_id,
-        stagger_tiers=stagger_tiers_enabled(),
-    )
-    await require_complete_fetch_evidence(
+    fetch_evidence = await require_complete_fetch_evidence(
         storage=storage,
         epoch_id=epoch_id,
         epoch_start=boundary,
         now=state.block_timestamp,
         freshness_seconds=cfg.epoch_seconds,
-        expected_due_user_ids={kol.user_id for kol in kol_profiles},
+        expected_due_user_ids=None,
         min_success_ratio=float(os.environ.get("FETCHER_MIN_SUCCESS_RATIO", "0.95")),
+    )
+    snapshot_kols = kols_for_fetch_snapshot(
+        kols,
+        due_user_ids=[int(value) for value in fetch_evidence["due_user_ids"]],
+    )
+    snapshot_engine_kols = engine_kols_for_fetch_snapshot(
+        kols,
+        due_user_ids=[int(value) for value in fetch_evidence["due_user_ids"]],
     )
     posts, model = await prepare_engine_posts(
         storage=storage,
         cfg=cfg,
-        kols=kols,
+        kols=snapshot_kols,
         epoch_id=epoch_id,
         boundary_unix=boundary,
         observation_cutoff_unix=cutoff,
@@ -249,8 +286,8 @@ async def prepare_commit(
         epoch_id=epoch_id,
         boundary_unix=boundary,
         series_id=series_id,
-        kols=[EngineKol(k.user_id, k.followers, k.h_k, k.r_k) for k in kols],
-        kol_profiles=kol_profiles,
+        kols=snapshot_engine_kols,
+        kol_profiles=snapshot_kols,
         delta_posts=delta_posts,
         prev_deltas=blobs,
         prev_state=prev_state,

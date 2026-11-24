@@ -61,6 +61,7 @@ async def test_commit_requires_fresh_complete_fetch_cycle_for_exact_epoch():
         ({**valid, "status": "incomplete"}, "not complete"),
         ({**valid, "omitted_user_ids": [99]}, "omitted or lost"),
         ({**valid, "due_user_ids": list(range(1, 101))}, "does not match expected KOL schedule"),
+        ({**valid, "due_user_ids": list(range(100)) + [99]}, "duplicate"),
         ({**valid, "accounts_ok": 94, "accounts_failed": 6}, "below 95%"),
         (
             {
@@ -90,6 +91,128 @@ async def test_commit_requires_fresh_complete_fetch_cycle_for_exact_epoch():
             freshness_seconds=14_400,
             expected_due_user_ids=set(range(100)),
         )
+
+
+@pytest.mark.asyncio
+async def test_fetch_snapshot_remains_authoritative_after_kol_schedule_changes():
+    from nti_oracle.operator import require_complete_fetch_evidence
+
+    now = int(datetime(2026, 11, 24, 12, tzinfo=UTC).timestamp())
+    run = {
+        "run_id": "run-snapshot",
+        "epoch_id": 100,
+        "status": "collecting",
+        "started_at": datetime.fromtimestamp(now - 120, UTC).isoformat(),
+        "finished_at": datetime.fromtimestamp(now - 60, UTC).isoformat(),
+        "total_eligible": 2,
+        "accounts_ok": 2,
+        "accounts_failed": 0,
+        "due_user_ids": [1, 3],
+        "omitted_user_ids": [],
+        "manifest_sha256": "b" * 64,
+    }
+
+    class Storage:
+        async def select(self, table, **kwargs):
+            return [run]
+
+    accepted = await require_complete_fetch_evidence(
+        storage=Storage(),
+        epoch_id=100,
+        epoch_start=now - 600,
+        now=now,
+        freshness_seconds=14_400,
+        expected_due_user_ids=None,
+    )
+    assert accepted["due_user_ids"] == [1, 3]
+
+
+def test_scoring_kols_use_the_fetch_cycle_schedule_snapshot():
+    from nti_oracle.operator import engine_kols_for_fetch_snapshot, kols_for_fetch_snapshot
+
+    profiles = [
+        KolProfile(user_id=1, handle="existing", followers=100, poll_tier=1),
+        KolProfile(user_id=2, handle="newly-active", followers=90, poll_tier=1),
+        KolProfile(user_id=3, handle="existing-tier-two", followers=80, poll_tier=2),
+        KolProfile(user_id=4, handle="inactive", followers=70, poll_tier=1, active=False),
+    ]
+
+    selected = kols_for_fetch_snapshot(profiles, due_user_ids=[1, 3, 999, 4])
+
+    assert [profile.user_id for profile in selected] == [1, 3]
+    engine_kols = engine_kols_for_fetch_snapshot(profiles, due_user_ids=[1, 3, 999, 4])
+    assert [kol.user_id for kol in engine_kols] == [1, 3]
+
+
+@pytest.mark.asyncio
+async def test_engine_input_excludes_kol_added_after_fetch_cycle(monkeypatch):
+    from nti_oracle.live_inputs import prepare_engine_posts
+    from nti_oracle.operator import kols_for_fetch_snapshot
+
+    cfg = load_config(Path(__file__).resolve().parents[3] / "config/nti.v1.json")
+    boundary = 100 * cfg.epoch_seconds
+    timestamp = datetime.fromtimestamp(boundary - 100, UTC).isoformat()
+    fetched_at = datetime.fromtimestamp(boundary + 100, UTC).isoformat()
+    monkeypatch.setenv("MIMO_MODEL", "mimo-v2.6-pro")
+    monkeypatch.setenv("CLASSIFIER_PROMPT_VERSION", "v2")
+
+    class Storage:
+        async def select(self, table, **kwargs):
+            if table == "posts":
+                return [
+                    {"tweet_id": 11, "user_id": 1, "created_at": timestamp, "body": "snapshot"},
+                    {"tweet_id": 22, "user_id": 2, "created_at": timestamp, "body": "new"},
+                ]
+            if table == "post_engagement":
+                return [
+                    {
+                        "tweet_id": 11, "likes": 10, "reposts": 1, "quotes": 0,
+                        "replies": 0, "fetched_at": fetched_at,
+                    },
+                    {
+                        "tweet_id": 22, "likes": 20, "reposts": 2, "quotes": 0,
+                        "replies": 0, "fetched_at": fetched_at,
+                    },
+                ]
+            if table == "classifications":
+                return [
+                    {"tweet_id": 11, "model_version": "mimo-v2.6-pro", "q": {"1": "1"}},
+                    {"tweet_id": 22, "model_version": "mimo-v2.6-pro", "q": {"1": "1"}},
+                ]
+            raise AssertionError(f"Unexpected table {table}")
+
+    profiles = [
+        KolProfile(user_id=1, handle="snapshot", followers=100),
+        KolProfile(user_id=2, handle="newly-active", followers=90),
+    ]
+    snapshot_profiles = kols_for_fetch_snapshot(profiles, due_user_ids=[1])
+
+    posts, _ = await prepare_engine_posts(
+        storage=Storage(),
+        cfg=cfg,
+        kols=snapshot_profiles,
+        epoch_id=100,
+        boundary_unix=boundary,
+        observation_cutoff_unix=boundary + 300,
+        repo_root=Path(__file__).resolve().parents[3],
+    )
+
+    assert [post.tweet_id for post in posts] == [11]
+
+
+def test_operator_targets_the_first_mature_epoch_with_fresh_fetch_evidence():
+    from nti_oracle.__main__ import _due_operator_epoch
+
+    assert _due_operator_epoch(12_000, 0, 100, 0, 98, {99, 100}) == 99
+    assert _due_operator_epoch(12_000, 0, 100, 0, 98, {100}) == 100
+    assert _due_operator_epoch(12_000, 0, 100, 0, 98, set()) is None
+    assert _due_operator_epoch(12_000, 0, 100, 0, 120, {121}) is None
+
+
+def test_operator_does_not_target_an_epoch_before_commit_delay():
+    from nti_oracle.__main__ import _due_operator_epoch
+
+    assert _due_operator_epoch(10_050, 0, 100, 100, 99, {100}) is None
 
 
 def test_observation_cutoff_preserves_true_metric_times_without_admitting_future_posts():
