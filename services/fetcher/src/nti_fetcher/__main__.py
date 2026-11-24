@@ -288,6 +288,7 @@ async def _main_async(args: argparse.Namespace) -> int:
     lock_file = args.lock_path if args.lock_path.is_absolute() else (REPO_ROOT / args.lock_path)
     max_kols = int(os.environ.get("FETCHER_MAX_KOLS_PER_CYCLE", "0"))
     max_cooldown_wait = float(os.environ.get("FETCHER_MAX_COOLDOWN_WAIT_SECONDS", "960.0"))
+    stagger_tiers = os.environ.get("FETCHER_STAGGER_TIERS", "1") != "0"
     runner = FetchRunner(
         primary=primary,
         fallback=fallback,
@@ -298,6 +299,7 @@ async def _main_async(args: argparse.Namespace) -> int:
         max_pages=1,
         max_kols=max_kols,
         max_cooldown_wait_seconds=max_cooldown_wait,
+        stagger_tiers=stagger_tiers,
     )
     result = await runner.run_cycle(epoch_id=epoch_id, boundary=boundary, kols=kols)
 

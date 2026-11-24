@@ -173,6 +173,7 @@ class FetchRunner:
         rng_seed: int | None = None,
         max_kols: int | None = None,
         max_cooldown_wait_seconds: float = 0.0,
+        stagger_tiers: bool = False,
     ) -> None:
         self._primary = primary
         self._fallback = fallback
@@ -188,11 +189,23 @@ class FetchRunner:
         self._rng = random.Random(rng_seed)
         self._max_kols = max_kols
         self._max_cooldown_wait_seconds = max_cooldown_wait_seconds
+        self._stagger_tiers = stagger_tiers
 
     @staticmethod
-    def eligible_kols(kols: Sequence[KolProfile], epoch_id: int) -> list[KolProfile]:
+    def eligible_kols(
+        kols: Sequence[KolProfile],
+        epoch_id: int,
+        *,
+        stagger_tiers: bool = False,
+    ) -> list[KolProfile]:
         """Return active KOLs due this epoch, ordered by tier then authority (followers * r_k)."""
-        due = [k for k in kols if k.active and k.poll_tier > 0 and (epoch_id % k.poll_tier == 0)]
+        due = [
+            k
+            for k in kols
+            if k.active
+            and k.poll_tier > 0
+            and (((epoch_id + (k.user_id if stagger_tiers else 0)) % k.poll_tier) == 0)
+        ]
         return sorted(
             due,
             key=lambda k: (k.poll_tier, -(k.followers * float(k.r_k)), k.user_id),
@@ -229,7 +242,7 @@ class FetchRunner:
                 pool_key = getattr(source, "_pool_key", None)
                 if (
                     self._max_cooldown_wait_seconds > 0
-                    and cooldown_waits < 6
+                    and cooldown_waits < 10
                     and pool_ref is not None
                     and pool_key is not None
                     and hasattr(pool_ref, "seconds_until_available")
@@ -360,7 +373,7 @@ class FetchRunner:
             epoch_dir = self._output_dir / str(epoch_id)
             epoch_dir.mkdir(parents=True, exist_ok=True)
 
-            due = self.eligible_kols(kols, epoch_id)
+            due = self.eligible_kols(kols, epoch_id, stagger_tiers=self._stagger_tiers)
             if self._max_kols is not None and self._max_kols > 0:
                 eligible = due[: self._max_kols]
                 omitted = due[self._max_kols :]
@@ -368,8 +381,17 @@ class FetchRunner:
                 eligible = due
                 omitted = []
             partitions: list[list[KolProfile]] = [[] for _ in range(self._num_lanes)]
+            pool_ref = getattr(self._primary, "_account_pool", None)
+            weights = [
+                max(1, len(pool_ref.accounts_for(f"lane_{i}")))
+                if (pool_ref is not None and hasattr(pool_ref, "accounts_for"))
+                else 1
+                for i in range(self._num_lanes)
+            ]
+            # Weighted round-robin so a 3:3:2 account split gets 37.5%:37.5%:25% of KOLs
+            slot_order = [lane_id for lane_id, w in enumerate(weights) for _ in range(w)]
             for idx, kol in enumerate(eligible):
-                partitions[idx % self._num_lanes].append(kol)
+                partitions[slot_order[idx % len(slot_order)]].append(kol)
 
             since_map = since_ids or {}
             tasks = [

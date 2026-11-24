@@ -234,3 +234,16 @@ async def test_runner_waits_out_temporary_rate_limit_cooldown_for_zero_failures(
     assert result.total_ok == 1
     assert result.total_failed == 0
     assert result.status == EpochStatus.COLLECTING
+
+
+def test_stagger_tiers_spreads_tier4_evenly_across_four_epochs() -> None:
+    kols = [
+        KolProfile(user_id=100 + i, handle=f"k{i}", followers=10_000, poll_tier=4)
+        for i in range(40)
+    ]
+    seen: set[int] = set()
+    for ep in range(100, 104):
+        due = FetchRunner.eligible_kols(kols, ep, stagger_tiers=True)
+        assert len(due) == 10
+        seen.update(k.user_id for k in due)
+    assert len(seen) == 40
