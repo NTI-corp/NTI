@@ -99,6 +99,7 @@ class AccountPool:
         self._cursors: dict[str, int] = {k: 0 for k in self._pools}
         self._locked: set[str] = set()
         self._cooldown_until: dict[str, float] = {}
+        self._next_request_at: dict[str, float] = {}
         # { "YYYY-MM-DD": { username: count } }
         self._daily_counts: dict[str, dict[str, int]] = {}
 
@@ -203,6 +204,23 @@ class AccountPool:
             self._save_state()
             return new_count
 
+    def reserve_request_slot(
+        self,
+        username: str,
+        min_interval_seconds: float,
+        now: datetime | None = None,
+    ) -> float:
+        """Reserve a serialized request slot and return seconds to wait before sending."""
+        username = username.casefold()
+        if min_interval_seconds < 0:
+            raise ValueError("The minimum X request interval cannot be negative")
+        now_ts = (now or datetime.now(UTC)).timestamp()
+        with self._state():
+            scheduled_at = max(now_ts, self._next_request_at.get(username, 0.0))
+            self._next_request_at[username] = scheduled_at + min_interval_seconds
+            self._save_state()
+            return max(0.0, scheduled_at - now_ts)
+
     def mark_rate_limited(
         self,
         username: str,
@@ -239,6 +257,33 @@ class AccountPool:
                 account.username for account in self.accounts_for(pool_key)
                 if self._is_available(account.username.casefold(), now)
             ]
+
+    def seconds_until_available(
+        self,
+        pool_key: str,
+        now: datetime | None = None,
+    ) -> float | None:
+        """Seconds until any non-locked, under-daily-cap account exits cooldown; None if none."""
+        accounts = self._pools.get(pool_key, [])
+        if not accounts:
+            return None
+        ts = now or datetime.now(UTC)
+        now_ts = ts.timestamp()
+        day = self._day_key(ts)
+        waits: list[float] = []
+        with self._state():
+            day_map = self._daily_counts.get(day, {})
+            for account in accounts:
+                uname = account.username.casefold()
+                if uname in self._locked:
+                    continue
+                if day_map.get(uname, 0) >= self._daily_limit:
+                    continue
+                until = self._cooldown_until.get(uname, 0.0)
+                if now_ts >= until:
+                    return 0.0
+                waits.append(until - now_ts)
+        return min(waits) if waits else None
 
     def acquire(self, pool_key: str, now: datetime | None = None) -> XAccount:
         accounts = self._pools.get(pool_key, [])
@@ -293,6 +338,9 @@ class AccountPool:
         self._cooldown_until = {
             str(u).casefold(): float(ts) for u, ts in data.get("cooldown_until", {}).items()
         }
+        self._next_request_at = {
+            str(u).casefold(): float(ts) for u, ts in data.get("next_request_at", {}).items()
+        }
 
     def _save_state(self) -> None:
         if self._state_path is None:
@@ -301,5 +349,6 @@ class AccountPool:
             "daily_counts": self._daily_counts,
             "locked": sorted(self._locked),
             "cooldown_until": self._cooldown_until,
+            "next_request_at": self._next_request_at,
         }
         atomic_write_json(self._state_path, payload)

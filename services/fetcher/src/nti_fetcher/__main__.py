@@ -59,6 +59,13 @@ def _fetch_jitter_range() -> tuple[float, float]:
     return minimum, maximum
 
 
+def _request_min_interval_seconds() -> float:
+    interval = float(os.environ.get("X_REQUEST_MIN_INTERVAL_SECONDS", "20"))
+    if interval < 0:
+        raise ValueError("X request minimum interval cannot be negative")
+    return interval
+
+
 async def _read_oracle_genesis(chain_id: int) -> int:
     """Read the deployed oracle genesis; epoch IDs are relative to it, not Unix zero."""
     manifest_path = REPO_ROOT / "contracts" / "deployments" / f"{chain_id}.json"
@@ -267,7 +274,11 @@ async def _main_async(args: argparse.Namespace) -> int:
     pool = AccountPool.from_file(accounts_path) if accounts_path.exists() else None
     db_path = _resolve_repo_path(args.db)
 
-    primary = TwscrapeSource(db_path=db_path, account_pool=pool)
+    primary = TwscrapeSource(
+        db_path=db_path,
+        account_pool=pool,
+        request_min_interval_seconds=_request_min_interval_seconds(),
+    )
     fallback_url = os.environ.get("X_HTTP_FALLBACK_URL")
     fallback = (
         HttpFallbackSource(base_url=fallback_url, account_pool=pool) if fallback_url else None
@@ -276,6 +287,7 @@ async def _main_async(args: argparse.Namespace) -> int:
     out_dir = args.output_dir if args.output_dir.is_absolute() else (REPO_ROOT / args.output_dir)
     lock_file = args.lock_path if args.lock_path.is_absolute() else (REPO_ROOT / args.lock_path)
     max_kols = int(os.environ.get("FETCHER_MAX_KOLS_PER_CYCLE", "0"))
+    max_cooldown_wait = float(os.environ.get("FETCHER_MAX_COOLDOWN_WAIT_SECONDS", "960.0"))
     runner = FetchRunner(
         primary=primary,
         fallback=fallback,
@@ -285,6 +297,7 @@ async def _main_async(args: argparse.Namespace) -> int:
         page_limit=60,
         max_pages=1,
         max_kols=max_kols,
+        max_cooldown_wait_seconds=max_cooldown_wait,
     )
     result = await runner.run_cycle(epoch_id=epoch_id, boundary=boundary, kols=kols)
 

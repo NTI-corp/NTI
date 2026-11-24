@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -42,11 +43,15 @@ class TwscrapeSource:
         account_pool: AccountPool | None = None,
         pool_key: str = "lane_0",
         api: Any | None = None,
+        request_min_interval_seconds: float = 0.0,
     ) -> None:
+        if request_min_interval_seconds < 0:
+            raise ValueError("The minimum X request interval cannot be negative")
         self._db_path = str(db_path)
         self._account_pool = account_pool
         self._pool_key = pool_key
         self._api = api
+        self._request_min_interval_seconds = request_min_interval_seconds
 
     def _ensure_api(self) -> Any:
         if self._api is None:
@@ -83,6 +88,8 @@ class TwscrapeSource:
         pool_key = self._pool_key
         tw_pool = api.pool
 
+        request_min_interval_seconds = self._request_min_interval_seconds
+
         class _BudgetedClient:
             def __init__(self, inner: Any, username: str) -> None:
                 self._inner = inner
@@ -92,6 +99,12 @@ class TwscrapeSource:
                 return getattr(self._inner, name)
 
             async def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                wait_seconds = acct_pool.reserve_request_slot(
+                    self._username,
+                    request_min_interval_seconds,
+                )
+                if wait_seconds > 0:
+                    await asyncio.sleep(wait_seconds)
                 acct_pool.record_request(self._username)
                 rep = await self._inner.request(method, url, **kwargs)
                 if getattr(rep, "status_code", None) == 429:

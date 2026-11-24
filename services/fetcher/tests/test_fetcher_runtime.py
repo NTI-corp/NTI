@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -34,7 +35,11 @@ async def seed_accounts(db: Path, names: list[str]) -> None:
         await pool.add_account(name, "", "", "", cookies=f"auth_token={name}; ct0=fixture")
 
 
-def mock_x(monkeypatch: pytest.MonkeyPatch, status_codes: dict[str, list[int]]) -> list[str]:
+def mock_x(
+    monkeypatch: pytest.MonkeyPatch,
+    status_codes: dict[str, list[int]],
+    request_times: list[float] | None = None,
+) -> list[str]:
     attempts: list[str] = []
 
     class TransactionId:
@@ -52,6 +57,8 @@ def mock_x(monkeypatch: pytest.MonkeyPatch, status_codes: dict[str, list[int]]) 
 
         async def request(self, method: str, url: str, **kwargs: Any) -> Response:
             attempts.append(self.username)
+            if request_times is not None:
+                request_times.append(time.monotonic())
             status = status_codes.get(self.username, [])
             code = status.pop(0) if status else 200
             return Response(httpx.Response(
@@ -105,12 +112,34 @@ async def test_real_twscrape_counts_404_retry_and_refuses_send_after_restart(
     src = TwscrapeSource(db, AccountPool.from_file(cfg, budget, daily_limit=2))
     assert await src.user_timeline(1, None) == []
     assert attempts == ["lane", "lane"]
-
     restarted_pool = AccountPool.from_file(cfg, budget, daily_limit=2)
     assert restarted_pool.daily_count("lane") == 2
     with pytest.raises(AccountPoolExhaustedError):
         await asyncio.wait_for(TwscrapeSource(db, restarted_pool).user_timeline(1, None), timeout=2)
     assert attempts == ["lane", "lane"]
+
+
+@pytest.mark.asyncio
+async def test_twscrape_spaces_real_requests_per_account(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = tmp_path / "accounts.db"
+    await seed_accounts(db, ["lane"])
+    cfg = account_file(tmp_path / "accounts.json", lane=["lane"], validators=[])
+    request_times: list[float] = []
+    attempts = mock_x(monkeypatch, {}, request_times)
+    src = TwscrapeSource(
+        db,
+        AccountPool.from_file(cfg, tmp_path / "budget.json"),
+        request_min_interval_seconds=0.03,
+    )
+
+    await src.user_timeline(1, None)
+    await src.user_timeline(2, None)
+
+    assert attempts == ["lane", "lane"]
+    assert len(request_times) == 2
+    assert request_times[1] - request_times[0] >= 0.025
 
 
 def test_concurrent_budget_instances_never_overwrite_or_exceed_the_shared_cap(
@@ -132,6 +161,20 @@ def test_concurrent_budget_instances_never_overwrite_or_exceed_the_shared_cap(
 
     assert sum(accepted) == 4
     assert AccountPool.from_file(cfg, state).daily_count("lane") == 4
+
+
+def test_request_spacing_is_shared_and_persists_across_pool_restarts(tmp_path: Path) -> None:
+    cfg = account_file(tmp_path / "accounts.json", lane=["lane"], validators=[])
+    state = tmp_path / "budget.json"
+    now = datetime(2026, 11, 24, 2, 0, tzinfo=UTC)
+    pool = AccountPool.from_file(cfg, state)
+
+    assert pool.reserve_request_slot("lane", 20, now) == 0
+    assert pool.reserve_request_slot("lane", 20, now) == 20
+
+    restarted = AccountPool.from_file(cfg, state)
+    assert restarted.reserve_request_slot("lane", 20, now) == 40
+    assert restarted.reserve_request_slot("lane", 20, now + timedelta(seconds=45)) == 15
 
 
 def test_stale_marker_cannot_unlock_an_active_collection(tmp_path: Path) -> None:
@@ -161,3 +204,33 @@ async def test_cycle_records_omitted_due_kols_as_incomplete(tmp_path: Path) -> N
     assert manifest["due_user_ids"] == [1, 2]
     assert manifest["omitted_user_ids"] == [2]
     assert manifest["total_eligible"] == 2
+
+
+@pytest.mark.asyncio
+async def test_runner_waits_out_temporary_rate_limit_cooldown_for_zero_failures(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = tmp_path / "accounts.db"
+    await seed_accounts(db, ["lane"])
+    cfg = account_file(tmp_path / "accounts.json", lane=["lane"], validators=[])
+    pool = AccountPool.from_file(cfg, state_path=tmp_path / "budget.json")
+    pool.mark_rate_limited("lane", cooldown_seconds=0.05)  # type: ignore[arg-type]
+    assert pool.seconds_until_available("lane_0") is not None
+
+    mock_x(monkeypatch, {"lane": [200]})
+    src = TwscrapeSource(db, pool, "lane_0", request_min_interval_seconds=0.0)
+    runner = FetchRunner(
+        primary=src,
+        output_dir=tmp_path / "snapshots",
+        lock_path=tmp_path / "fetcher.lock",
+        num_lanes=1,
+        jitter_range=(0.0, 0.0),
+        max_cooldown_wait_seconds=5.0,
+    )
+    boundary = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
+    result = await runner.run_cycle(
+        1, boundary, [KolProfile(user_id=1, handle="alpha", followers=5_000, poll_tier=1)]
+    )
+    assert result.total_ok == 1
+    assert result.total_failed == 0
+    assert result.status == EpochStatus.COLLECTING

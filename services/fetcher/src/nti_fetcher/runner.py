@@ -17,7 +17,7 @@ from typing import Any
 from nti_core.canonical import canonical_jsonl_bytes
 from nti_core.types import EpochStatus, KolProfile, RawPost
 
-from nti_fetcher.accounts import FileLockBusyError, locked_file
+from nti_fetcher.accounts import AccountPoolExhaustedError, FileLockBusyError, locked_file
 from nti_fetcher.protocol import PostSource
 
 
@@ -172,6 +172,7 @@ class FetchRunner:
         incomplete_threshold: float = 0.01,
         rng_seed: int | None = None,
         max_kols: int | None = None,
+        max_cooldown_wait_seconds: float = 0.0,
     ) -> None:
         self._primary = primary
         self._fallback = fallback
@@ -186,6 +187,7 @@ class FetchRunner:
         self._incomplete_threshold = incomplete_threshold
         self._rng = random.Random(rng_seed)
         self._max_kols = max_kols
+        self._max_cooldown_wait_seconds = max_cooldown_wait_seconds
 
     @staticmethod
     def eligible_kols(kols: Sequence[KolProfile], epoch_id: int) -> list[KolProfile]:
@@ -209,7 +211,9 @@ class FetchRunner:
         boundary: datetime,
     ) -> list[RawPost]:
         last_exc: Exception | None = None
-        for _ in range(self._max_retries):
+        cooldown_waits = 0
+        attempts = 0
+        while attempts < self._max_retries:
             try:
                 return await _fetch_kol_paginated(
                     source=source,
@@ -219,8 +223,26 @@ class FetchRunner:
                     page_limit=self._page_limit,
                     max_pages=self._max_pages,
                 )
+            except AccountPoolExhaustedError as exc:
+                last_exc = exc
+                pool_ref = getattr(source, "_account_pool", None)
+                pool_key = getattr(source, "_pool_key", None)
+                if (
+                    self._max_cooldown_wait_seconds > 0
+                    and cooldown_waits < 6
+                    and pool_ref is not None
+                    and pool_key is not None
+                    and hasattr(pool_ref, "seconds_until_available")
+                ):
+                    wait = pool_ref.seconds_until_available(pool_key)
+                    if wait is not None and 0.0 <= wait <= self._max_cooldown_wait_seconds:
+                        cooldown_waits += 1
+                        await asyncio.sleep(wait + 0.05)
+                        continue
+                attempts += 1
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
+                attempts += 1
         assert last_exc is not None
         raise last_exc
 
@@ -248,6 +270,11 @@ class FetchRunner:
                 db_path=active_source._db_path,  # type: ignore[attr-defined]
                 account_pool=pool_ref,
                 pool_key=lane_key,
+                request_min_interval_seconds=getattr(
+                    active_source,
+                    "_request_min_interval_seconds",
+                    0.0,
+                ),
             )
         failover_triggered = False
         lane_posts: list[RawPost] = []
