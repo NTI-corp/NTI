@@ -200,6 +200,9 @@ async def prepare_engine_posts(
         json.dumps(report, sort_keys=True), encoding="utf-8"
     )
     print(json.dumps({"input_preparation": report}), flush=True)
-    if failed:
+    # Only abort on a systemic LLM outage (>20% failure with >10 failed posts, or zero ready posts).
+    # A handful of malformed/emoji-only tweets must not deadlock an entire 4h epoch commit.
+    attempted = len(unclassified)
+    if not ready or (len(failed) > 10 and attempted > 0 and (len(failed) / attempted) > 0.20):
         raise RuntimeError(f"{len(failed)} classifications failed; checkpoint saved for retry")
     return ready, model
