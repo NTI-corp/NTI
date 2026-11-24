@@ -51,6 +51,14 @@ def _epoch_id_at(now_ts: int, genesis_timestamp: int, epoch_seconds: int) -> int
     return max(0, (int(now_ts) - int(genesis_timestamp)) // int(epoch_seconds))
 
 
+def _fetch_jitter_range() -> tuple[float, float]:
+    minimum = float(os.environ.get("FETCHER_JITTER_MIN_SECONDS", "15"))
+    maximum = float(os.environ.get("FETCHER_JITTER_MAX_SECONDS", "20"))
+    if minimum < 0 or maximum < minimum:
+        raise ValueError("Fetcher jitter must satisfy 0 <= minimum <= maximum")
+    return minimum, maximum
+
+
 async def _read_oracle_genesis(chain_id: int) -> int:
     """Read the deployed oracle genesis; epoch IDs are relative to it, not Unix zero."""
     manifest_path = REPO_ROOT / "contracts" / "deployments" / f"{chain_id}.json"
@@ -273,6 +281,7 @@ async def _main_async(args: argparse.Namespace) -> int:
         fallback=fallback,
         output_dir=out_dir,
         lock_path=lock_file,
+        jitter_range=_fetch_jitter_range(),
         page_limit=60,
         max_pages=1,
         max_kols=max_kols,

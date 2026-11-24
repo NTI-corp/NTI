@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 from nti_core.types import KolProfile
-from nti_fetcher.__main__ import _epoch_id_at, _persist_to_supabase
+from nti_fetcher.__main__ import _epoch_id_at, _fetch_jitter_range, _persist_to_supabase
 from nti_fetcher.adapters import InMemoryMockSource
 from nti_fetcher.runner import FetchRunner
 
@@ -32,6 +32,16 @@ class CaptureStorage:
 def test_fetch_epoch_is_relative_to_oracle_genesis():
     assert _epoch_id_at(1_000_000 + 14_399, 1_000_000, 14_400) == 0
     assert _epoch_id_at(1_000_000 + 14_400, 1_000_000, 14_400) == 1
+
+
+def test_fetch_jitter_defaults_to_rate_limit_safe_pacing(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("FETCHER_JITTER_MIN_SECONDS", raising=False)
+    monkeypatch.delenv("FETCHER_JITTER_MAX_SECONDS", raising=False)
+    assert _fetch_jitter_range() == (15.0, 20.0)
+    monkeypatch.setenv("FETCHER_JITTER_MIN_SECONDS", "20")
+    monkeypatch.setenv("FETCHER_JITTER_MAX_SECONDS", "10")
+    with pytest.raises(ValueError, match="0 <= minimum <= maximum"):
+        _fetch_jitter_range()
 
 
 @pytest.mark.asyncio
