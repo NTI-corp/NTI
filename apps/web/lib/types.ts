@@ -307,3 +307,25 @@ export interface SiweSessionState {
   tierName: string;
   stakeSource: "onchain" | "unconfigured";
 }
+
+export interface KolLeaderboardItem {
+  userId: string;
+  handle: string;
+  displayName?: string;
+  avatarUrl?: string;
+  followers: number;
+  rK: number;
+  hK: number;
+  pollTier: number;
+  narrativeIds: number[];
+  authorityScore: number;
+}
+
+export interface KolLeaderboardResponse {
+  dataSource: "supabase" | "unavailable";
+  totalActive: number;
+  tier1Count: number;
+  flaggedBots: number;
+  avgReputation: number;
+  kols: KolLeaderboardItem[];
+}

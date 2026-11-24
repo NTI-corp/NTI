@@ -20,6 +20,8 @@ import type {
   HeatmapResponse,
   HistoryPoint,
   IndexesSnapshot,
+  KolLeaderboardItem,
+  KolLeaderboardResponse,
   MarketItem,
   NarrativeHistoryResponse,
   NarrativeIndexItem,
@@ -812,5 +814,103 @@ export async function fetchActiveConfig(): Promise<ActiveConfigVersion> {
     modelVersion: liveModel,
     promptVersion: livePrompt,
     payload: latest.payload ?? DEFAULT_NTI_V1_CONFIG.payload,
+  };
+}
+
+export async function fetchKolLeaderboard(): Promise<KolLeaderboardResponse> {
+  const [kolRowsPage1, kolRowsPage2, linkRowsPage1, linkRowsPage2] = await Promise.all([
+    supabaseSelect<{
+      user_id: number | string;
+      handle: string;
+      display_name?: string | null;
+      avatar_url?: string | null;
+      followers: number;
+      r_k: number | string;
+      h_k: number;
+      poll_tier: number;
+    }>(
+      "kols?select=user_id,handle,display_name,avatar_url,followers,r_k,h_k,poll_tier&active=eq.true&order=followers.desc&limit=1000&offset=0",
+      "service",
+    ),
+    supabaseSelect<{
+      user_id: number | string;
+      handle: string;
+      display_name?: string | null;
+      avatar_url?: string | null;
+      followers: number;
+      r_k: number | string;
+      h_k: number;
+      poll_tier: number;
+    }>(
+      "kols?select=user_id,handle,display_name,avatar_url,followers,r_k,h_k,poll_tier&active=eq.true&order=followers.desc&limit=1000&offset=1000",
+      "service",
+    ),
+    supabaseSelect<{ user_id: number | string; narrative_id: number }>(
+      "kol_narratives?select=user_id,narrative_id&limit=1000&offset=0",
+      "service",
+    ),
+    supabaseSelect<{ user_id: number | string; narrative_id: number }>(
+      "kol_narratives?select=user_id,narrative_id&limit=1000&offset=1000",
+      "service",
+    ),
+  ]);
+
+  if (!kolRowsPage1) {
+    return {
+      dataSource: "unavailable",
+      totalActive: 0,
+      tier1Count: 0,
+      flaggedBots: 0,
+      avgReputation: 0,
+      kols: [],
+    };
+  }
+
+  const allKols = [...kolRowsPage1, ...(kolRowsPage2 ?? [])];
+  const narrMap = new Map<string, number[]>();
+  for (const link of [...(linkRowsPage1 ?? []), ...(linkRowsPage2 ?? [])]) {
+    const uid = String(link.user_id);
+    const list = narrMap.get(uid) ?? [];
+    if (!list.includes(link.narrative_id)) list.push(link.narrative_id);
+    narrMap.set(uid, list);
+  }
+
+  let tier1Count = 0;
+  let flaggedBots = 0;
+  let repSum = 0;
+  const items: KolLeaderboardItem[] = allKols.map((k) => {
+    const uid = String(k.user_id);
+    const followers = Number(k.followers ?? 0);
+    const rK = Number(k.r_k ?? 1);
+    const hK = Number(k.h_k ?? 1);
+    const pollTier = Number(k.poll_tier ?? 4);
+    if (pollTier === 1) tier1Count += 1;
+    if (hK === 0) flaggedBots += 1;
+    repSum += rK;
+    const authorityScore = hK > 0 ? Math.log1p(Math.max(0, followers)) * rK : 0;
+    const item: KolLeaderboardItem = {
+      userId: uid,
+      handle: k.handle,
+      followers,
+      rK,
+      hK,
+      pollTier,
+      narrativeIds: narrMap.get(uid) ?? [],
+      authorityScore,
+    };
+    if (k.display_name) item.displayName = k.display_name;
+    if (k.avatar_url) item.avatarUrl = k.avatar_url;
+    return item;
+  });
+
+  items.sort((a, b) => b.authorityScore - a.authorityScore || b.followers - a.followers);
+
+  return {
+    dataSource: "supabase",
+    totalActive: allKols.length,
+    tier1Count,
+    flaggedBots,
+    avgReputation: allKols.length > 0 ? Number((repSum / allKols.length).toFixed(3)) : 0,
+    kols: items.slice(0, 250),
   };
 }

@@ -19,6 +19,8 @@ import {
   ShieldCheck,
   Sprout,
   Swords,
+  Users,
+  Wallet,
   X,
 } from "lucide-react";
 import { NARRATIVES } from "@nti/sdk";
@@ -54,6 +56,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/terminal", label: "Mindshare", hint: "Sector attention share", group: "Analytics", icon: BarChart3 },
       { href: "/radar", label: "Radar", hint: "Velocity and new tokens", group: "Analytics", icon: Radar },
       { href: "/heatmap", label: "Heatmap", hint: "Attention vs builders", group: "Analytics", icon: Grid3x3 },
+      { href: "/kols", label: "KOLs", hint: "1,500 KOL reputation", group: "Analytics", icon: Users },
     ],
   },
   {
@@ -61,6 +64,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { href: "/markets", label: "Markets", hint: "Narrative pair pools", group: "Trade", icon: Swords },
       { href: "/baskets", label: "Baskets", hint: "TWAP spot vaults", group: "Trade", icon: Layers },
+      { href: "/portfolio", label: "Portfolio", hint: "Wallet positions", group: "Trade", icon: Wallet },
     ],
   },
   {
