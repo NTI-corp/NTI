@@ -5,7 +5,12 @@ from typing import Any
 
 import pytest
 from nti_core.types import KolProfile
-from nti_fetcher.__main__ import _epoch_id_at, _fetch_jitter_range, _persist_to_supabase
+from nti_fetcher.__main__ import (
+    _epoch_id_at,
+    _fetch_jitter_range,
+    _persist_to_supabase,
+    _request_min_interval_seconds,
+)
 from nti_fetcher.adapters import InMemoryMockSource
 from nti_fetcher.runner import FetchRunner
 
@@ -42,6 +47,16 @@ def test_fetch_jitter_defaults_to_rate_limit_safe_pacing(monkeypatch: pytest.Mon
     monkeypatch.setenv("FETCHER_JITTER_MAX_SECONDS", "10")
     with pytest.raises(ValueError, match="0 <= minimum <= maximum"):
         _fetch_jitter_range()
+
+
+def test_x_request_interval_defaults_to_conservative_per_account_pacing(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.delenv("X_REQUEST_MIN_INTERVAL_SECONDS", raising=False)
+    assert _request_min_interval_seconds() == 20
+    monkeypatch.setenv("X_REQUEST_MIN_INTERVAL_SECONDS", "-1")
+    with pytest.raises(ValueError, match="cannot be negative"):
+        _request_min_interval_seconds()
 
 
 @pytest.mark.asyncio

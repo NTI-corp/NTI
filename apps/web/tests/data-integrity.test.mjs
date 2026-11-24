@@ -207,12 +207,15 @@ test("a two-epoch market with zero cutoff epochs uses its contract betting windo
       nextMarketId: 2n, maxPoolPerMarket: parseEther("5"),
       markets: [1, 0, 5, 7, 2, 0n, 0n, 0n, 0n, 0n, 0, false],
       BET_CUTOFF_EPOCHS: 0,
+      BASE_FEE_BPS: 10n,
+      SETTLE_TIMEOUT: 172800n,
     } },
     { abi: extraAbi, results: { BET_CUTOFF_EPOCHS: 0 } },
     { abi: oracleCommitAbi, results: {
       latestFinalEpoch: 5,
       epochBoundary: ([epoch]) => BigInt(now + (epoch - 6) * 14400),
       finalIndex: 850,
+      epochStatus: 0,
     } },
   ]);
   const [market] = await readLiveMarketsFromChain(new Map());
