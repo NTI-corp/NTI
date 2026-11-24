@@ -70,17 +70,23 @@ class SupabaseStorage:
         table: str,
         rows: Sequence[dict[str, Any]],
         on_conflict: str | None = None,
+        batch_size: int = 500,
     ) -> Any:
         if not rows:
             return []
         params = {"on_conflict": on_conflict} if on_conflict else None
-        return await self._request(
-            "POST",
-            table,
-            params=params,
-            json_body=list(rows),
-            prefer="resolution=merge-duplicates,return=minimal",
-        )
+        row_list = list(rows)
+        last_result: Any = None
+        for start in range(0, len(row_list), batch_size):
+            chunk = row_list[start : start + batch_size]
+            last_result = await self._request(
+                "POST",
+                table,
+                params=params,
+                json_body=chunk,
+                prefer="resolution=merge-duplicates,return=minimal",
+            )
+        return last_result
 
     async def patch(
         self,

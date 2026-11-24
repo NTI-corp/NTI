@@ -23,3 +23,21 @@ async def test_select_reads_every_page_without_silent_server_truncation(requeste
     assert len(offsets) >= (2 if expected > 1000 else 0)
     if requested == 0:
         assert offsets == []
+
+
+@pytest.mark.asyncio
+async def test_upsert_chunks_large_batches_to_avoid_statement_timeout():
+    batch_sizes: list[int] = []
+
+    def serve(request: httpx.Request) -> httpx.Response:
+        import json
+
+        payload = json.loads(request.content.decode("utf-8"))
+        batch_sizes.append(len(payload))
+        return httpx.Response(201, content=b"")
+
+    rows = [{"tweet_id": i} for i in range(1205)]
+    async with httpx.AsyncClient(transport=httpx.MockTransport(serve)) as client:
+        storage = SupabaseStorage("https://db.invalid", "test", client=client)
+        await storage.upsert_posts(rows)
+    assert batch_sizes == [500, 500, 205]
