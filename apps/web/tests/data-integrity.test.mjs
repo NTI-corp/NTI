@@ -45,6 +45,11 @@ function supabase(t, tables) {
     if (status?.startsWith("eq.")) rows = rows.filter((row) => row.status === status.slice(3));
     const narrative = url.searchParams.get("narrative_id");
     if (narrative?.startsWith("eq.")) rows = rows.filter((row) => row.narrative_id === Number(narrative.slice(3)));
+    const userId = url.searchParams.get("user_id");
+    if (userId?.startsWith("in.(") && userId.endsWith(")")) {
+      const allowed = new Set(userId.slice(4, -1).split(","));
+      rows = rows.filter((row) => allowed.has(String(row.user_id)));
+    }
     if (url.searchParams.get("order")?.startsWith("epoch_id") && rows.some((row) => "epoch_id" in row)) {
       const order = url.searchParams.get("order").endsWith(".desc") ? -1 : 1;
       rows = [...rows].sort((a, b) => (a.epoch_id - b.epoch_id) * order);
@@ -96,6 +101,27 @@ test("history shows incomplete epochs and series breaks even without narrative r
     data.series.map(({ epochId, vBps, vFlag, seriesBreak }) => [epochId, vBps, vFlag, seriesBreak]),
     [[1, 10, null, false], [2, null, "incomplete_gap", false], [3, null, "series_break", true]],
   );
+});
+
+test("top influential posts stay aligned with the narrative top contributors and cap 2 posts per KOL", async (t) => {
+  supabase(t, {
+    epochs: [final(10)],
+    narrative_epoch: narrativeRows(10),
+    kol_contribution: [
+      { epoch_id: 10, narrative_id: 2, user_id: 101, share_bps: 300, capped: false, kols: { handle: "DamiDefi", followers: 98000 } },
+      { epoch_id: 10, narrative_id: 2, user_id: 102, share_bps: 200, capped: false, kols: { handle: "v_3394", followers: 20000 } },
+    ],
+    posts: [
+      { tweet_id: "1", user_id: 999, created_at: "2026-11-23T20:00:00Z", kols: { handle: "Outsider", followers: 500000 }, post_engagement: [{ likes: 50000, reposts: 2000, quotes: 100, replies: 50 }], classifications: [{ q: { "2": 0.4 } }] },
+      { tweet_id: "2", user_id: 101, created_at: "2026-11-23T15:00:00Z", kols: { handle: "DamiDefi", followers: 98000 }, post_engagement: [{ likes: 300, reposts: 20, quotes: 2, replies: 5 }], classifications: [{ q: { "2": 0.95 } }] },
+      { tweet_id: "3", user_id: 101, created_at: "2026-11-23T14:00:00Z", kols: { handle: "DamiDefi", followers: 98000 }, post_engagement: [{ likes: 250, reposts: 15, quotes: 1, replies: 4 }], classifications: [{ q: { "2": 0.9 } }] },
+      { tweet_id: "4", user_id: 101, created_at: "2026-11-23T13:00:00Z", kols: { handle: "DamiDefi", followers: 98000 }, post_engagement: [{ likes: 200, reposts: 10, quotes: 0, replies: 2 }], classifications: [{ q: { "2": 0.85 } }] },
+      { tweet_id: "5", user_id: 102, created_at: "2026-11-23T12:00:00Z", kols: { handle: "v_3394", followers: 20000 }, post_engagement: [{ likes: 180, reposts: 5, quotes: 0, replies: 1 }], classifications: [{ q: { "2": 0.85 } }] },
+    ],
+  });
+  const data = await fetchNarrativeHistory(2);
+  assert.deepEqual(data.topPosts.map((p) => p.handle), ["DamiDefi", "DamiDefi", "v_3394"]);
+  assert.ok(!data.topPosts.some((p) => p.handle === "Outsider"));
 });
 
 test("a packed local locator reconstructs the verifiable public archive path", async (t) => {

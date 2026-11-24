@@ -253,7 +253,7 @@ export async function fetchNarrativeHistory(
   const latestFinalRow = finals?.[0];
   const latestFinalEpoch = latestFinalRow ? mapEpoch(latestFinalRow) : null;
   const epochIds = (epochs ?? []).map((epoch) => epoch.epoch_id);
-  const [neRows, contribRows, tokenRows, postRows] = await Promise.all([
+  const [neRows, contribRows, tokenRows] = await Promise.all([
     epochIds.length > 0
       ? supabaseSelect<DbNarrativeEpochRow>(
           `narrative_epoch?select=*&narrative_id=eq.${meta.id}&epoch_id=in.(${epochIds.join(",")})&order=epoch_id.asc`,
@@ -288,31 +288,34 @@ export async function fetchNarrativeHistory(
       `tokens?select=*&narrative_id=eq.${meta.id}&order=liquidity_eth.desc.nullslast&limit=25`,
       "anon",
     ),
-    supabaseSelect<{
-      tweet_id: number | string;
-      user_id: number | string;
-      created_at: string;
-      kols?: {
-        handle?: string;
-        followers?: number;
-        display_name?: string | null;
-        avatar_url?: string | null;
-      } | null;
-      post_engagement?: Array<{
-        likes?: number;
-        reposts?: number;
-        quotes?: number;
-        replies?: number;
-        fetched_at?: string;
-      }> | null;
-      classifications?: Array<{
-        q?: Record<string, number> | null;
-      }> | null;
-    }>(
-      "posts?select=tweet_id,user_id,created_at,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications!inner(q)&order=created_at.desc&limit=400",
-      "service",
-    ),
   ]);
+
+  const contributorIds = (contribRows ?? []).map((c) => String(c.user_id));
+  const postsFilter = contributorIds.length > 0 ? `&user_id=in.(${contributorIds.join(",")})` : "";
+  const postRows = await supabaseSelect<{
+    tweet_id: number | string;
+    user_id: number | string;
+    created_at: string;
+    kols?: {
+      handle?: string;
+      followers?: number;
+      display_name?: string | null;
+      avatar_url?: string | null;
+    } | null;
+    post_engagement?: Array<{
+      likes?: number;
+      reposts?: number;
+      quotes?: number;
+      replies?: number;
+      fetched_at?: string;
+    }> | null;
+    classifications?: Array<{
+      q?: Record<string, number> | null;
+    }> | null;
+  }>(
+    `posts?select=tweet_id,user_id,created_at,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications!inner(q)${postsFilter}&order=created_at.desc&limit=400`,
+    "service",
+  );
 
   const series = mapHistory([...(epochs ?? [])].reverse(), neRows ?? []);
 
@@ -391,10 +394,15 @@ export async function fetchNarrativeHistory(
     });
   }
 
-  const topPosts: TopPostItem[] = scoredPosts
-    .sort((a, b) => b.influence - a.influence)
-    .slice(0, 8)
-    .map((x) => x.item);
+  const topPosts: TopPostItem[] = [];
+  const countByHandle = new Map<string, number>();
+  for (const entry of scoredPosts.sort((a, b) => b.influence - a.influence)) {
+    const seen = countByHandle.get(entry.item.handle) ?? 0;
+    if (seen >= 2) continue;
+    countByHandle.set(entry.item.handle, seen + 1);
+    topPosts.push(entry.item);
+    if (topPosts.length >= 8) break;
+  }
 
   return {
     awaitingFirstEpoch: finals !== null && !latestFinalEpoch,
