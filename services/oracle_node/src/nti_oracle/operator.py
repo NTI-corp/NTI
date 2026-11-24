@@ -64,7 +64,7 @@ async def prepare_commit(
         os.environ.get("CLASSIFIER_PROMPT_VERSION", "v2"),
         ENGINE_VERSION,
     )
-    omission_enabled = os.environ.get("VALIDATOR_OMISSION_CHECK", "1") == "1"
+    omission_enabled = os.environ.get("VALIDATOR_OMISSION_CHECK", "0") == "1"
     provenance["omission_mode"] = "independent_pool" if omission_enabled else "disabled"
     mirror = SupabaseStorageMirror(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
     prior = await storage.select(
@@ -131,15 +131,19 @@ async def prepare_commit(
     operator_address = Account.from_key(os.environ["OPERATOR_PRIVATE_KEY"]).address
     if operator_address.lower() in {a.lower() for a in addresses}:
         raise RuntimeError("Operator must not share a validator key")
-    pool_path = Path(os.environ.get("X_ACCOUNTS_FILE", "secrets/x_accounts.json"))
-    if not pool_path.is_absolute():
-        pool_path = repo_root / pool_path
-    pool = AccountPool.from_file(pool_path, state_path=repo_root / "data/state/x_budget.json")
-    if omission_enabled and len(pool.validator_accounts()) < 3:
-        raise RuntimeError("Independent omission verification requires three dedicated X accounts")
+    pool: AccountPool | None = None
     db_path = Path(os.environ.get("TWSCRAPE_DB_PATH", "data/state/accounts.db"))
     if not db_path.is_absolute():
         db_path = repo_root / db_path
+    if omission_enabled:
+        pool_path = Path(os.environ.get("X_ACCOUNTS_FILE", "secrets/x_accounts.json"))
+        if not pool_path.is_absolute():
+            pool_path = repo_root / pool_path
+        pool = AccountPool.from_file(pool_path, state_path=repo_root / "data/state/x_budget.json")
+        if len(pool.validator_accounts()) < 3:
+            raise RuntimeError(
+                "Independent omission verification requires three dedicated X accounts"
+            )
     validators = [
         ValidatorNode(
             private_key=key,

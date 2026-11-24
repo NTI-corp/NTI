@@ -230,6 +230,21 @@ class FetchRunner:
     ) -> tuple[LaneReport, list[RawPost]]:
         started = datetime.now(UTC).isoformat()
         active_source: PostSource = self._primary
+        # Bind each parallel lane to its own AccountPool lane key when configured
+        pool_ref = getattr(active_source, "_account_pool", None)
+        lane_key = f"lane_{lane_id}"
+        if (
+            pool_ref is not None
+            and hasattr(active_source, "_db_path")
+            and pool_ref.accounts_for(lane_key)
+        ):
+            from nti_fetcher.adapters import TwscrapeSource
+
+            active_source = TwscrapeSource(
+                db_path=active_source._db_path,  # type: ignore[attr-defined]
+                account_pool=pool_ref,
+                pool_key=lane_key,
+            )
         failover_triggered = False
         lane_posts: list[RawPost] = []
         ok_ids: set[int] = set()
