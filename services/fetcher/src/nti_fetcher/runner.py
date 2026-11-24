@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import inspect
 import json
+import os
 import random
 from collections import Counter
 from collections.abc import Sequence
@@ -23,6 +24,11 @@ from nti_fetcher.protocol import PostSource
 
 class CycleLockedError(RuntimeError):
     """Raised when another fetcher cycle already holds the lockfile."""
+
+
+def stagger_tiers_enabled() -> bool:
+    """Shared epoch scheduling policy used by collection and oracle preparation."""
+    return os.environ.get("FETCHER_STAGGER_TIERS", "1") != "0"
 
 
 class CycleLock:

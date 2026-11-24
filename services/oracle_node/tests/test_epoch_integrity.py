@@ -53,12 +53,14 @@ async def test_commit_requires_fresh_complete_fetch_cycle_for_exact_epoch():
         epoch_start=now - 600,
         now=now,
         freshness_seconds=14_400,
+        expected_due_user_ids=set(range(100)),
     )
     assert accepted["run_id"] == "run-100"
 
     for bad, match in (
         ({**valid, "status": "incomplete"}, "not complete"),
         ({**valid, "omitted_user_ids": [99]}, "omitted or lost"),
+        ({**valid, "due_user_ids": list(range(1, 101))}, "does not match expected KOL schedule"),
         ({**valid, "accounts_ok": 94, "accounts_failed": 6}, "below 95%"),
         (
             {
@@ -76,6 +78,7 @@ async def test_commit_requires_fresh_complete_fetch_cycle_for_exact_epoch():
                 epoch_start=now - 600,
                 now=now,
                 freshness_seconds=14_400,
+                expected_due_user_ids=set(range(100)),
             )
 
     with pytest.raises(RuntimeError, match="No persisted fetch-cycle evidence"):
@@ -85,6 +88,7 @@ async def test_commit_requires_fresh_complete_fetch_cycle_for_exact_epoch():
             epoch_start=now - 600,
             now=now,
             freshness_seconds=14_400,
+            expected_due_user_ids=set(range(100)),
         )
 
 

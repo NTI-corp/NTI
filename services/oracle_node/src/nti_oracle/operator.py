@@ -15,7 +15,7 @@ from nti_engine.calc import ENGINE_VERSION
 from nti_engine.models import EngineKol
 from nti_fetcher.accounts import AccountPool
 from nti_fetcher.adapters import TwscrapeSource
-from nti_fetcher.runner import FetchRunner
+from nti_fetcher.runner import FetchRunner, stagger_tiers_enabled
 from nti_fetcher.storage import SupabaseStorage
 
 from nti_oracle.archive import load_archive_chain, normalize_hash
@@ -39,6 +39,7 @@ async def require_complete_fetch_evidence(
     epoch_start: int,
     now: int,
     freshness_seconds: int,
+    expected_due_user_ids: set[int],
     min_success_ratio: float = 0.95,
 ) -> dict[str, Any]:
     """Fail closed unless the target epoch has a recent, complete scrape run."""
@@ -73,6 +74,10 @@ async def require_complete_fetch_evidence(
         raise RuntimeError(f"Malformed fetch-cycle evidence for epoch {epoch_id}") from exc
     if not run.get("manifest_sha256"):
         raise RuntimeError(f"Fetch cycle for epoch {epoch_id} has no manifest digest")
+    if due != expected_due_user_ids:
+        raise RuntimeError(
+            f"Fetch cycle for epoch {epoch_id} does not match expected KOL schedule"
+        )
     if now - finished > freshness_seconds:
         raise RuntimeError(f"Fetch cycle for epoch {epoch_id} is stale")
     if started < epoch_start or finished < started or finished > now:
@@ -102,12 +107,18 @@ async def prepare_commit(
 ) -> tuple[CommitPayload, str]:
     boundary = state.genesis_timestamp + epoch_id * cfg.epoch_seconds
     cutoff = min(state.block_timestamp, boundary + (cfg.observation_window_seconds or 0))
+    kol_profiles = FetchRunner.eligible_kols(
+        kols,
+        epoch_id,
+        stagger_tiers=stagger_tiers_enabled(),
+    )
     await require_complete_fetch_evidence(
         storage=storage,
         epoch_id=epoch_id,
         epoch_start=boundary,
         now=state.block_timestamp,
         freshness_seconds=cfg.epoch_seconds,
+        expected_due_user_ids={kol.user_id for kol in kol_profiles},
         min_success_ratio=float(os.environ.get("FETCHER_MIN_SUCCESS_RATIO", "0.95")),
     )
     posts, model = await prepare_engine_posts(
@@ -239,7 +250,7 @@ async def prepare_commit(
         boundary_unix=boundary,
         series_id=series_id,
         kols=[EngineKol(k.user_id, k.followers, k.h_k, k.r_k) for k in kols],
-        kol_profiles=FetchRunner.eligible_kols(kols, epoch_id),
+        kol_profiles=kol_profiles,
         delta_posts=delta_posts,
         prev_deltas=blobs,
         prev_state=prev_state,

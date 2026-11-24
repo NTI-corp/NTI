@@ -16,7 +16,12 @@ import pytest
 from nti_core.types import EpochStatus, KolProfile
 from nti_fetcher.accounts import AccountPool, AccountPoolExhaustedError
 from nti_fetcher.adapters import InMemoryMockSource, TwscrapeSource
-from nti_fetcher.runner import CycleLock, CycleLockedError, FetchRunner
+from nti_fetcher.runner import (
+    CycleLock,
+    CycleLockedError,
+    FetchRunner,
+    stagger_tiers_enabled,
+)
 from twscrape import API, account, queue_client
 from twscrape.http import Response
 
@@ -247,3 +252,12 @@ def test_stagger_tiers_spreads_tier4_evenly_across_four_epochs() -> None:
         assert len(due) == 10
         seen.update(k.user_id for k in due)
     assert len(seen) == 40
+
+
+def test_stagger_tier_policy_is_shared_and_can_be_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("FETCHER_STAGGER_TIERS", raising=False)
+    assert stagger_tiers_enabled()
+    monkeypatch.setenv("FETCHER_STAGGER_TIERS", "0")
+    assert not stagger_tiers_enabled()

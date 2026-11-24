@@ -18,7 +18,7 @@ from nti_core.types import KolProfile
 
 from nti_fetcher.accounts import AccountPool
 from nti_fetcher.adapters import HttpFallbackSource, TwscrapeSource
-from nti_fetcher.runner import FetchRunner
+from nti_fetcher.runner import FetchRunner, stagger_tiers_enabled
 from nti_fetcher.storage import SupabaseStorage
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -288,7 +288,7 @@ async def _main_async(args: argparse.Namespace) -> int:
     lock_file = args.lock_path if args.lock_path.is_absolute() else (REPO_ROOT / args.lock_path)
     max_kols = int(os.environ.get("FETCHER_MAX_KOLS_PER_CYCLE", "0"))
     max_cooldown_wait = float(os.environ.get("FETCHER_MAX_COOLDOWN_WAIT_SECONDS", "960.0"))
-    stagger_tiers = os.environ.get("FETCHER_STAGGER_TIERS", "1") != "0"
+    stagger_tiers = stagger_tiers_enabled()
     runner = FetchRunner(
         primary=primary,
         fallback=fallback,
