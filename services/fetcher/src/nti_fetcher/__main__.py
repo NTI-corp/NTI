@@ -52,15 +52,15 @@ def _epoch_id_at(now_ts: int, genesis_timestamp: int, epoch_seconds: int) -> int
 
 
 def _fetch_jitter_range() -> tuple[float, float]:
-    minimum = float(os.environ.get("FETCHER_JITTER_MIN_SECONDS", "15"))
-    maximum = float(os.environ.get("FETCHER_JITTER_MAX_SECONDS", "20"))
+    minimum = float(os.environ.get("FETCHER_JITTER_MIN_SECONDS", "2"))
+    maximum = float(os.environ.get("FETCHER_JITTER_MAX_SECONDS", "4"))
     if minimum < 0 or maximum < minimum:
         raise ValueError("Fetcher jitter must satisfy 0 <= minimum <= maximum")
     return minimum, maximum
 
 
 def _request_min_interval_seconds() -> float:
-    interval = float(os.environ.get("X_REQUEST_MIN_INTERVAL_SECONDS", "20"))
+    interval = float(os.environ.get("X_REQUEST_MIN_INTERVAL_SECONDS", "5"))
     if interval < 0:
         raise ValueError("X request minimum interval cannot be negative")
     return interval
@@ -289,13 +289,14 @@ async def _main_async(args: argparse.Namespace) -> int:
     max_kols = int(os.environ.get("FETCHER_MAX_KOLS_PER_CYCLE", "0"))
     max_cooldown_wait = float(os.environ.get("FETCHER_MAX_COOLDOWN_WAIT_SECONDS", "960.0"))
     stagger_tiers = stagger_tiers_enabled()
+    page_limit = int(os.environ.get("FETCHER_PAGE_LIMIT", "20"))
     runner = FetchRunner(
         primary=primary,
         fallback=fallback,
         output_dir=out_dir,
         lock_path=lock_file,
         jitter_range=_fetch_jitter_range(),
-        page_limit=60,
+        page_limit=page_limit,
         max_pages=1,
         max_kols=max_kols,
         max_cooldown_wait_seconds=max_cooldown_wait,

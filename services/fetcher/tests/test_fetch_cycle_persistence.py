@@ -42,7 +42,7 @@ def test_fetch_epoch_is_relative_to_oracle_genesis():
 def test_fetch_jitter_defaults_to_rate_limit_safe_pacing(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("FETCHER_JITTER_MIN_SECONDS", raising=False)
     monkeypatch.delenv("FETCHER_JITTER_MAX_SECONDS", raising=False)
-    assert _fetch_jitter_range() == (15.0, 20.0)
+    assert _fetch_jitter_range() == (2.0, 4.0)
     monkeypatch.setenv("FETCHER_JITTER_MIN_SECONDS", "20")
     monkeypatch.setenv("FETCHER_JITTER_MAX_SECONDS", "10")
     with pytest.raises(ValueError, match="0 <= minimum <= maximum"):
@@ -53,7 +53,7 @@ def test_x_request_interval_defaults_to_conservative_per_account_pacing(
     monkeypatch: pytest.MonkeyPatch,
 ):
     monkeypatch.delenv("X_REQUEST_MIN_INTERVAL_SECONDS", raising=False)
-    assert _request_min_interval_seconds() == 20
+    assert _request_min_interval_seconds() == 5.0
     monkeypatch.setenv("X_REQUEST_MIN_INTERVAL_SECONDS", "-1")
     with pytest.raises(ValueError, match="cannot be negative"):
         _request_min_interval_seconds()
