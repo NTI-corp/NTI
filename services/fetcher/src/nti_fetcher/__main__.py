@@ -222,6 +222,7 @@ async def _persist_to_supabase(
                 "omitted_user_ids": list(result.omitted_user_ids),
                 "post_count": result.total_posts,
                 "manifest_sha256": result.manifest_sha256,
+                "failure_types": dict(result.failure_types),
             }
         ],
     )
@@ -292,6 +293,7 @@ async def _main_async(args: argparse.Namespace) -> int:
                 "total_failed": result.total_failed,
                 "total_posts": result.total_posts,
                 "manifest_sha256": result.manifest_sha256,
+                "failure_types": dict(result.failure_types),
                 "supabase_cycle_id": persisted_cycle_id,
             }
         )

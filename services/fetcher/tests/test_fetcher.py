@@ -438,6 +438,7 @@ async def test_runner_marks_incomplete_when_over_1_pct_fail_after_fallback(tmp_p
     assert res.status == EpochStatus.INCOMPLETE
     assert res.total_failed == 1
     assert res.total_ok == 19
+    assert dict(res.failure_types) == {"SourceRequestError": 1}
 
 
 @pytest.mark.asyncio

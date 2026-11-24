@@ -66,6 +66,7 @@ async def test_persists_one_epoch_level_fetch_run_with_coverage_evidence(tmp_pat
     assert run["due_user_ids"] == [1, 2]
     assert run["omitted_user_ids"] == [2]
     assert run["manifest_sha256"] == result.manifest_sha256
+    assert run["failure_types"] == {}
     assert run["started_at"] == result.started_at
     assert run["finished_at"] == result.finished_at
     assert storage.operations[-1] == "fetch_cycle_runs"

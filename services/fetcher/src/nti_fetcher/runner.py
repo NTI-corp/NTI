@@ -7,6 +7,7 @@ import hashlib
 import inspect
 import json
 import random
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -74,6 +75,7 @@ class LaneReport:
     started_at: str
     finished_at: str
     failed_user_ids: tuple[int, ...]
+    failure_types: tuple[tuple[str, int], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +94,7 @@ class FetchCycleResult:
     total_eligible: int = 0
     due_user_ids: tuple[int, ...] = ()
     omitted_user_ids: tuple[int, ...] = ()
+    failure_types: tuple[tuple[str, int], ...] = ()
 
 
 def _serialize_post(post: RawPost) -> dict[str, Any]:
@@ -250,6 +253,7 @@ class FetchRunner:
         lane_posts: list[RawPost] = []
         ok_ids: set[int] = set()
         failed_ids: list[int] = []
+        failure_by_uid: dict[int, str] = {}
         lane_total = len(kols)
 
         for kol in kols:
@@ -263,8 +267,9 @@ class FetchRunner:
                 )
                 lane_posts.extend(posts)
                 ok_ids.add(kol.user_id)
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
                 failed_ids.append(kol.user_id)
+                failure_by_uid[kol.user_id] = type(exc).__name__
                 if (
                     not failover_triggered
                     and self._fallback is not None
@@ -285,8 +290,11 @@ class FetchRunner:
                             )
                             lane_posts.extend(recovered)
                             ok_ids.add(f_uid)
-                        except Exception:  # noqa: BLE001
+                        except Exception as exc:  # noqa: BLE001
                             still_failed.append(f_uid)
+                            failure_by_uid[f_uid] = type(exc).__name__
+                        else:
+                            failure_by_uid.pop(f_uid, None)
                     failed_ids = still_failed
 
         lane_posts.sort(key=lambda p: p.tweet_id)
@@ -309,6 +317,7 @@ class FetchRunner:
             started_at=started,
             finished_at=finished,
             failed_user_ids=tuple(sorted(failed_ids)),
+            failure_types=tuple(sorted(Counter(failure_by_uid.values()).items())),
         )
         return report, lane_posts
 
@@ -351,6 +360,9 @@ class FetchRunner:
             all_posts.sort(key=lambda p: p.tweet_id)
             total_ok = sum(r.accounts_ok for r in reports)
             total_failed = sum(r.accounts_failed for r in reports)
+            failure_counts: Counter[str] = Counter()
+            for report in reports:
+                failure_counts.update(dict(report.failure_types))
             total_eligible = len(due)
             failed_ratio = (
                 ((total_failed + len(omitted)) / total_eligible) if total_eligible > 0 else 0.0
@@ -381,6 +393,7 @@ class FetchRunner:
                         "failover_triggered": r.failover_triggered,
                         "accounts_ok": r.accounts_ok,
                         "accounts_failed": r.accounts_failed,
+                        "failure_types": dict(r.failure_types),
                         "post_count": r.post_count,
                         "sha256": r.sha256,
                         "started_at": r.started_at,
@@ -413,4 +426,5 @@ class FetchRunner:
                 total_eligible=total_eligible,
                 due_user_ids=tuple(k.user_id for k in due),
                 omitted_user_ids=tuple(k.user_id for k in omitted),
+                failure_types=tuple(sorted(failure_counts.items())),
             )
