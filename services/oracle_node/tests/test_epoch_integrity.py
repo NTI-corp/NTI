@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -14,6 +15,77 @@ from nti_engine.models import (
     PrevEpochState,
 )
 from nti_fetcher.storage import SupabaseStorage
+
+
+@pytest.mark.asyncio
+async def test_commit_requires_fresh_complete_fetch_cycle_for_exact_epoch():
+    from nti_oracle.operator import require_complete_fetch_evidence
+
+    now = int(datetime(2026, 11, 24, 12, tzinfo=UTC).timestamp())
+    started = datetime.fromtimestamp(now - 120, UTC).isoformat()
+    finished = datetime.fromtimestamp(now - 60, UTC).isoformat()
+
+    class Storage:
+        def __init__(self, row):
+            self.row = row
+
+        async def select(self, table, **kwargs):
+            assert table == "fetch_cycle_runs"
+            assert kwargs["filters"] == {"epoch_id": "eq.100"}
+            return self.row
+
+    valid = {
+        "run_id": "run-100",
+        "epoch_id": 100,
+        "status": "collecting",
+        "started_at": started,
+        "finished_at": finished,
+        "total_eligible": 100,
+        "accounts_ok": 98,
+        "accounts_failed": 2,
+        "due_user_ids": list(range(100)),
+        "omitted_user_ids": [],
+        "manifest_sha256": "a" * 64,
+    }
+    accepted = await require_complete_fetch_evidence(
+        storage=Storage([valid]),
+        epoch_id=100,
+        epoch_start=now - 600,
+        now=now,
+        freshness_seconds=14_400,
+    )
+    assert accepted["run_id"] == "run-100"
+
+    for bad, match in (
+        ({**valid, "status": "incomplete"}, "not complete"),
+        ({**valid, "omitted_user_ids": [99]}, "omitted or lost"),
+        ({**valid, "accounts_ok": 94, "accounts_failed": 6}, "below 95%"),
+        (
+            {
+                **valid,
+                "started_at": datetime.fromtimestamp(now - 14_500, UTC).isoformat(),
+                "finished_at": datetime.fromtimestamp(now - 14_401, UTC).isoformat(),
+            },
+            "stale",
+        ),
+    ):
+        with pytest.raises(RuntimeError, match=match):
+            await require_complete_fetch_evidence(
+                storage=Storage([bad]),
+                epoch_id=100,
+                epoch_start=now - 600,
+                now=now,
+                freshness_seconds=14_400,
+            )
+
+    with pytest.raises(RuntimeError, match="No persisted fetch-cycle evidence"):
+        await require_complete_fetch_evidence(
+            storage=Storage([]),
+            epoch_id=100,
+            epoch_start=now - 600,
+            now=now,
+            freshness_seconds=14_400,
+        )
 
 
 def test_observation_cutoff_preserves_true_metric_times_without_admitting_future_posts():
@@ -151,8 +223,10 @@ async def test_live_input_reader_keeps_actual_observation_time_and_filters_model
 
     cfg = load_config(Path(__file__).resolve().parents[3] / "config/nti.v1.json")
     boundary = 100 * cfg.epoch_seconds
+
     def iso(ts: int) -> str:
         return datetime.fromtimestamp(ts, UTC).isoformat()
+
     seen = {}
 
     def serve(request):

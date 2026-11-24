@@ -151,7 +151,7 @@ export function MarketsListClient({
             Pair Markets
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#71717A]">
-            Settled purely by finalized on-chain oracle index Δ = I_A(settle)/I_A(base) − I_B(settle)/I_B(base). Zero leverage, 5 ETH pool cap, 0.10% fee (up to 50% staker discount), full gross refund on tie or incomplete epoch.
+            Settled from finalized on-chain oracle indexes. Zero leverage; {markets[0]?.maxPoolEth ?? 5} ETH gross pool cap, {((markets[0]?.feeBps ?? 10) / 100).toFixed(3)}% fee (up to 50% staker discount), cutoff {markets[0]?.cutoffEpochs ?? 2} epochs before settlement, and gross refunds on ties or invalid settlement epochs.
           </p>
         </div>
 

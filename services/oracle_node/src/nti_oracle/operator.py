@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,62 @@ from nti_oracle.live_inputs import prepare_engine_posts
 from nti_oracle.node import CommitPayload, OperatorNode, ValidatorNode
 
 
+async def require_complete_fetch_evidence(
+    *,
+    storage: SupabaseStorage,
+    epoch_id: int,
+    epoch_start: int,
+    now: int,
+    freshness_seconds: int,
+    min_success_ratio: float = 0.95,
+) -> dict[str, Any]:
+    """Fail closed unless the target epoch has a recent, complete scrape run."""
+    rows = await storage.select(
+        "fetch_cycle_runs",
+        columns=(
+            "run_id,epoch_id,status,started_at,finished_at,total_eligible,accounts_ok,"
+            "accounts_failed,due_user_ids,omitted_user_ids,manifest_sha256"
+        ),
+        filters={"epoch_id": f"eq.{int(epoch_id)}"},
+        order="finished_at.desc",
+        limit=1,
+    )
+    if not rows:
+        raise RuntimeError(f"No persisted fetch-cycle evidence for epoch {epoch_id}")
+    run = rows[0]
+    if run.get("status") != "collecting":
+        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} is not complete")
+    try:
+        started = int(
+            datetime.fromisoformat(str(run["started_at"]).replace("Z", "+00:00")).timestamp()
+        )
+        finished = int(
+            datetime.fromisoformat(str(run["finished_at"]).replace("Z", "+00:00")).timestamp()
+        )
+        eligible = int(run["total_eligible"])
+        ok = int(run["accounts_ok"])
+        failed = int(run["accounts_failed"])
+        due = {int(value) for value in run["due_user_ids"]}
+        omitted = {int(value) for value in (run.get("omitted_user_ids") or [])}
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError(f"Malformed fetch-cycle evidence for epoch {epoch_id}") from exc
+    if not run.get("manifest_sha256"):
+        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} has no manifest digest")
+    if now - finished > freshness_seconds:
+        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} is stale")
+    if started < epoch_start or finished < started or finished > now:
+        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} is outside the current epoch")
+    if eligible != len(due) or due & omitted or omitted or ok + failed != eligible:
+        raise RuntimeError(f"Fetch cycle for epoch {epoch_id} omitted or lost eligible accounts")
+    success_ratio = (ok / eligible) if eligible else 1.0
+    if success_ratio < min_success_ratio:
+        raise RuntimeError(
+            f"Fetch cycle for epoch {epoch_id} success ratio {success_ratio:.1%} "
+            f"is below {min_success_ratio:.0%}"
+        )
+    return run
+
+
 async def prepare_commit(
     *,
     epoch_id: int,
@@ -45,6 +102,14 @@ async def prepare_commit(
 ) -> tuple[CommitPayload, str]:
     boundary = state.genesis_timestamp + epoch_id * cfg.epoch_seconds
     cutoff = min(state.block_timestamp, boundary + (cfg.observation_window_seconds or 0))
+    await require_complete_fetch_evidence(
+        storage=storage,
+        epoch_id=epoch_id,
+        epoch_start=boundary,
+        now=state.block_timestamp,
+        freshness_seconds=cfg.epoch_seconds,
+        min_success_ratio=float(os.environ.get("FETCHER_MIN_SUCCESS_RATIO", "0.95")),
+    )
     posts, model = await prepare_engine_posts(
         storage=storage,
         cfg=cfg,

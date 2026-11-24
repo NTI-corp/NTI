@@ -190,7 +190,9 @@ async def manage_grant_round(
             actions.append({"action": "start", "round_id": round_id + 1, "tx_hash": tx})
         except ChainRpcError as exc:
             # NoAvailableBudget when everything is already reserved by unclaimed rounds.
-            actions.append({"action": "start_skipped", "reason": str(exc)[:160]})
+            if "NoAvailableBudget" not in str(exc):
+                raise
+            actions.append({"action": "start_skipped", "reason": "NoAvailableBudget"})
     return {"task": "grant_round", "status": "ok" if actions else "idle", "actions": actions}
 
 

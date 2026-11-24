@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 import httpx
@@ -114,6 +115,7 @@ def main() -> int:
 
     print("3. Keeper backlog")
     next_market = chain.call(dep["narrativeMarket"], "nextMarketId()", [], [], ["uint256"])[0]
+    settle_timeout = chain.call(dep["narrativeMarket"], "SETTLE_TIMEOUT()", [], [], ["uint64"])[0]
     backlog = 0
     for mid in range(1, next_market):
         fields = chain.call(
@@ -121,9 +123,21 @@ def main() -> int:
             ["uint8", "uint8", "uint32", "uint32", "uint32", "uint256", "uint256", "uint256", "uint256",
              "uint256", "uint8", "bool"],
         )
-        if not fields[11] and chain.call(oracle, "epochStatus(uint32)", ["uint32"], [fields[3]], ["uint8"])[0] == 3:
+        if fields[11]:
+            continue
+        epoch_status = chain.call(
+            oracle, "epochStatus(uint32)", ["uint32"], [fields[3]], ["uint8"]
+        )[0]
+        settle_at = chain.call(
+            oracle, "epochBoundary(uint32)", ["uint32"], [fields[3]], ["uint64"]
+        )[0]
+        if epoch_status in (3, 4) or now > settle_at + settle_timeout:
             backlog += 1
-    c.check(backlog == 0, f"{next_market - 1} market(s), none waiting to settle", f"{backlog} settle-ready market(s) unsettled")
+    c.check(
+        backlog == 0,
+        f"{next_market - 1} market(s), none waiting to settle",
+        f"{backlog} settle-ready market(s) unsettled",
+    )
     undistributed = chain.call(dep["feeRouter"], "undistributedBalance()", [], [], ["uint256"])[0]
     c.check(undistributed < 10**13, "fee router has no large undistributed balance", f"{undistributed} wei undistributed")
 
@@ -146,8 +160,32 @@ def main() -> int:
         epochs = q("epochs?select=epoch_id,status&order=epoch_id.desc&limit=1")
         c.check(bool(epochs) and int(epochs[0]["epoch_id"]) >= last, f"database has epoch {epochs[0]['epoch_id']}" if epochs else "",
                 "database epoch is behind the chain")
-        fetch = q("fetch_cycles?select=finished_at&order=id.desc&limit=1")
-        c.check(bool(fetch), "fetch cycles recorded", "no fetch cycles")
+        runs = q(
+            f"fetch_cycle_runs?select=epoch_id,status,finished_at,total_eligible,accounts_ok,"
+            f"accounts_failed,omitted_user_ids&epoch_id=eq.{last}&order=finished_at.desc&limit=1"
+        )
+        fetch_ok = False
+        if runs:
+            run = runs[0]
+            eligible = int(run["total_eligible"])
+            successes = int(run["accounts_ok"])
+            failed = int(run["accounts_failed"])
+            omitted = run.get("omitted_user_ids") or []
+            finished = int(
+                datetime.fromisoformat(str(run["finished_at"]).replace("Z", "+00:00")).timestamp()
+            )
+            fetch_ok = (
+                run.get("status") == "collecting"
+                and not omitted
+                and eligible == successes + failed
+                and (successes / eligible if eligible else 1.0) >= 0.95
+                and 0 <= now - finished <= EPOCH_SECONDS
+            )
+        c.check(
+            fetch_ok,
+            f"epoch {last} has a fresh complete fetch cycle",
+            f"epoch {last} lacks fresh complete fetch evidence",
+        )
 
     if args.web:
         print("5. Web API")

@@ -10,7 +10,9 @@ import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from uuid import uuid4
 
+import httpx
 from nti_core.config import load_config
 from nti_core.types import KolProfile
 
@@ -45,6 +47,40 @@ def _load_kols_json(path: Path) -> list[KolProfile]:
     ]
 
 
+def _epoch_id_at(now_ts: int, genesis_timestamp: int, epoch_seconds: int) -> int:
+    return max(0, (int(now_ts) - int(genesis_timestamp)) // int(epoch_seconds))
+
+
+async def _read_oracle_genesis(chain_id: int) -> int:
+    """Read the deployed oracle genesis; epoch IDs are relative to it, not Unix zero."""
+    manifest_path = REPO_ROOT / "contracts" / "deployments" / f"{chain_id}.json"
+    if not manifest_path.exists():
+        raise RuntimeError(f"Oracle deployment manifest missing for chain {chain_id}")
+    oracle = json.loads(manifest_path.read_text(encoding="utf-8")).get("oracleCommit")
+    if not isinstance(oracle, str) or not oracle.startswith("0x"):
+        raise RuntimeError(f"Oracle address missing for chain {chain_id}")
+    rpc_url = os.environ.get(
+        "RPC_URL_MAINNET" if chain_id == 4663 else "RPC_URL_TESTNET",
+        "https://robinhood-rpc.publicnode.com"
+        if chain_id == 4663
+        else "https://robinhood-sepolia-rpc.publicnode.com",
+    )
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "eth_call",
+        "params": [{"to": oracle, "data": "0xcacf66ab"}, "latest"],
+    }
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(rpc_url, json=payload)
+        response.raise_for_status()
+        body = response.json()
+    result = body.get("result")
+    if body.get("error") or not isinstance(result, str) or len(result) < 66:
+        raise RuntimeError("Could not read genesisTimestamp() from deployed OracleCommit")
+    return int(result, 16)
+
+
 async def _load_kols_from_supabase(storage: SupabaseStorage) -> list[KolProfile]:
     rows = await storage.select(
         "kols",
@@ -73,7 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--epoch",
         type=int,
         default=None,
-        help="Target epoch ID (defaults to current epoch = floor(now / epoch_seconds))",
+        help="Target epoch ID (defaults to the current OracleCommit epoch)",
     )
     parser.add_argument(
         "--config",
@@ -143,7 +179,6 @@ async def _persist_to_supabase(
     ]
     inserted_cycles = await storage.insert_returning("fetch_cycles", cycle_rows)
     cycle_id = int(inserted_cycles[0]["id"]) if inserted_cycles else 1
-
     if result.posts:
         post_rows = [
             {
@@ -170,23 +205,46 @@ async def _persist_to_supabase(
         ]
         await storage.upsert_post_engagement(eng_rows)
 
+    # Persist the authoritative completion marker only after every related write succeeds.
+    await storage.insert_returning(
+        "fetch_cycle_runs",
+        [
+            {
+                "run_id": str(uuid4()),
+                "epoch_id": epoch_id,
+                "status": result.status.value,
+                "started_at": result.started_at,
+                "finished_at": result.finished_at,
+                "total_eligible": result.total_eligible,
+                "accounts_ok": result.total_ok,
+                "accounts_failed": result.total_failed,
+                "due_user_ids": list(result.due_user_ids),
+                "omitted_user_ids": list(result.omitted_user_ids),
+                "post_count": result.total_posts,
+                "manifest_sha256": result.manifest_sha256,
+            }
+        ],
+    )
+
     return cycle_id
 
 
 async def _main_async(args: argparse.Namespace) -> int:
     cfg = load_config(_resolve_repo_path(args.config))
     now_ts = int(time.time())
-    epoch_id = args.epoch if args.epoch is not None else (now_ts // cfg.epoch_seconds)
-    # Match OracleCommit.epochBoundary(epochId) when epoch is explicit; live clock when omitted
-    boundary_ts = (epoch_id * cfg.epoch_seconds) if args.epoch is not None else now_ts
+    chain_id = int(os.environ.get("CHAIN_ID", "46630"))
+    genesis = await _read_oracle_genesis(chain_id)
+    if args.epoch is not None:
+        epoch_id = args.epoch
+    else:
+        epoch_id = _epoch_id_at(now_ts, genesis, cfg.epoch_seconds)
+    boundary_ts = genesis + epoch_id * cfg.epoch_seconds
     boundary = datetime.fromtimestamp(boundary_ts, tz=UTC)
 
     sb_url = os.environ.get("SUPABASE_URL", "")
     sb_key = os.environ.get("SUPABASE_SERVICE_KEY", "")
     storage = (
-        SupabaseStorage(sb_url, sb_key)
-        if (not args.no_supabase and sb_url and sb_key)
-        else None
+        SupabaseStorage(sb_url, sb_key) if (not args.no_supabase and sb_url and sb_key) else None
     )
 
     kols_path = _resolve_repo_path(args.kols)
@@ -208,7 +266,7 @@ async def _main_async(args: argparse.Namespace) -> int:
 
     out_dir = args.output_dir if args.output_dir.is_absolute() else (REPO_ROOT / args.output_dir)
     lock_file = args.lock_path if args.lock_path.is_absolute() else (REPO_ROOT / args.lock_path)
-    max_kols = int(os.environ.get("FETCHER_MAX_KOLS_PER_CYCLE", "120"))
+    max_kols = int(os.environ.get("FETCHER_MAX_KOLS_PER_CYCLE", "0"))
     runner = FetchRunner(
         primary=primary,
         fallback=fallback,

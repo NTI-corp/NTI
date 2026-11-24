@@ -184,7 +184,7 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
                 <div className="mt-0.5 text-[#F5F5F7]">
                   {liveMarket.status === "open"
                     ? `In ${formatCountdown(market.cutoffAt)}`
-                    : "Closed (2 epochs prior)"}
+                    : `Closed (${market.cutoffEpochs} epochs prior)`}
                 </div>
               </div>
               <div>

@@ -215,7 +215,12 @@ export interface MarketItem {
   outcome: "side_a" | "side_b" | "refund" | null;
   poolAEth: number;
   poolBEth: number;
+  poolANetEth: number;
+  poolBNetEth: number;
   maxPoolEth: number;
+  cutoffEpochs: number;
+  feeBps: number;
+  settleTimeoutHours: number;
   baseIA: number;
   baseIB: number;
   currentIA: number | null;

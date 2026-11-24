@@ -89,6 +89,9 @@ class FetchCycleResult:
     manifest_path: Path
     manifest_sha256: str
     posts: tuple[RawPost, ...]
+    total_eligible: int = 0
+    due_user_ids: tuple[int, ...] = ()
+    omitted_user_ids: tuple[int, ...] = ()
 
 
 def _serialize_post(post: RawPost) -> dict[str, Any]:
@@ -184,9 +187,7 @@ class FetchRunner:
     @staticmethod
     def eligible_kols(kols: Sequence[KolProfile], epoch_id: int) -> list[KolProfile]:
         """Return active KOLs due this epoch, ordered by tier then authority (followers * r_k)."""
-        due = [
-            k for k in kols if k.active and k.poll_tier > 0 and (epoch_id % k.poll_tier == 0)
-        ]
+        due = [k for k in kols if k.active and k.poll_tier > 0 and (epoch_id % k.poll_tier == 0)]
         return sorted(
             due,
             key=lambda k: (k.poll_tier, -(k.followers * float(k.r_k)), k.user_id),
@@ -409,4 +410,7 @@ class FetchRunner:
                 manifest_path=manifest_path,
                 manifest_sha256=manifest_sha,
                 posts=tuple(all_posts),
+                total_eligible=total_eligible,
+                due_user_ids=tuple(k.user_id for k in due),
+                omitted_user_ids=tuple(k.user_id for k in omitted),
             )

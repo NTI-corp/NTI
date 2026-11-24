@@ -714,8 +714,9 @@ export async function fetchGovernorProposals(): Promise<GovernorProposalItem[] |
   // Cast uint256 proposal IDs to strings before JSON serialization. A JSON number loses precision.
   const query = `governance_proposals?select=proposal_id::text,proposer,description,targets,values,calldatas&chain_id=eq.${chainId}&created_block=not.is.null&order=created_block.desc&limit=20`;
   const addressFilter = encodeURIComponent(`\\x${governor.slice(2).toLowerCase()}`);
-  const rows = (await supabaseSelect<DbGovernorProposal>(`${query}&governor_address=eq.${addressFilter}`)) ??
-    (await supabaseSelect<DbGovernorProposal>(query));
+  const rows = await supabaseSelect<DbGovernorProposal>(
+    `${query}&governor_address=eq.${addressFilter}`,
+  );
   if (!rows) return null;
 
   const validRows = rows.filter((row) => typeof row.proposal_id === "string" && /^\d{1,78}$/.test(row.proposal_id) && BigInt(row.proposal_id) <= maxUint256);

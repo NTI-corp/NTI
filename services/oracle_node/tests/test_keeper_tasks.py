@@ -6,6 +6,7 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
+import pytest
 from eth_abi import decode as abi_decode
 from eth_abi import encode as abi_encode
 from eth_utils import keccak
@@ -284,6 +285,14 @@ def test_grant_round_waits_while_vote_is_active_and_skips_empty_budget() -> None
         manage_grant_round(empty, private_key=KEY, grants_balance_wei=10**15, now=now)
     )
     assert res["actions"][0]["action"] == "start_skipped"
+
+    class BrokenRpc(FakeContract):
+        async def _send_tx(self, private_key: str, calldata: bytes) -> str:
+            raise ChainRpcError("nonce too low")
+
+    broken = BrokenRpc({"currentRoundId()": (["uint256"], [0])})
+    with pytest.raises(ChainRpcError, match="nonce too low"):
+        asyncio.run(manage_grant_round(broken, private_key=KEY, grants_balance_wei=10**15, now=now))
 
 
 def test_guard_isolates_failures() -> None:

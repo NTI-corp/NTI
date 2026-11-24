@@ -16,9 +16,20 @@ export DEPLOYER_PRIVATE_KEY="$(hexkey DEPLOYER_PRIVATE_KEY)" OPERATOR_PRIVATE_KE
   VALIDATOR_PRIVATE_KEY_2="$(hexkey VALIDATOR_PRIVATE_KEY_2)" VALIDATOR_PRIVATE_KEY_3="$(hexkey VALIDATOR_PRIVATE_KEY_3)"
 
 phase() {
+  local log
+  log="$(mktemp)"
   echo "== phase $1"
-  (cd "$ROOT/contracts" && forge script script/LifecycleE2ETestnet.s.sol:LifecycleE2ETestnet \
-    --sig "$1()" --rpc-url "$RPC" --broadcast --slow 2>&1 | grep -E "ONCHAIN EXECUTION|Error|revert" || true)
+  if (cd "$ROOT/contracts" && forge script script/LifecycleE2ETestnet.s.sol:LifecycleE2ETestnet \
+      --sig "$1()" --rpc-url "$RPC" --broadcast --slow) >"$log" 2>&1; then
+    tail -n 20 "$log"
+    rm -f "$log"
+  else
+    local status=$?
+    cat "$log" >&2
+    rm -f "$log"
+    echo "Lifecycle phase $1 failed (forge exit $status)" >&2
+    return "$status"
+  fi
 }
 
 phase p1
@@ -31,4 +42,7 @@ while [ "$(date +%s)" -lt $((BOUNDARY + 4)) ]; do sleep 3; done
 phase p3
 sleep 8
 phase p4
+test -s "$ROOT/contracts/deployments/46630.lifecycle-e2e.json"
+grep -q '"oracle"' "$ROOT/contracts/deployments/46630.lifecycle-e2e.json"
+grep -q '"market"' "$ROOT/contracts/deployments/46630.lifecycle-e2e.json"
 echo "== done: $ROOT/contracts/deployments/46630.lifecycle-e2e.json"

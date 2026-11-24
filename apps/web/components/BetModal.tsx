@@ -25,7 +25,6 @@ interface BetModalProps {
   embedded?: boolean;
 }
 
-const BASE_FEE_BPS = 10; // 0.10% = 10 bps
 const DEFAULT_MIN_BET_WEI = 1_000_000_000_000_000n; // 0.001 ETH
 
 function safeParseEther(raw: string): bigint | null {
@@ -95,17 +94,20 @@ export function BetModal({
   const discountBps = session?.discountBps ?? 0;
 
   const math = useMemo(() => {
-    const effectiveFeeBps = BASE_FEE_BPS * (1 - discountBps / 10_000);
+    const effectiveFeeBps = market.feeBps * (1 - discountBps / 10_000);
     const feeEth = (grossEth * effectiveFeeBps) / 10_000;
     const netEth = Math.max(0, grossEth - feeEth);
 
-    const sidePoolBefore = side === 0 ? market.poolAEth : market.poolBEth;
-    const totalPoolAfter = market.poolAEth + market.poolBEth + netEth;
+    const sidePoolBefore = side === 0 ? market.poolANetEth : market.poolBNetEth;
+    const otherPoolBefore = side === 0 ? market.poolBNetEth : market.poolANetEth;
+    const totalNetAfter = market.poolANetEth + market.poolBNetEth + netEth;
     const sidePoolAfter = sidePoolBefore + netEth;
-    const estPayout =
-      sidePoolAfter > 0 ? (netEth * totalPoolAfter) / sidePoolAfter : 0;
-    const impliedMultiple = netEth > 0 ? estPayout / netEth : 0;
-    const exceedsCap = totalPoolAfter > market.maxPoolEth;
+    const estPayout = otherPoolBefore === 0
+      ? grossEth
+      : sidePoolAfter > 0 ? (netEth * totalNetAfter) / sidePoolAfter : 0;
+    const impliedMultiple = grossEth > 0 ? estPayout / grossEth : 0;
+    const grossPoolAfter = market.poolAEth + market.poolBEth + grossEth;
+    const exceedsCap = grossPoolAfter > market.maxPoolEth;
 
     return {
       effectiveFeeBps,
@@ -115,7 +117,7 @@ export function BetModal({
       impliedMultiple,
       exceedsCap,
     };
-  }, [grossEth, discountBps, side, market.poolAEth, market.poolBEth, market.maxPoolEth]);
+  }, [grossEth, discountBps, side, market, market.maxPoolEth]);
 
   useEffect(() => {
     let active = true;
@@ -151,7 +153,9 @@ export function BetModal({
   const handleSubmit = async () => {
     setValidationError(null);
     if (cutoffPassed) {
-      setValidationError("Betting cutoff (2 epochs / 8h before settlement) has passed.");
+      setValidationError(
+        `Betting cutoff (${market.cutoffEpochs} epochs before settlement) has passed.`,
+      );
       return;
     }
     if (!stakeWei || stakeWei <= 0n) {
@@ -322,7 +326,7 @@ export function BetModal({
         </div>
         <div className="flex justify-between">
           <span className="text-[#71717A]">
-            Protocol fee (0.10% base · {(discountBps / 100).toFixed(0)}% staker discount)
+            Protocol fee ({(market.feeBps / 100).toFixed(3)}% base · {(discountBps / 100).toFixed(0)}% staker discount)
           </span>
           <span className="text-[#F5F5F7]">
             {formatEth(math.feeEth, 5)} ({(math.effectiveFeeBps / 100).toFixed(3)}%)
@@ -386,7 +390,7 @@ export function BetModal({
       </button>
 
       <p className="mt-2 text-[11px] leading-relaxed text-[#71717A]">
-        Full gross refund if opposing pool is empty, Δ = 0, seriesId re-baselines, or settlement epoch is incomplete/timed out (48h).
+        Full gross refund if either pool is empty, Δ = 0, seriesId re-baselines, or settlement epoch is incomplete/timed out ({market.settleTimeoutHours}h).
       </p>
     </div>
   );
