@@ -222,7 +222,7 @@ export default async function NarrativeDetailPage({
               Top Influential Posts ({data.topPosts?.length ?? 0})
             </h3>
             <p className="font-mono text-[11px] text-[#8A8A93]">
-              Ranked by MiMo relevance q × log engagement · Structured telemetry only (raw post text purged)
+              Ranked by AI relevance q × log engagement · Structured telemetry only (raw post text purged)
             </p>
           </div>
           <span className="border border-[#26262A] bg-[#161618] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[#A1A1AA]">

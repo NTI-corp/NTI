@@ -309,7 +309,7 @@ export async function fetchNarrativeHistory(
         q?: Record<string, number> | null;
       }> | null;
     }>(
-      "posts?select=tweet_id,user_id,created_at,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications(q)&order=created_at.desc&limit=200",
+      "posts?select=tweet_id,user_id,created_at,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications!inner(q)&order=created_at.desc&limit=400",
       "service",
     ),
   ]);

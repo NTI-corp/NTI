@@ -76,7 +76,7 @@ export function KolLeaderboardClient({ initial }: { initial: KolLeaderboardRespo
           <p className="kicker">Analytics · Dynamic reputation &amp; bot filter</p>
           <h1 className="mt-1.5">KOL Universe</h1>
           <p className="mt-1 text-xs text-[#8A8A93]">
-            Live reputation r_k (0.25–1.50) calibrated from median engagement-to-follower ratio and MiMo signal-to-noise.
+            Live reputation r_k (0.25–1.50) calibrated from median engagement-to-follower ratio and AI signal-to-noise.
           </p>
         </div>
         <div className="flex items-center gap-2 border border-[#26262A] bg-[#161618] px-2.5 py-1.5 focus-within:border-[#CCFF00]">
