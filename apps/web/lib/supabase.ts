@@ -23,6 +23,7 @@ import type {
   KolLeaderboardItem,
   KolLeaderboardResponse,
   MarketItem,
+  MentionedTokenItem,
   NarrativeHistoryResponse,
   NarrativeIndexItem,
   RadarAlertItem,
@@ -233,6 +234,75 @@ export async function fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
   return snapshot;
 }
 
+const TICKER_REGEX = /\$([A-Za-z][A-Za-z0-9]{1,9})\b/g;
+const TICKER_STOPWORDS = new Set([
+  "USD", "EUR", "GBP", "JPY", "CNY", "AUD", "CAD", "CHF", "KRW", "INR", "IDR",
+]);
+
+interface DexMarketInfo {
+  name: string | null;
+  chainId: string | null;
+  priceUsd: number | null;
+  volume24hUsd: number | null;
+  change24hPct: number | null;
+  dexUrl: string | null;
+}
+
+const dexCache = new Map<string, { expiresAt: number; data: DexMarketInfo | null }>();
+const DEX_CACHE_TTL_MS = 5 * 60 * 1000;
+
+async function fetchDexMarketInfo(symbol: string): Promise<DexMarketInfo | null> {
+  const key = symbol.toUpperCase();
+  const cached = dexCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+  try {
+    const res = await fetch(
+      `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(key)}`,
+      {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(3_000),
+      },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      pairs?: Array<{
+        chainId?: string;
+        url?: string;
+        priceUsd?: string;
+        baseToken?: { symbol?: string; name?: string };
+        liquidity?: { usd?: number };
+        volume?: { h24?: number };
+        priceChange?: { h24?: number };
+        txns?: { h24?: { buys?: number; sells?: number } };
+      }>;
+    };
+    const pairs = (json.pairs ?? []).filter((pair) => {
+      if ((pair.baseToken?.symbol ?? "").toUpperCase() !== key) return false;
+      const liq = Number(pair.liquidity?.usd ?? 0);
+      const tx24 = Number(pair.txns?.h24?.buys ?? 0) + Number(pair.txns?.h24?.sells ?? 0);
+      return liq >= 50_000 && tx24 >= 20;
+    });
+    pairs.sort((a, b) => Number(b.volume?.h24 ?? 0) - Number(a.volume?.h24 ?? 0));
+    const best = pairs[0];
+    const data: DexMarketInfo | null = best
+      ? {
+          name: best.baseToken?.name ?? null,
+          chainId: best.chainId ?? null,
+          priceUsd: best.priceUsd != null && Number.isFinite(Number(best.priceUsd)) ? Number(best.priceUsd) : null,
+          volume24hUsd: best.volume?.h24 != null && Number.isFinite(Number(best.volume.h24)) ? Number(best.volume.h24) : null,
+          change24hPct: best.priceChange?.h24 != null && Number.isFinite(Number(best.priceChange.h24)) ? Number(best.priceChange.h24) : null,
+          dexUrl: best.url ?? null,
+        }
+      : null;
+    dexCache.set(key, { expiresAt: Date.now() + DEX_CACHE_TTL_MS, data });
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchNarrativeHistory(
   narrativeId: number,
   fromEpoch?: number,
@@ -296,6 +366,7 @@ export async function fetchNarrativeHistory(
     tweet_id: number | string;
     user_id: number | string;
     created_at: string;
+    body?: string | null;
     kols?: {
       handle?: string;
       followers?: number;
@@ -313,7 +384,7 @@ export async function fetchNarrativeHistory(
       q?: Record<string, number> | null;
     }> | null;
   }>(
-    `posts?select=tweet_id,user_id,created_at,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications!inner(q)${postsFilter}&order=created_at.desc&limit=400`,
+    `posts?select=tweet_id,user_id,created_at,body,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications!inner(q)${postsFilter}&order=created_at.desc&limit=400`,
     "service",
   );
 
@@ -342,6 +413,7 @@ export async function fetchNarrativeHistory(
   }));
 
   const scoredPosts: Array<{ influence: number; item: TopPostItem }> = [];
+  const tickerStats = new Map<string, { mentions: number; weightedQ: number; kols: Set<string> }>();
   for (const p of postRows ?? []) {
     const clsList = p.classifications ?? [];
     let bestQ = 0;
@@ -352,6 +424,21 @@ export async function fetchNarrativeHistory(
       if (Number.isFinite(candidate) && candidate > bestQ) bestQ = candidate;
     }
     if (bestQ < 0.25) continue;
+
+    // Extract $TICKER mentions strictly server-side; raw body is never returned to clients.
+    if (typeof p.body === "string" && p.body.length > 0) {
+      const seenInPost = new Set<string>();
+      for (const match of p.body.matchAll(TICKER_REGEX)) {
+        const sym = match[1]?.toUpperCase();
+        if (!sym || TICKER_STOPWORDS.has(sym) || seenInPost.has(sym)) continue;
+        seenInPost.add(sym);
+        const prev = tickerStats.get(sym) ?? { mentions: 0, weightedQ: 0, kols: new Set<string>() };
+        prev.mentions += 1;
+        prev.weightedQ += bestQ;
+        prev.kols.add(String(p.user_id));
+        tickerStats.set(sym, prev);
+      }
+    }
 
     const engList = p.post_engagement ?? [];
     let likes = 0;
@@ -404,6 +491,30 @@ export async function fetchNarrativeHistory(
     if (topPosts.length >= 8) break;
   }
 
+  const topTickers = [...tickerStats.entries()]
+    .sort((a, b) => b[1].weightedQ - a[1].weightedQ || b[1].kols.size - a[1].kols.size || b[1].mentions - a[1].mentions)
+    .slice(0, 8);
+
+  const marketInfos = await Promise.all(
+    topTickers.map(([symbol]) => fetchDexMarketInfo(symbol)),
+  );
+
+  const mentionedTokens: MentionedTokenItem[] = topTickers.map(([symbol, stat], idx) => {
+    const market = marketInfos[idx] ?? null;
+    return {
+      symbol,
+      name: market?.name ?? null,
+      mentions: stat.mentions,
+      kolCount: stat.kols.size,
+      weightedQ: Number(stat.weightedQ.toFixed(2)),
+      chainId: market?.chainId ?? null,
+      priceUsd: market?.priceUsd ?? null,
+      volume24hUsd: market?.volume24hUsd ?? null,
+      change24hPct: market?.change24hPct ?? null,
+      dexUrl: market?.dexUrl ?? null,
+    };
+  });
+
   return {
     awaitingFirstEpoch: finals !== null && !latestFinalEpoch,
     dataSource: epochs && finals && neRows ? "supabase" : "unavailable",
@@ -412,6 +523,7 @@ export async function fetchNarrativeHistory(
     series,
     contributors,
     tokens,
+    mentionedTokens,
     topPosts,
   };
 }

@@ -99,6 +99,19 @@ export interface TopPostItem {
   createdAt: string;
 }
 
+export interface MentionedTokenItem {
+  symbol: string;
+  name: string | null;
+  mentions: number;
+  kolCount: number;
+  weightedQ: number;
+  chainId: string | null;
+  priceUsd: number | null;
+  volume24hUsd: number | null;
+  change24hPct: number | null;
+  dexUrl: string | null;
+}
+
 export interface NarrativeHistoryResponse {
   awaitingFirstEpoch: boolean;
   dataSource: "supabase" | "unavailable";
@@ -112,6 +125,7 @@ export interface NarrativeHistoryResponse {
   series: HistoryPoint[];
   contributors: ContributorRow[];
   tokens: TokenItem[];
+  mentionedTokens?: MentionedTokenItem[];
   topPosts?: TopPostItem[];
 }
 

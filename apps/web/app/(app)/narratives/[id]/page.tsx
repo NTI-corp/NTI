@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { NARRATIVES, NARRATIVE_BY_ID, NARRATIVE_BY_SLUG } from "@nti/sdk";
 import { fetchBasketsData, fetchNarrativeHistory } from "@/lib/supabase";
-import { formatBpsPercent, formatRelativeTime, formatSignedBps, truncateHex } from "@/lib/format";
+import { formatBpsPercent, formatRelativeTime, formatSignedBps } from "@/lib/format";
 import { sectorColor } from "@/lib/sectors";
 import { IndexChart } from "@/components/IndexChart";
 import { ContributorsTable } from "@/components/ContributorsTable";
@@ -169,46 +169,82 @@ export default async function NarrativeDetailPage({
         <div className="panel-surface lg:col-span-5">
           <div className="border-b border-[#26262A] px-4 py-3">
             <h3 className="font-display text-sm font-semibold text-[#F5F5F7]">
-              Related On-Chain Tokens
+              Related Tokens · KOL Mentions
             </h3>
             <p className="font-mono text-[11px] text-[#8A8A93]">
-              Indexed from Pons V1/V2 &amp; Uniswap pools on Robinhood Chain
+              Auto-extracted from top KOL posts in {meta.label} · Live market data via DexScreener
             </p>
           </div>
-          {data.tokens.length === 0 ? (
+          {!data.mentionedTokens || data.mentionedTokens.length === 0 ? (
             <div className="p-6 text-center font-mono text-xs text-[#71717A]">
-              No tokens matched to {meta.label} yet.
+              No $TOKEN tickers mentioned by top KOLs in {meta.label} yet.
             </div>
           ) : (
             <div className="divide-y divide-[#26262A]">
-              {data.tokens.map((tok) => (
-                <div
-                  key={tok.address}
-                  className="flex items-center justify-between gap-3 px-4 py-3 font-mono text-xs tabular-nums"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-[#F5F5F7]">${tok.symbol}</span>
-                      <span className="font-sans text-xs text-[#8A8A93]">{tok.name}</span>
+              {data.mentionedTokens.map((tok) => {
+                const priceLabel =
+                  tok.priceUsd === null
+                    ? "—"
+                    : tok.priceUsd >= 1
+                      ? `$${tok.priceUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+                      : `$${tok.priceUsd.toPrecision(3)}`;
+                const volLabel =
+                  tok.volume24hUsd === null
+                    ? null
+                    : tok.volume24hUsd >= 1_000_000
+                      ? `$${(tok.volume24hUsd / 1_000_000).toFixed(1)}M vol`
+                      : tok.volume24hUsd >= 1_000
+                        ? `$${(tok.volume24hUsd / 1_000).toFixed(0)}K vol`
+                        : `$${Math.round(tok.volume24hUsd)} vol`;
+                const chg = tok.change24hPct;
+                return (
+                  <div
+                    key={tok.symbol}
+                    className="flex items-center justify-between gap-3 px-4 py-3 font-mono text-xs tabular-nums"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#F5F5F7]">${tok.symbol}</span>
+                        {tok.name && (
+                          <span className="truncate font-sans text-xs text-[#8A8A93]">
+                            {tok.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[#71717A]">
+                        <span className="text-[#CCFF00]">
+                          {tok.mentions} {tok.mentions === 1 ? "mention" : "mentions"}
+                        </span>
+                        <span>{tok.kolCount} KOL{tok.kolCount === 1 ? "" : "s"}</span>
+                        {tok.chainId && <span className="uppercase">{tok.chainId}</span>}
+                        {tok.dexUrl && (
+                          <a
+                            href={tok.dexUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-0.5 text-[#A1A1AA] transition-colors hover:text-[#CCFF00]"
+                          >
+                            <span>DEX</span>
+                            <ArrowUpRight className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-1 flex items-center gap-2 text-[10px] text-[#71717A]">
-                      <span>{truncateHex(tok.address, 8, 6)}</span>
-                      <span className="uppercase">{tok.source === "testnet_mock" ? "Testnet market fixture" : tok.source ?? "dex"}</span>
-                      <span
-                        className={
-                          tok.graduated ? "text-[#4ADE80]" : "text-[#E2A856]"
-                        }
-                      >
-                        {tok.graduated ? "GRADUATED" : "BONDING"}
-                      </span>
+                    <div className="shrink-0 text-right">
+                      <div className="text-[#F5F5F7]">{priceLabel}</div>
+                      <div className="mt-0.5 flex items-center justify-end gap-1.5 text-[10px]">
+                        {chg !== null && (
+                          <span className={chg >= 0 ? "text-[#4ADE80]" : "text-[#EF4444]"}>
+                            {chg >= 0 ? "+" : ""}
+                            {chg.toFixed(1)}%
+                          </span>
+                        )}
+                        {volLabel && <span className="text-[#8A8A93]">{volLabel}</span>}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[#F5F5F7]">{tok.liquidityEth.toFixed(1)} ETH</div>
-                    <div className="text-[10px] text-[#8A8A93]">{tok.txs7d} txs / 7d</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

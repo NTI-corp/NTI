@@ -35,6 +35,14 @@ process.env.NEXT_PUBLIC_CHAIN_ID = "46630";
 function supabase(t, tables) {
   t.mock.method(globalThis, "fetch", async (input) => {
     const url = new URL(input.toString());
+    if (url.host === "api.dexscreener.com") {
+      const sym = (url.searchParams.get("q") ?? "").toUpperCase();
+      return Response.json({
+        pairs: sym === "TAO"
+          ? [{ chainId: "solana", url: "https://dexscreener.com/solana/tao", priceUsd: "250.5", baseToken: { symbol: "TAO", name: "Bittensor" }, liquidity: { usd: 500000 }, volume: { h24: 1200000 }, priceChange: { h24: 4.2 }, txns: { h24: { buys: 100, sells: 80 } } }]
+          : [],
+      });
+    }
     assert.equal(url.host, "db.example");
     const table = url.pathname.split("/").at(-1);
     let rows = tables[table] ?? [];
@@ -112,16 +120,21 @@ test("top influential posts stay aligned with the narrative top contributors and
       { epoch_id: 10, narrative_id: 2, user_id: 102, share_bps: 200, capped: false, kols: { handle: "v_3394", followers: 20000 } },
     ],
     posts: [
-      { tweet_id: "1", user_id: 999, created_at: "2026-11-23T20:00:00Z", kols: { handle: "Outsider", followers: 500000 }, post_engagement: [{ likes: 50000, reposts: 2000, quotes: 100, replies: 50 }], classifications: [{ q: { "2": 0.4 } }] },
-      { tweet_id: "2", user_id: 101, created_at: "2026-11-23T15:00:00Z", kols: { handle: "DamiDefi", followers: 98000 }, post_engagement: [{ likes: 300, reposts: 20, quotes: 2, replies: 5 }], classifications: [{ q: { "2": 0.95 } }] },
-      { tweet_id: "3", user_id: 101, created_at: "2026-11-23T14:00:00Z", kols: { handle: "DamiDefi", followers: 98000 }, post_engagement: [{ likes: 250, reposts: 15, quotes: 1, replies: 4 }], classifications: [{ q: { "2": 0.9 } }] },
-      { tweet_id: "4", user_id: 101, created_at: "2026-11-23T13:00:00Z", kols: { handle: "DamiDefi", followers: 98000 }, post_engagement: [{ likes: 200, reposts: 10, quotes: 0, replies: 2 }], classifications: [{ q: { "2": 0.85 } }] },
-      { tweet_id: "5", user_id: 102, created_at: "2026-11-23T12:00:00Z", kols: { handle: "v_3394", followers: 20000 }, post_engagement: [{ likes: 180, reposts: 5, quotes: 0, replies: 1 }], classifications: [{ q: { "2": 0.85 } }] },
+      { tweet_id: "1", user_id: 999, created_at: "2026-11-23T20:00:00Z", body: "$SCAM pump", kols: { handle: "Outsider", followers: 500000 }, post_engagement: [{ likes: 50000, reposts: 2000, quotes: 100, replies: 50 }], classifications: [{ q: { "2": 0.4 } }] },
+      { tweet_id: "2", user_id: 101, created_at: "2026-11-23T15:00:00Z", body: "Watching $TAO and $TAO + $VIRTUAL today", kols: { handle: "DamiDefi", followers: 98000 }, post_engagement: [{ likes: 300, reposts: 20, quotes: 2, replies: 5 }], classifications: [{ q: { "2": 0.95 } }] },
+      { tweet_id: "3", user_id: 101, created_at: "2026-11-23T14:00:00Z", body: "More $TAO momentum", kols: { handle: "DamiDefi", followers: 98000 }, post_engagement: [{ likes: 250, reposts: 15, quotes: 1, replies: 4 }], classifications: [{ q: { "2": 0.9 } }] },
+      { tweet_id: "4", user_id: 101, created_at: "2026-11-23T13:00:00Z", body: "AI agents $USD macro", kols: { handle: "DamiDefi", followers: 98000 }, post_engagement: [{ likes: 200, reposts: 10, quotes: 0, replies: 2 }], classifications: [{ q: { "2": 0.85 } }] },
+      { tweet_id: "5", user_id: 102, created_at: "2026-11-23T12:00:00Z", body: "Bullish $TAO", kols: { handle: "v_3394", followers: 20000 }, post_engagement: [{ likes: 180, reposts: 5, quotes: 0, replies: 1 }], classifications: [{ q: { "2": 0.85 } }] },
     ],
   });
   const data = await fetchNarrativeHistory(2);
   assert.deepEqual(data.topPosts.map((p) => p.handle), ["DamiDefi", "DamiDefi", "v_3394"]);
   assert.ok(!data.topPosts.some((p) => p.handle === "Outsider"));
+  assert.ok(!data.topPosts.some((p) => "body" in p));
+  assert.deepEqual(
+    data.mentionedTokens?.map((tok) => [tok.symbol, tok.mentions, tok.kolCount, tok.priceUsd]),
+    [["TAO", 3, 2, 250.5], ["VIRTUAL", 1, 1, null]],
+  );
 });
 
 test("a packed local locator reconstructs the verifiable public archive path", async (t) => {
