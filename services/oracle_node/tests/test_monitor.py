@@ -53,7 +53,7 @@ def test_late_commit_and_finalize_alerts() -> None:
 
 
 def test_low_eth_threshold_is_chain_specific() -> None:
-    assert default_min_eth(4663) == Decimal("0.002")
+    assert default_min_eth(4663) == Decimal("0.003")
     assert default_min_eth(46630) < Decimal("0.01")
     sink: list[str] = []
     res = run(

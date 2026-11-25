@@ -181,9 +181,9 @@ export function HeroSection() {
     >
       <div
         ref={stickyStageRef}
-        className="hero-portal-sticky sticky top-0 h-[100svh] w-full overflow-hidden flex flex-col justify-end"
+        className="hero-portal-sticky sticky top-0 h-[100svh] w-full overflow-hidden flex flex-col justify-center"
       >
-        {/* Zoom-responsive Dark Obsidian & WebGL Shader Backdrop + 3D AI Sentinel Mascot */}
+        {/* Zoom-responsive Dark Obsidian & WebGL Shader Backdrop */}
         <div
           ref={shaderStageRef}
           className="absolute inset-0 bg-[#090B0E] will-change-transform origin-center"
@@ -191,14 +191,14 @@ export function HeroSection() {
           <HeroShaderCanvas />
           <div
             aria-hidden="true"
-            className="absolute inset-0 z-[2] pointer-events-none bg-gradient-to-b from-black/10 via-transparent to-black/80"
+            className="absolute inset-0 z-[2] pointer-events-none bg-gradient-to-b from-black/25 via-transparent to-black/50"
           />
         </div>
 
-        {/* Foreground Content anchored cleanly below the 3D AI Sentinel */}
+        {/* Foreground Content zooming toward & past the viewer as scroll leaves the Hero */}
         <div
           ref={contentStageRef}
-          className="relative z-[11] sui-padding-global pt-[12em] pb-[3.25em] md:pb-[4em] will-change-transform origin-[50%_68%] pointer-events-auto"
+          className="relative z-[11] sui-padding-global pt-[6em] pb-[3em] will-change-transform origin-[50%_44%] pointer-events-auto"
         >
           <div className="sui-container-1400 flex flex-col items-center text-center">
             <h1

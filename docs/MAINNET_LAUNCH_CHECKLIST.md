@@ -5,7 +5,7 @@ mainnet. **yours** needs a wallet, an account or a decision. Procedure: `MAINNET
 `docs/MAINNET_DECISIONS.md`.
 
 ## Before the deploy
-- [ ] **yours** 6 new wallets: deployer (admin and pauser), operator, keeper (and attester), 3 validators. Fund only deployer (~0.003 ETH), operator and keeper (~0.005 ETH each).
+- [ ] **yours** 6 new wallets: deployer (admin and pauser), operator, keeper (and attester), 3 validators. Fund only deployer (~0.003 ETH), operator (~0.01 ETH) and keeper (~0.005 ETH).
 - [ ] **yours** Alchemy key upgraded to pay-as-you-go (the free tier cannot serve the indexer: 10 block log range).
 - [ ] **yours** `.env.mainnet` filled from `infra/mainnet.env.example`.
 - [x] **built** `mainnet_preflight.py --stage deploy`: chain id, external dependencies, distinct funded wallets, key derivation, config hash, genesis.
