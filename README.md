@@ -59,4 +59,6 @@ bash infra/scripts/run_lifecycle_e2e.sh
 forge script contracts/script/DisputeE2ETestnet.s.sol:DisputeE2ETestnet --root contracts --rpc-url $RPC_URL_TESTNET --broadcast
 ```
 
+How the live pipeline runs and how to recover it: `docs/TESTNET_OPERATIONS.md`.
+
 Mainnet is prepared but not deployed: see `MAINNET.md`.
