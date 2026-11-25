@@ -60,7 +60,7 @@ contract DeployMainnet is Script {
         // msg.sender is the broadcaster (--private-key / --account). Roles are granted to DEPLOYER_ADDRESS,
         // so a mismatch would leave the suite owned by an address that cannot administer it.
         address deployer = vm.envAddress("DEPLOYER_ADDRESS");
-        require(msg.sender == deployer, "broadcaster != DEPLOYER_ADDRESS");
+        require(_broadcaster() == deployer, "broadcaster != DEPLOYER_ADDRESS");
         _requireCode(MAINNET_WETH, "WETH");
         _requireCode(MAINNET_V3_FACTORY, "V3 factory");
         _requireCode(MAINNET_V3_SWAP_ROUTER02, "V3 router");
@@ -167,6 +167,22 @@ contract DeployMainnet is Script {
 
         vm.stopBroadcast();
 
+        _selfCheck(
+            registry,
+            staking,
+            oracleCommit,
+            dispute,
+            narrativeMarket,
+            timelock,
+            governor,
+            deployer,
+            pauser,
+            operator,
+            val1,
+            val2,
+            val3
+        );
+
         d.registry = address(registry);
         d.ntiToken = ntiToken;
         d.staking = address(staking);
@@ -185,6 +201,51 @@ contract DeployMainnet is Script {
         d.governor = address(governor);
 
         _writeManifest(d);
+    }
+
+    /// @dev Reads the freshly deployed suite back and reverts the whole script run (before the manifest is
+    ///      written) if any wiring, role or timing is not what the runbook promises.
+    function _selfCheck(
+        NTIRegistry registry,
+        Staking staking,
+        OracleCommit oracleCommit,
+        Dispute dispute,
+        NarrativeMarket narrativeMarket,
+        NTITimelock timelock,
+        NTIGovernor governor,
+        address deployer,
+        address pauser,
+        address operator,
+        address val1,
+        address val2,
+        address val3
+    ) internal view {
+        require(registry.staking() == address(staking), "check: registry.staking");
+        require(registry.owner() == deployer, "check: registry owner");
+        require(staking.hasRole(staking.SLASHER_ROLE(), address(oracleCommit)), "check: slasher oracle");
+        require(staking.hasRole(staking.SLASHER_ROLE(), address(dispute)), "check: slasher dispute");
+        require(staking.hasRole(staking.PAUSER_ROLE(), pauser), "check: staking pauser");
+        require(oracleCommit.hasRole(oracleCommit.DISPUTE_ROLE(), address(dispute)), "check: dispute role");
+        require(oracleCommit.hasRole(oracleCommit.OPERATOR_ROLE(), operator), "check: operator role");
+        require(oracleCommit.hasRole(oracleCommit.VALIDATOR_ROLE(), val1), "check: validator 1");
+        require(oracleCommit.hasRole(oracleCommit.VALIDATOR_ROLE(), val2), "check: validator 2");
+        require(oracleCommit.hasRole(oracleCommit.VALIDATOR_ROLE(), val3), "check: validator 3");
+        require(oracleCommit.hasRole(oracleCommit.PAUSER_ROLE(), pauser), "check: oracle pauser");
+        require(!oracleCommit.hasRole(oracleCommit.OPERATOR_ROLE(), deployer), "check: deployer is operator");
+        require(oracleCommit.timingsLocked(), "check: oracle timings unlocked");
+        require(dispute.timingsLocked(), "check: dispute timings unlocked");
+        require(staking.timingsLocked(), "check: staking timings unlocked");
+        require(narrativeMarket.timingsLocked(), "check: market timings unlocked");
+        require(oracleCommit.DISPUTE_WINDOW() == 2 hours, "check: dispute window");
+        require(staking.COOLDOWN_DURATION() == 7 days, "check: cooldown");
+        require(timelock.hasRole(timelock.PROPOSER_ROLE(), address(governor)), "check: governor proposer");
+        require(timelock.hasRole(timelock.CANCELLER_ROLE(), address(governor)), "check: governor canceller");
+        require(timelock.getMinDelay() == 48 hours, "check: timelock delay");
+    }
+
+    /// @dev Test seam: under `forge script` the broadcaster is msg.sender; harnesses override it.
+    function _broadcaster() internal view virtual returns (address) {
+        return msg.sender;
     }
 
     function _requireCode(address target, string memory label) internal view {
@@ -208,8 +269,13 @@ contract DeployMainnet is Script {
         vm.serializeAddress(key, "basketFactory", d.basketFactory);
         vm.serializeAddress(key, "kolRegistry", d.kolRegistry);
         vm.serializeAddress(key, "timelock", d.timelock);
-        string memory json = vm.serializeAddress(key, "governor", d.governor);
+        vm.serializeAddress(key, "governor", d.governor);
+        vm.serializeAddress(key, "deployer", _broadcaster());
+        vm.serializeUint(key, "chainId", block.chainid);
+        vm.serializeUint(key, "deployedAtTimestamp", block.timestamp);
+        string memory json = vm.serializeUint(key, "deployedAtBlock", block.number);
 
-        vm.writeJson(json, "deployments/4663.json");
+        // DEPLOY_MANIFEST lets tests write somewhere harmless; the default is the manifest the services read.
+        vm.writeJson(json, vm.envOr("DEPLOY_MANIFEST", string("deployments/4663.json")));
     }
 }

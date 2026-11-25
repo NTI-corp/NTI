@@ -54,3 +54,6 @@ Thumbs.db
 
 .vercel
 .env*
+
+# forge test scratch manifest
+contracts/deployments/*.test.json
