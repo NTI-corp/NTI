@@ -92,6 +92,8 @@ def main() -> int:
         lookback_blocks=args.lookback
         if args.lookback is not None
         else int(os.environ.get("DISCOVERY_LOOKBACK_BLOCKS", "30000")),
+        max_blocks_per_run=int(os.environ.get("DISCOVERY_MAX_BLOCKS_PER_RUN", "300000")),
+        scan_concurrency=int(os.environ.get("DISCOVERY_SCAN_CONCURRENCY", "1")),
         state_path=None if args.dry_run else REPO_ROOT / "data" / "state" / state_file,
     )
     url, service_key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY")
@@ -102,7 +104,7 @@ def main() -> int:
             raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_KEY are required")
         storage = SupabaseStorage(url, service_key)
 
-    rpc = pons.HttpRpc(rpc_url, pace=float(os.environ.get("DISCOVERY_RPC_PACE_SECONDS", "0.8")))
+    rpc = pons.HttpRpc(rpc_url, pace=float(os.environ.get("DISCOVERY_RPC_PACE_SECONDS", "0.2")))
     if is_testnet:
         runner = TestnetDiscoveryRunner(rpc, storage, cfg, initial_lookback=args.lookback)
     else:

@@ -6,6 +6,7 @@ so a failed run is simply retried over the same range.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -58,6 +59,7 @@ class DiscoveryConfig:
     log_range: int = 2_000
     lookback_blocks: int = 30_000
     max_blocks_per_run: int = 300_000
+    scan_concurrency: int = 1
     rising_v_bps: int = RISING_V_BPS
     state_path: Path | None = None
 
@@ -156,24 +158,33 @@ class DiscoveryRunner:
     ) -> list[dict[str, Any]]:
         if self._cfg.log_range < 1:
             raise ValueError("Discovery log range must be positive")
-        logs: list[dict[str, Any]] = []
+        ranges: list[tuple[int, int]] = []
         start = from_block
         while start <= to_block:
             end = min(start + self._cfg.log_range - 1, to_block)
-            chunk = await self._rpc.request(
-                "eth_getLogs",
-                [
-                    {
-                        "address": self._cfg.factory,
-                        "fromBlock": hex(start),
-                        "toBlock": hex(end),
-                        "topics": [list(topics)],
-                    }
-                ],
-            )
-            logs.extend(chunk or [])
+            ranges.append((start, end))
             start = end + 1
-        return logs
+        gate = asyncio.Semaphore(max(1, self._cfg.scan_concurrency))
+
+        async def fetch(lo: int, hi: int) -> list[dict[str, Any]]:
+            async with gate:
+                chunk = await self._rpc.request(
+                    "eth_getLogs",
+                    [
+                        {
+                            "address": self._cfg.factory,
+                            "fromBlock": hex(lo),
+                            "toBlock": hex(hi),
+                            "topics": [list(topics)],
+                        }
+                    ],
+                )
+            return list(chunk or [])
+
+        # Free RPC endpoints cap the block range per call, so a catch-up is thousands of calls;
+        # a few run at once.
+        chunks = await asyncio.gather(*(fetch(lo, hi) for lo, hi in ranges))
+        return [log for chunk in chunks for log in chunk]
 
     # --- enrichment -------------------------------------------------------------------------
 
