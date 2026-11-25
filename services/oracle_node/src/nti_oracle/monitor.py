@@ -17,7 +17,8 @@ from nti_oracle.node import DisputeWatcher, TelegramNotifier
 
 EPOCH_SECONDS = 14_400
 DEFAULT_COOLDOWN_SECONDS = 6 * 3600
-DEFAULT_MIN_ETH = {4663: Decimal("0.05"), 46630: Decimal("0.0003")}
+# Gas on 4663 is ~0.02 gwei: a commit costs ~0.00003 ETH, so 0.002 ETH is over a week of use.
+DEFAULT_MIN_ETH = {4663: Decimal("0.002"), 46630: Decimal("0.0003")}
 
 
 @dataclass(frozen=True, slots=True)
