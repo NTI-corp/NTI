@@ -13,6 +13,7 @@ import {
   TreeBranchIcon,
 } from "@/components/ui/Icons";
 import { LottieIcon } from "@/components/ui/LottieIcon";
+import { PixelOwlMascot } from "@/components/ui/PixelOwlMascot";
 
 function ArrowRevealLabel({
   text,
@@ -271,9 +272,12 @@ export function IndustrySection() {
 
           {/* Get Started 4 Interactive Rows matching initBlinkReveal (`0 -> 5.625em` blue blink!) + _initTabsHoverV2 */}
           <div className="pt-[6.5em] md:pt-[8.5em]">
-            <h2 className="text-[2.5em] sm:text-[4em] md:text-[5.625em] font-normal leading-[1] tracking-[-0.045em] text-white mb-[0.75em]">
-              {industry.getStartedHeading}
-            </h2>
+            <div className="flex items-center justify-between gap-4 mb-[0.75em]">
+              <h2 className="text-[2.5em] sm:text-[4em] md:text-[5.625em] font-normal leading-[1] tracking-[-0.045em] text-white">
+                {industry.getStartedHeading}
+              </h2>
+              <PixelOwlMascot variant="rocket" size={50} label="8-bit Narrative Rocket" />
+            </div>
 
             <div
               className="transition-opacity duration-300"

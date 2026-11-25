@@ -6,6 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { HOME_CONTENT, type StackTimelineCard } from "@/content/home";
 import { ProtocolIcon } from "@/components/ui/Icons";
 import { NtiStackVisual } from "@/components/ui/NtiStackVisual";
+import { PixelOwlMascot } from "@/components/ui/PixelOwlMascot";
 
 const GLYPHS = "abcdefghijklmnopqrstuvwxyz0123456789!$^*()-_=+[]{}";
 
@@ -411,13 +412,16 @@ export function StackTimelineSection() {
     >
       <div className="sui-padding-global">
         <div className="sui-container-1400">
-          {/* Centered 90px Display Heading */}
-          <h2
-            ref={headingRef}
-            className="text-[2.5em] sm:text-[4em] md:text-[5.625em] font-normal leading-[1] tracking-[-0.045em] text-white text-center max-w-[12em] mx-auto mb-[1em]"
-          >
-            {stackTimeline.heading}
-          </h2>
+          {/* Centered 90px Display Heading + 8-bit Cyber Whale */}
+          <div className="flex flex-col items-center mb-[1em]">
+            <PixelOwlMascot variant="whale" size={44} label="8-bit Cyber Whale" className="mb-[0.75em]" />
+            <h2
+              ref={headingRef}
+              className="text-[2.5em] sm:text-[4em] md:text-[5.625em] font-normal leading-[1] tracking-[-0.045em] text-white text-center max-w-[12em] mx-auto"
+            >
+              {stackTimeline.heading}
+            </h2>
+          </div>
 
           {/* Desktop Asymmetric Offset 3-Flex Layout matching `.timeline_main` */}
           <div className="hidden md:flex items-stretch justify-center gap-[3.75em] w-full">

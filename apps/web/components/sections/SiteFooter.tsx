@@ -7,6 +7,7 @@ import { FOOTER_CONTENT } from "@/content/footer";
 import { DottedDivider } from "@/components/ui/DottedDivider";
 import { ExternalArrowIcon, RobinhoodMark, XIcon } from "@/components/ui/Icons";
 import { ScrambleText } from "@/components/ui/ScrambleText";
+import { PixelOwlMascot } from "@/components/ui/PixelOwlMascot";
 
 const PILLARS = [
   { x1: 634.196, x2: 846.378, opacity: "0.8" },
@@ -86,8 +87,9 @@ export function SiteFooter() {
             <div className="grid grid-cols-1 md:grid-cols-[1.35fr_1fr_1fr_1fr] gap-x-[2em] gap-y-[2.5em] items-start">
               {/* Brand Column */}
               <div className="flex flex-col gap-[0.9em]">
-                <a href="/" className="inline-flex items-center gap-[0.6em] group w-fit">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                <div className="flex items-center gap-[0.75em]">
+                  <a href="/" className="inline-flex items-center gap-[0.6em] group w-fit">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/nti-logo.png"
                     alt="NTI"
@@ -97,6 +99,8 @@ export function SiteFooter() {
                     NTI
                   </span>
                 </a>
+                <PixelOwlMascot variant="perched" size={30} label="NTI 8-bit Owl" />
+                </div>
                 <p className="text-[0.875em] leading-[1.45] text-[#89919f] max-w-[20em] m-0">
                   {brandSubtitle}
                 </p>

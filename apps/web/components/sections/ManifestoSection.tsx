@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { HOME_CONTENT } from "@/content/home";
+import { PixelOwlMascot } from "@/components/ui/PixelOwlMascot";
 
 export function ManifestoSection() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -47,8 +48,11 @@ export function ManifestoSection() {
     >
       <div className="sui-padding-global">
         <div className="sui-container-1400">
-          <div className="inline-block bg-[#e0e2e6] text-[#131518] font-mono text-[0.75em] leading-[1.2] tracking-[0.01em] px-[0.75em] py-[0.45em] mb-[2.25em]">
-            {manifesto.badge}
+          <div className="mb-[2.25em] inline-flex items-center gap-[0.65em]">
+            <PixelOwlMascot variant="default" size={28} label="NTI 8-bit AI Sentinel" />
+            <span className="inline-block bg-[#e0e2e6] text-[#131518] font-mono text-[0.75em] leading-[1.2] tracking-[0.01em] px-[0.75em] py-[0.45em]">
+              {manifesto.badge}
+            </span>
           </div>
 
           <h2 className="text-[2.25em] sm:text-[3.25em] md:text-[4.875em] font-normal leading-[1.08] tracking-[-0.045em] text-black max-w-[18.5em]">

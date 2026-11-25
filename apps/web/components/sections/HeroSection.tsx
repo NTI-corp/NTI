@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { HOME_CONTENT } from "@/content/home";
 import { HeroShaderCanvas } from "@/components/sections/HeroShaderCanvas";
+import { HeroOwl3D } from "@/components/sections/HeroOwl3D";
 
 function HeroTextStagger({
   text,
@@ -183,39 +184,71 @@ export function HeroSection() {
         ref={stickyStageRef}
         className="hero-portal-sticky sticky top-0 h-[100svh] w-full overflow-hidden flex flex-col justify-center"
       >
-        {/* Zoom-responsive Dark Obsidian & WebGL Shader Backdrop */}
+        {/* Zoom-responsive Dark Obsidian WebGL Wave + Monumental 3D Cyber Owl Background */}
         <div
           ref={shaderStageRef}
           className="absolute inset-0 bg-[#090B0E] will-change-transform origin-center"
         >
           <HeroShaderCanvas />
+          <HeroOwl3D />
           <div
             aria-hidden="true"
-            className="absolute inset-0 z-[2] pointer-events-none bg-gradient-to-b from-black/25 via-transparent to-black/50"
+            className="absolute inset-0 z-[3] pointer-events-none bg-gradient-to-b from-black/20 via-transparent to-black/45"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 z-[4] pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse 48% 34% at 50% 54%, rgba(5,7,10,0.78) 0%, rgba(5,7,10,0.45) 48%, transparent 78%)",
+            }}
           />
         </div>
 
-        {/* Foreground Content zooming toward & past the viewer as scroll leaves the Hero */}
+        {/* Foreground Content floating crisply over the 3D Cyber Owl & Obsidian Wave */}
         <div
           ref={contentStageRef}
-          className="relative z-[11] sui-padding-global pt-[6em] pb-[3em] will-change-transform origin-[50%_44%] pointer-events-auto"
+          className="relative z-[11] sui-padding-global pt-[6em] pb-[3em] will-change-transform origin-[50%_46%] pointer-events-auto"
         >
           <div className="sui-container-1400 flex flex-col items-center text-center">
             <h1
               ref={headlineRef}
-              className="text-[3.25em] sm:text-[4.25em] md:text-[5.625em] font-normal leading-[0.98] tracking-[-0.045em] text-white max-w-[13em]"
+              className="text-[3.1em] sm:text-[4.25em] md:text-[5.5em] font-normal leading-[0.98] tracking-[-0.045em] text-white max-w-[14em] drop-shadow-[0_6px_28px_rgba(0,0,0,0.85)]"
             >
-              {hero.headline}
+              {hero.headline.endsWith(" mindshare") ? (
+                <>
+                  {hero.headline.slice(0, -" mindshare".length)}{" "}
+                  <span className="text-[#CCFF00]">mindshare</span>
+                </>
+              ) : (
+                hero.headline
+              )}
             </h1>
 
             <div ref={subCtaRef} className="flex flex-col items-center will-change-transform">
-              <p className="mt-[1.35em] text-[1.0625em] md:text-[1.25em] leading-[1.4] tracking-[-0.015em] text-[#e0e2e6] max-w-[38em]">
-                {hero.subheadline}
+              <p className="mt-[1.3em] text-[1.02em] md:text-[1.2em] leading-[1.42] tracking-[-0.015em] text-[#e8eaee] max-w-[38em] drop-shadow-[0_2px_16px_rgba(0,0,0,0.9)]">
+                {hero.subheadline.includes(" across X ") ? (
+                  <>
+                    {hero.subheadline.split(" across X ")[0]} across{" "}
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      aria-label="X"
+                      role="img"
+                      className="inline-block w-[0.92em] h-[0.92em] -mt-[0.14em] mx-[0.06em] align-middle text-white"
+                    >
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>{" "}
+                    {hero.subheadline.split(" across X ")[1]}
+                  </>
+                ) : (
+                  hero.subheadline
+                )}
               </p>
 
               <div
                 ref={ctaWrapRef}
-                className="mt-[2.25em] grid grid-cols-2 gap-0 min-h-[3em] items-stretch justify-center mx-auto"
+                className="mt-[2.1em] grid grid-cols-2 gap-0 min-h-[3em] items-stretch justify-center mx-auto shadow-[0_12px_36px_rgba(0,0,0,0.7)]"
               >
                 <a
                   href={hero.primaryCta.href}

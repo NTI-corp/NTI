@@ -5,8 +5,8 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const ASCII_PHRASE = "NTI // MINDSHARE // 4H EPOCH // ";
-const COLS = 88;
-const ROWS = 62;
+const COLS = 92;
+const ROWS = 64;
 
 interface MaskCell {
   col: number;
@@ -16,7 +16,7 @@ interface MaskCell {
   seed: number;
 }
 
-function buildNtiAsciiCells(): MaskCell[] {
+function buildNtiAsciiCellsFromImage(img: HTMLImageElement): MaskCell[] {
   if (typeof document === "undefined") return [];
   const MASK_SIZE = 256;
   const off = document.createElement("canvas");
@@ -26,45 +26,13 @@ function buildNtiAsciiCells(): MaskCell[] {
   if (!ctx) return [];
 
   ctx.clearRect(0, 0, MASK_SIZE, MASK_SIZE);
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
-  const cx = MASK_SIZE * 0.5;
-  const cy = MASK_SIZE * 0.52;
-  const r = MASK_SIZE * 0.37;
-
-  // 1. Thick architectural orbital C-ring open toward top-right breakout
-  ctx.lineWidth = MASK_SIZE * 0.125;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, -Math.PI * 0.06, Math.PI * 1.56, false);
-  ctx.stroke();
-
-  // 2. Bold NTI ascending pulse / monogram chevron cutting cleanly across center
-  ctx.lineWidth = MASK_SIZE * 0.11;
-  ctx.beginPath();
-  ctx.moveTo(MASK_SIZE * 0.30, MASK_SIZE * 0.67);
-  ctx.lineTo(MASK_SIZE * 0.30, MASK_SIZE * 0.37);
-  ctx.lineTo(MASK_SIZE * 0.49, MASK_SIZE * 0.59);
-  ctx.lineTo(MASK_SIZE * 0.66, MASK_SIZE * 0.36);
-  ctx.stroke();
-
+  ctx.drawImage(img, 0, 0, MASK_SIZE, MASK_SIZE);
   const imgData = ctx.getImageData(0, 0, MASK_SIZE, MASK_SIZE).data;
 
-  // Separate beacon orb hit mask at top-right breakout
-  const beaconCanvas = document.createElement("canvas");
-  beaconCanvas.width = MASK_SIZE;
-  beaconCanvas.height = MASK_SIZE;
-  const bCtx = beaconCanvas.getContext("2d");
-  let beaconData: Uint8ClampedArray | null = null;
-  if (bCtx) {
-    bCtx.fillStyle = "#ffffff";
-    bCtx.beginPath();
-    bCtx.arc(MASK_SIZE * 0.77, MASK_SIZE * 0.24, MASK_SIZE * 0.078, 0, Math.PI * 2);
-    bCtx.fill();
-    beaconData = bCtx.getImageData(0, 0, MASK_SIZE, MASK_SIZE).data;
-  }
+  // Sunburst hub center of the NTI logo (/nti-logo.png)
+  const hubX = MASK_SIZE * 0.645;
+  const hubY = MASK_SIZE * 0.365;
+  const hubR = MASK_SIZE * 0.085;
 
   const cells: MaskCell[] = [];
   for (let row = 0; row < ROWS; row++) {
@@ -73,12 +41,15 @@ function buildNtiAsciiCells(): MaskCell[] {
     for (let col = 0; col < COLS; col++) {
       const px = Math.min(MASK_SIZE - 1, Math.floor(((col + 0.5) / COLS) * MASK_SIZE));
       const idx = (py * MASK_SIZE + px) * 4;
-      const inMain = (imgData[idx + 3] ?? 0) > 100;
-      const inBeacon = (beaconData?.[idx + 3] ?? 0) > 100;
-      if (!inMain && !inBeacon) continue;
+      const alpha = imgData[idx + 3] ?? 0;
+      if (alpha < 150) continue;
 
       const ch = ASCII_PHRASE[(col + rowOffset) % ASCII_PHRASE.length] ?? " ";
       if (ch === " ") continue;
+
+      const dx = px - hubX;
+      const dy = py - hubY;
+      const inBeacon = dx * dx + dy * dy <= hubR * hubR;
 
       const seed = Math.abs(Math.sin(row * 127.1 + col * 311.7) * 43758.5453) % 1;
       cells.push({ col, row, ch, isBeacon: inBeacon, seed });
@@ -93,15 +64,14 @@ export function SuiDropletParallax() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Kinetic NTI ASCII mosaic flicker matching sui.io initMasking (0.08s..0.15s intervals)
+  // Kinetic NTI ASCII mosaic sampled directly from the official NTI sunburst-N logo (/nti-logo.png)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const cells = buildNtiAsciiCells();
-    if (!cells.length) return;
+    let cells: MaskCell[] = [];
 
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -114,6 +84,7 @@ export function SuiDropletParallax() {
     let isVisible = true;
 
     const renderAscii = () => {
+      if (!cells.length) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const cssW = canvas.clientWidth;
       const cssH = canvas.clientHeight;
@@ -181,10 +152,17 @@ export function SuiDropletParallax() {
     observer.observe(canvas);
     window.addEventListener("resize", renderAscii);
 
-    renderAscii();
-    if (!reducedMotion) {
-      timerB = setTimeout(cycle, 100);
-    }
+    const logoImg = new window.Image();
+    logoImg.decoding = "async";
+    logoImg.onload = () => {
+      if (!mounted) return;
+      cells = buildNtiAsciiCellsFromImage(logoImg);
+      renderAscii();
+      if (!reducedMotion) {
+        timerB = setTimeout(cycle, 100);
+      }
+    };
+    logoImg.src = "/nti-logo.png";
 
     return () => {
       mounted = false;

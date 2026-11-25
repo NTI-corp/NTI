@@ -15,8 +15,11 @@ import { ScrollSequenceBridge } from "@/components/sections/ScrollSequenceBridge
 import { StackTimelineSection } from "@/components/sections/StackTimelineSection";
 import { SuiDropletParallax } from "@/components/sections/SuiDropletParallax";
 import { BenefitsSection } from "@/components/sections/BenefitsSection";
+import { LiveTerminalPreviewSection } from "@/components/sections/LiveTerminalPreviewSection";
 import { IndustrySection } from "@/components/sections/IndustrySection";
 import { StayInLoopSection } from "@/components/sections/StayInLoopSection";
+import { FaqSection } from "@/components/sections/FaqSection";
+import { ClosingCtaSection } from "@/components/sections/ClosingCtaSection";
 import { SiteFooter } from "@/components/sections/SiteFooter";
 
 export function SuiLandingPage() {
@@ -73,8 +76,11 @@ export function SuiLandingPage() {
         <StackTimelineSection />
         <SuiDropletParallax />
         <BenefitsSection />
+        <LiveTerminalPreviewSection />
         <IndustrySection />
         <StayInLoopSection />
+        <FaqSection />
+        <ClosingCtaSection />
       </main>
       <SiteFooter />
     </div>

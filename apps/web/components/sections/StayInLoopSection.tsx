@@ -13,6 +13,7 @@ import { HOME_CONTENT, type DeployedContractMeta } from "@/content/home";
 import { DottedDivider } from "@/components/ui/DottedDivider";
 import { ExternalArrowIcon, NtiOracleIcon, ProtocolIcon, RobinhoodMark } from "@/components/ui/Icons";
 import { ScrambleText } from "@/components/ui/ScrambleText";
+import { PixelOwlMascot } from "@/components/ui/PixelOwlMascot";
 
 const GLYPHS = "abcdefghijklmnopqrstuvwxyz0123456789!$^*()-_=+[]{}";
 
@@ -236,11 +237,8 @@ export function StayInLoopSection() {
           </h2>
 
           {/* Subtitle with mask wipe */}
-          <div className="mt-[1.35em] flex items-center justify-center gap-[0.65em] text-center">
-            <span
-              aria-hidden="true"
-              className="w-[0.65em] h-[0.65em] bg-[#CCFF00] shrink-0"
-            />
+          <div className="mt-[1.35em] flex items-center justify-center gap-[0.75em] text-center">
+            <PixelOwlMascot variant="sentinel" size={30} label="8-bit Validator Sentinel" />
             <div className="relative overflow-hidden">
               <p className="text-[0.9375em] md:text-[1.0625em] text-[#c2c6cd] inline-flex flex-wrap items-center justify-center gap-x-[0.35em]">
                 <span>15 protocol contracts live on</span>
@@ -467,7 +465,8 @@ function ContractTimelineCard({
       {/* Bottom Bar */}
       <div className="relative flex items-center justify-between gap-[0.75em] pl-[4.188em] pr-[1.25em] py-[0.8em] border-t-[1.5px] border-b-[1.5px] border-[#4b515b]">
         <div className="flex items-center gap-[0.5em] font-mono text-[0.75em] text-[#89919f]">
-          <span className="w-[0.5em] h-[0.5em] bg-[#CCFF00] inline-block shrink-0" />
+          <span className="text-[#CCFF00]">{card.number}</span>
+          <span className="text-[#4b515b]">/</span>
           <span>CHAIN 46630</span>
         </div>
 

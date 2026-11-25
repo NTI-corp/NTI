@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { HOME_CONTENT } from "@/content/home";
 import { DottedFrame } from "@/components/ui/DottedDivider";
+import { PixelOwlMascot } from "@/components/ui/PixelOwlMascot";
 
 function NTILogoMarkSvg({ className = "w-full h-full" }: { className?: string }) {
   return (
@@ -116,28 +117,37 @@ export function BenefitsSection() {
         <div className="sui-container-1400">
           {/* Two-Column Dotted Frame Comparison Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-[1.5em] md:gap-[2em]">
-            {columns.map((col) => (
+            {columns.map((col, colIdx) => (
               <div
                 key={col.heading}
                 className="relative p-[1.5em] sm:p-[2em] md:p-[2.5em]"
               >
                 <DottedFrame color="#c2c6cd" />
                 <div className="relative z-10">
-                  <h2 className="text-[1.875em] md:text-[2.75em] font-normal leading-[1.1] tracking-[-0.03em] text-black mb-[1.1em]">
-                    {col.heading}
-                  </h2>
+                  <div className="flex items-center justify-between gap-3 mb-[1.1em]">
+                    <h2 className="text-[1.875em] md:text-[2.75em] font-normal leading-[1.1] tracking-[-0.03em] text-black">
+                      {col.heading}
+                    </h2>
+                    <PixelOwlMascot
+                      variant={colIdx === 0 ? "bull" : "bot"}
+                      size={44}
+                      label={colIdx === 0 ? "8-bit Cyber Bull" : "8-bit AI Agent Droid"}
+                    />
+                  </div>
 
                   <div className="flex flex-col gap-[0.65em]">
-                    {col.items.map((text) => (
+                    {col.items.map((text, itemIdx) => (
                       <div
                         key={text}
                         data-benefit-card=""
-                        className="bg-[#f4f5f7] px-[1.25em] py-[1.15em] flex items-start gap-[0.85em]"
+                        className="bg-[#f4f5f7] px-[1.25em] py-[1.15em] flex items-baseline gap-[0.95em]"
                       >
                         <span
                           aria-hidden="true"
-                          className="w-[0.75em] h-[0.75em] bg-[#CCFF00] shrink-0 mt-[0.35em]"
-                        />
+                          className="font-mono text-[0.75em] font-medium text-[#4b515b] tabular-nums shrink-0"
+                        >
+                          {String(itemIdx + 1).padStart(2, "0")}
+                        </span>
                         <p className="text-[1em] md:text-[1.125em] leading-[1.35] tracking-[-0.01em] text-black">
                           {text}
                         </p>

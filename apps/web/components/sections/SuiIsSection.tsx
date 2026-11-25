@@ -56,7 +56,7 @@ function HighlightScrambleTitle({ text }: { text: string }) {
     words.forEach((word, wIdx) => {
       const palette = FLASH_PALETTES[wIdx % FLASH_PALETTES.length] ?? FLASH_PALETTES[0]!;
       word.split("").forEach((origCh, cIdx) => {
-        const delay = globalIdx * 24;
+        const delay = globalIdx * 18;
         globalIdx++;
 
         // Step 1: Flash colored block + random glyph
@@ -99,7 +99,7 @@ function HighlightScrambleTitle({ text }: { text: string }) {
                 : wArr
             )
           );
-        }, delay + 85);
+        }, delay + 75);
 
         timers.push(t1, t2);
       });
@@ -120,7 +120,7 @@ function HighlightScrambleTitle({ text }: { text: string }) {
           cleanupTimers = runFlashScramble();
         }
       },
-      { threshold: 0.25 }
+      { threshold: 0.1 }
     );
 
     observer.observe(el);
@@ -178,8 +178,8 @@ export function SuiIsSection() {
         </div>
       </div>
 
-      {/* Capability Rows (.home-tabs_layout bg-[#f4f5f7]) */}
-      <div className="w-full bg-[#f4f5f7] pb-[3.5em]">
+      {/* Capability Rows (.home-tabs_layout bg-[#f4f5f7]) with scroll runway so last row animations finish before portal transition */}
+      <div className="w-full bg-[#f4f5f7] pb-[24svh] md:pb-[28svh]">
         <DottedDivider color="#a1a7b2" />
         {suiIs.items.map((item, idx) => {
           const isHovered = hoveredIdx === idx;
