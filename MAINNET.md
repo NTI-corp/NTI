@@ -13,7 +13,7 @@ $NTI launches on Pons.
 
 | Item | Notes |
 | --- | --- |
-| 8 new wallets | deployer (also the admin), operator, keeper, attester, validators 1 to 3, pauser (any wallet). Fund the deployer with at least 0.01 ETH and every hot wallet with at least 0.01 ETH |
+| 6 new wallets | **deployer** (also admin and pauser), **operator**, **keeper** (also attester), **validators 1 to 3**. Only the first three send transactions and need gas (at least 0.01 ETH each); the validators and the attester only sign off-chain and need none. In `.env.mainnet` set `PAUSER_ADDRESS` to the deployer address and `ATTESTER_ADDRESS` to the keeper address. Keep operator and keeper separate: they send transactions at the same time and would collide on nonces |
 | Alchemy plan | The existing key already serves mainnet, but the free tier allows `eth_getLogs` over only 10 blocks (about 1 second). The indexer cannot keep up on that. Upgrade the same key to pay-as-you-go before the cutover |
 | `.env.mainnet` | Copy `infra/mainnet.env.example`, fill the wallets and the Alchemy URL |
 

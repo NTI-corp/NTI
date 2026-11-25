@@ -129,16 +129,20 @@ def stage_deploy(r: Report, rpc_url: str) -> None:
             continue
         addrs[name] = to_checksum_address(raw)
     if len(addrs) == len(ROLE_ENVS):
-        signers = [addrs[n] for n in ROLE_ENVS if n != "PAUSER_ADDRESS"]
+        # Wallets that send transactions (deployer, operator, keeper) and the three validators must all be
+        # different. The attester only signs off-chain, so it may be the keeper; the pauser may be any wallet.
+        distinct = [addrs[n] for n in ("DEPLOYER_ADDRESS", "OPERATOR_ADDRESS", "KEEPER_ADDRESS")]
+        distinct += [addrs[f"VALIDATOR_{i}_ADDRESS"] for i in (1, 2, 3)]
         r.check(
-            len(set(signers)) == len(signers),
-            "deployer, operator, keeper, attester and validators are pairwise distinct",
-            "two role wallets share an address; every hot wallet must be its own key",
+            len(set(distinct)) == len(distinct),
+            "deployer, operator, keeper and the three validators are pairwise distinct",
+            "two of deployer, operator, keeper, validator 1 to 3 share an address",
         )
-        for name, addr in addrs.items():
-            if name == "PAUSER_ADDRESS":
-                continue
-            bal = int(str(rpc(rpc_url, "eth_getBalance", [addr, "latest"])), 16) / 10**18
+        if addrs["PAUSER_ADDRESS"] == addrs["DEPLOYER_ADDRESS"]:
+            r.warn("PAUSER_ADDRESS is the deployer wallet: fine for launch, one key then does both jobs")
+        # Only wallets that pay gas need ETH: validators and the attester sign off-chain.
+        for name in ("DEPLOYER_ADDRESS", "OPERATOR_ADDRESS", "KEEPER_ADDRESS"):
+            bal = int(str(rpc(rpc_url, "eth_getBalance", [addrs[name], "latest"])), 16) / 10**18
             floor = MIN_DEPLOYER_ETH if name == "DEPLOYER_ADDRESS" else MIN_OPERATIONAL_ETH
             r.check(bal >= floor, f"{name} balance {bal:.5f} ETH", f"{name} balance {bal:.5f} ETH < {floor}")
         for role, key_env in KEY_FOR_ROLE.items():

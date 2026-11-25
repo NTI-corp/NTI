@@ -76,11 +76,14 @@ fall behind silently.
 existing 8 are all in use for scraping. The 95% fetch-evidence gate still proves coverage; what is missing is a
 second pair of eyes on which accounts were scraped. The preflight warns.
 
-## 8. Roles
+## 8. Roles: six wallets
 
-**Chosen.** Eight distinct wallets, all new. The pauser can be any wallet (a Safe is welcome, not required). The
-preflight refuses duplicate wallets and a key that does not derive to its role address, and warns when the pauser
-is the deployer.
+**Chosen.** Deployer (admin and pauser), operator, keeper (also the attester), and three validators. Validators and
+the attester only sign messages off-chain (`sign_attestation` never sends a transaction; the operator submits the
+attestations), so they need no gas. Deployer, operator and keeper send transactions. The contract needs three
+distinct validators, the operator must not share a validator key, and operator and keeper stay separate because
+they send at the same time and would collide on nonces. The preflight enforces exactly that and warns when the
+pauser is the deployer.
 
 ## 9. Cutover mechanics
 

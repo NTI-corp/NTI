@@ -582,9 +582,6 @@ async def _run_monitor(args: argparse.Namespace) -> dict[str, Any]:
     balances: dict[str, tuple[str, Decimal]] = {}
     key_envs = {
         "operator": "OPERATOR_PRIVATE_KEY",
-        "validator-1": "VALIDATOR_PRIVATE_KEY_1",
-        "validator-2": "VALIDATOR_PRIVATE_KEY_2",
-        "validator-3": "VALIDATOR_PRIVATE_KEY_3",
         "keeper": "KEEPER_PRIVATE_KEY",
     }
     for role, env_name in key_envs.items():
