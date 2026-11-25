@@ -256,3 +256,33 @@ def test_bytea_helpers_roundtrip(value: str) -> None:
     from nti_discovery.runner import from_pg_bytea
 
     assert from_pg_bytea(to_pg_bytea(value)) == "0xabcdef"
+
+
+def test_ecosystem_tokens_use_live_market_and_keep_first_seen_time() -> None:
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    from nti_discovery.dex import TokenMarket
+    from nti_discovery.runner import ecosystem_tokens
+
+    nvda = "0xAAA0000000000000000000000000000000000001"
+    none = "0xBBB0000000000000000000000000000000000002"
+    entries = [
+        {"address": nvda, "symbol": "NVDA", "narrative_id": 3},
+        {"address": none, "symbol": "NONE", "narrative_id": 9},
+    ]
+    a = entries[0]["address"].lower()
+    markets = {a: TokenMarket(address=a, pool="0xpool", liquidity_usd=Decimal("3000"), txs_24h=40)}
+    now = datetime(2026, 11, 25, 17, 0, tzinfo=UTC)
+    rows = ecosystem_tokens(entries, markets, Decimal("3000"), {}, now)
+    by_symbol = {r.symbol: r for r in rows}
+    assert by_symbol["NVDA"].liquidity_eth == Decimal("1.0000")
+    assert by_symbol["NVDA"].txs_7d == 40 and by_symbol["NVDA"].narrative_id == 3
+    assert by_symbol["NVDA"].source == "uniswap" and by_symbol["NVDA"].graduated
+    # no market data: nothing is invented
+    assert by_symbol["NONE"].liquidity_eth == Decimal(0) and by_symbol["NONE"].txs_7d == 0
+    # a second run keeps the first-seen time and never lowers the activity count
+    known = {r.address: r for r in rows}
+    again = ecosystem_tokens(entries, {}, Decimal("3000"), known, now.replace(hour=21))
+    assert {r.symbol: r.created_at for r in again}["NVDA"] == now
+    assert {r.symbol: r.txs_7d for r in again}["NVDA"] == 40

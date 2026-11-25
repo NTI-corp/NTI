@@ -60,6 +60,7 @@ class DiscoveryConfig:
     lookback_blocks: int = 30_000
     max_blocks_per_run: int = 300_000
     scan_concurrency: int = 1
+    ecosystem_path: Path | None = None
     rising_v_bps: int = RISING_V_BPS
     state_path: Path | None = None
 
@@ -110,6 +111,48 @@ def _token_to_row(tok: DiscoveredToken) -> dict[str, Any]:
         if tok.last_activity_at
         else None,
     }
+
+
+def ecosystem_tokens(
+    entries: list[dict[str, Any]],
+    markets: dict[str, TokenMarket],
+    eth_usd: Decimal,
+    existing: dict[str, DiscoveredToken],
+    now: datetime,
+) -> list[DiscoveredToken]:
+    """Curated ecosystem tokens with live liquidity and activity from DexScreener.
+
+    Only the narrative is curated; a token with no market data keeps its previous numbers (or zero),
+    so a DexScreener outage never invents liquidity. created_at is when the token was first seen.
+    """
+    out: list[DiscoveredToken] = []
+    for entry in entries:
+        address = str(entry["address"]).lower()
+        prior = existing.get(address)
+        market = markets.get(address)
+        liquidity = (
+            liquidity_eth(market, eth_usd).quantize(Decimal("0.0001"))
+            if market and eth_usd > 0
+            else (prior.liquidity_eth if prior else Decimal(0))
+        )
+        out.append(
+            DiscoveredToken(
+                address=address,
+                symbol=str(entry["symbol"]),
+                name=str(entry.get("name") or entry["symbol"]),
+                created_at=prior.created_at if prior else now,
+                source="uniswap",
+                graduated=True,
+                pool=(market.pool if market and market.pool else (prior.pool if prior else None)),
+                liquidity_eth=liquidity,
+                narrative_id=int(entry["narrative_id"]),
+                txs_7d=max(prior.txs_7d if prior else 0, market.txs_24h if market else 0),
+                last_activity_at=now
+                if market and market.txs_24h
+                else (prior.last_activity_at if prior else None),
+            )
+        )
+    return out
 
 
 class DiscoveryRunner:
@@ -185,6 +228,30 @@ class DiscoveryRunner:
         # a few run at once.
         chunks = await asyncio.gather(*(fetch(lo, hi) for lo, hi in ranges))
         return [log for chunk in chunks for log in chunk]
+
+    async def _refresh_ecosystem(self) -> int:
+        """Upsert the curated ecosystem tokens with their live market data (never raises)."""
+        path = self._cfg.ecosystem_path
+        if path is None or not path.exists() or self._market is None:
+            return 0
+        try:
+            entries = list(json.loads(path.read_text(encoding="utf-8")).get("tokens", []))
+            if not entries:
+                return 0
+            addresses = [str(e["address"]).lower() for e in entries]
+            eth_usd = await self._market.eth_usd(self._cfg.weth) or Decimal(0)
+            markets = await self._market.markets(addresses)
+            rows = await self._storage.select(
+                "tokens", filters={"source": "eq.uniswap"}, order="created_at.desc", limit=1000
+            )
+            existing = {t.address: t for t in (_row_to_token(r) for r in rows)}
+            tokens = ecosystem_tokens(entries, markets, eth_usd, existing, self._now)
+            await self._storage.upsert(
+                "tokens", [_token_to_row(t) for t in tokens], on_conflict="address"
+            )
+            return len(tokens)
+        except Exception:  # noqa: BLE001 - the Pons scan result is already saved; this is best effort
+            return 0
 
     # --- enrichment -------------------------------------------------------------------------
 
@@ -384,6 +451,8 @@ class DiscoveryRunner:
         ]
         alerts_created = await self._emit_token_alerts(fresh, detected_at=self._now)
 
+        ecosystem = await self._refresh_ecosystem()
+
         self._save_last_block(to_block)
         return {
             "role": "discovery",
@@ -394,6 +463,7 @@ class DiscoveryRunner:
             "tracked_tokens": len(tokens),
             "market_data": market_status,
             "alerts_created": alerts_created,
+            "ecosystem_tokens": ecosystem,
         }
 
 

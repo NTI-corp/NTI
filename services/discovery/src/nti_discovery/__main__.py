@@ -94,6 +94,7 @@ def main() -> int:
         else int(os.environ.get("DISCOVERY_LOOKBACK_BLOCKS", "30000")),
         max_blocks_per_run=int(os.environ.get("DISCOVERY_MAX_BLOCKS_PER_RUN", "300000")),
         scan_concurrency=int(os.environ.get("DISCOVERY_SCAN_CONCURRENCY", "1")),
+        ecosystem_path=REPO_ROOT / "config" / "ecosystem_tokens.json",
         state_path=None if args.dry_run else REPO_ROOT / "data" / "state" / state_file,
     )
     url, service_key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY")

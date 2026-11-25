@@ -1,0 +1,19 @@
+{
+  "note": "Real Robinhood Chain tokens that discovery cannot find by scanning Pons launches. Liquidity and activity are read from DexScreener every run; only the narrative is curated here. USDG is left out until the official address is confirmed (two tokens carry that name).",
+  "tokens": [
+    {"address": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", "symbol": "NVDA", "name": "NVIDIA Robinhood Token", "narrative_id": 3},
+    {"address": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C", "symbol": "SPY", "name": "SPDR S&P 500 ETF Trust Robinhood Token", "narrative_id": 3},
+    {"address": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b", "symbol": "COIN", "name": "Coinbase Robinhood Token", "narrative_id": 3},
+    {"address": "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa", "symbol": "SPCX", "name": "Space Exploration Technologies Class A Robinhood Token", "narrative_id": 3},
+    {"address": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35", "symbol": "META", "name": "Meta Platforms Robinhood Token", "narrative_id": 3},
+    {"address": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3", "symbol": "GOOGL", "name": "Alphabet Class A Robinhood Token", "narrative_id": 3},
+    {"address": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9", "symbol": "AAPL", "name": "Apple Robinhood Token", "narrative_id": 3},
+    {"address": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d", "symbol": "TSLA", "name": "Tesla Robinhood Token", "narrative_id": 3},
+    {"address": "0x12f190a9F9d7D37a250758b26824B97CE941bF54", "symbol": "AMZN", "name": "Amazon Robinhood Token", "narrative_id": 3},
+    {"address": "0xb0992820E760d836549ba69BC7598b4af75dEE03", "symbol": "ORCL", "name": "Oracle Robinhood Token", "narrative_id": 3},
+    {"address": "0x39dBED3a2bd333467115dE45665cC57F813C4571", "symbol": "PONS", "name": "Pons", "narrative_id": 9},
+    {"address": "0x2E8c31162b855A2ffa90F6F8634643Ad6F111e18", "symbol": "AI", "name": "Artificial Inu", "narrative_id": 9},
+    {"address": "0x385F4f8ae47651ce5F58F5265395a669f8281e18", "symbol": "MEME", "name": "A Meme Coin", "narrative_id": 9},
+    {"address": "0xcDcABf520Be369123C36796F9e53680C657f08f0", "symbol": "PEPE", "name": "Pepe in Hood", "narrative_id": 9}
+  ]
+}
