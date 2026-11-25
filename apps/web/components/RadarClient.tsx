@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { RadarFeed } from "./RadarFeed";
+import { RecentLaunches } from "./RecentLaunches";
+import type { RecentLaunchItem } from "@/lib/types";
 import { useSiweSession } from "./Providers";
 import { AwaitingEpochBanner } from "./AwaitingEpochBanner";
 import { VelocityBars } from "./VelocityBars";
@@ -13,9 +15,11 @@ import type { NarrativeIndexItem, RadarResponse } from "@/lib/types";
 export function RadarClient({
   initialData,
   sectors = [],
+  launches = [],
 }: {
   initialData: RadarResponse;
   sectors?: NarrativeIndexItem[];
+  launches?: RecentLaunchItem[];
 }) {
   const { isConnected } = useAccount();
   const { session, signingIn, signIn, error } = useSiweSession();
@@ -148,6 +152,9 @@ export function RadarClient({
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div key={filter} className="tab-panel-enter xl:col-span-7">
           <RadarFeed alerts={filteredAlerts} realtimeUnlocked={data.realtimeUnlocked} />
+          <div className="mt-4">
+            <RecentLaunches launches={launches} />
+          </div>
         </div>
         {sectors.length > 0 && (
           <div className="xl:col-span-5">

@@ -343,3 +343,13 @@ export interface KolLeaderboardResponse {
   avgReputation: number;
   kols: KolLeaderboardItem[];
 }
+
+export interface RecentLaunchItem {
+  address: string;
+  symbol: string;
+  name: string;
+  createdAt: string;
+  graduated: boolean;
+  liquidityEth: number;
+  narrativeLabel: string | null;
+}

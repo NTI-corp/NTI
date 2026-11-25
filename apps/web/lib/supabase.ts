@@ -28,6 +28,7 @@ import type {
   NarrativeHistoryResponse,
   NarrativeIndexItem,
   RadarAlertItem,
+  RecentLaunchItem,
   RadarResponse,
   TokenItem,
   TopPostItem,
@@ -637,6 +638,31 @@ export async function fetchEpochDetail(epochId?: number): Promise<EpochDetailRes
     disputes,
     recentEpochs,
   };
+}
+
+/** Newest Pons launches the discovery job is watching, including those still below the 1 ETH alert threshold. */
+export async function fetchRecentLaunches(limit = 25): Promise<RecentLaunchItem[]> {
+  const rows = await supabaseSelect<{
+    address: string;
+    symbol: string;
+    name: string;
+    created_at: string;
+    graduated: boolean;
+    liquidity_eth: number | string | null;
+    narrative_id: number | null;
+  }>(
+    `tokens?select=address,symbol,name,created_at,graduated,liquidity_eth,narrative_id&source=eq.pons_v2&order=created_at.desc&limit=${limit}`,
+    "anon",
+  );
+  return (rows ?? []).map((r) => ({
+    address: normalizeHex(r.address) ?? r.address,
+    symbol: r.symbol,
+    name: r.name,
+    createdAt: r.created_at,
+    graduated: r.graduated,
+    liquidityEth: Number(r.liquidity_eth ?? 0),
+    narrativeLabel: r.narrative_id ? (NARRATIVE_BY_ID.get(r.narrative_id)?.label ?? null) : null,
+  }));
 }
 
 export async function fetchRadarAlerts(params: {
