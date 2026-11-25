@@ -66,7 +66,7 @@ Estimated cost from the last simulation: about 0.0015 ETH at 0.04 gwei.
 4. **Safety windows are frozen at deploy.** `DeployMainnet` locks the timings at the production defaults
    (2h dispute window, 6h resolution window, 7d unstake cooldown, 48h settle timeout, 6/42-epoch market horizons)
    with `lockTimings()` on OracleCommit, Dispute, Staking and NarrativeMarket. Testnet keeps them unlocked and short
-   (2 minute dispute window, 5 minute cooldown) so every flow can be exercised in minutes. Verify on mainnet that
+   (5 second dispute window, 10 second unstake cooldown; the 60 minute commit delay stays on testnet too) so every flow can be exercised in minutes. Verify on mainnet that
    `timingsLocked()` is `true` on all four before announcing anything.
 5. Governor voting period is **21,600 blocks** (about 3 days on the 12s parent-chain clock that
    `block.number` returns on this chain). Do not reuse the old 259,200 value.
@@ -106,7 +106,12 @@ This is irreversible: confirm the Timelock proposer and canceller are the Govern
   liquidity / WETH price, because Pons pairs are not always against WETH). Pons v1 tokens are not covered.
   `txs_7d` is currently a 24h lower bound. Run `python -m nti_discovery --dry-run` first to see what it would write.
 * Dataset hashes are stored locally; Arweave (Turbo) or IPFS upload is not wired, so `arweave_tx` is a local id.
-* The KOL universe is 35 accounts today versus 1,500 planned.
+* The KOL universe reaches 1,500 accounts on testnet through the daily harvest (`nti_discovery.kol_harvest`),
+  which also refreshes profiles and retiers by posting frequency. Mainnet needs governance-approved universe
+  changes, and the fetch capacity (8 X accounts, no dedicated validator pool) is the real limit: per-epoch
+  coverage depends on the tier caps and on how many healthy accounts are available.
+* The oracle operator runs as a PM2 daemon (`--loop 300`) and classifies posts with `CLASSIFIER_CONCURRENCY`
+  workers (default 4). A cron-restarted operator would be killed mid-commit on large epochs.
 * No independent audit. The brief's substitute is tests, fork tests and the conservative caps above.
 
 ## Static analysis triage (Slither, medium and above, CI run on 2026-11-20)
