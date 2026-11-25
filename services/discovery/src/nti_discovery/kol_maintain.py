@@ -123,21 +123,48 @@ async def refresh_profiles(
     return {"refreshed": refreshed, "deactivated": deactivated, "failed": failed}
 
 
-async def retier(storage: Storage, now: datetime) -> int:
-    """Move KOLs between poll tiers from their real posting frequency in the last 7 days."""
+async def retier(
+    storage: Storage,
+    now: datetime,
+    *,
+    max_tier1: int = 250,
+    max_tier2: int = 400,
+) -> int:
+    """Move KOLs between poll tiers from 7d post counts while capping Tier 1/2 X budget."""
     since = (now - timedelta(days=7)).isoformat()
     posts = await storage.select("posts", columns="user_id", filters={"created_at": f"gte.{since}"})
     counts: dict[int, int] = {}
     for p in posts:
         counts[int(p["user_id"])] = counts.get(int(p["user_id"]), 0) + 1
-    kols = await storage.select("kols", columns="user_id,poll_tier", filters={"active": "eq.true"})
+    kols = await storage.select(
+        "kols",
+        columns="user_id,poll_tier,followers,r_k",
+        filters={"active": "eq.true"},
+    )
+    # Highest-authority KOLs claim Tier 1/2 slots first so 8 accounts stay under 800 req/day.
+    ordered = sorted(
+        kols,
+        key=lambda k: (
+            -(float(k.get("followers") or 0) * float(k.get("r_k") or 1.0)),
+            int(k["user_id"]),
+        ),
+    )
+    tier1_used = 0
+    tier2_used = 0
     changed = 0
-    for k in kols:
+    for k in ordered:
         uid = int(k["user_id"])
-        if uid not in counts:
-            continue  # no evidence yet: keep whatever the harvest estimated
-        tier = poll_tier_for(counts[uid])
-        if tier != int(k["poll_tier"]):
+        current_tier = int(k["poll_tier"])
+        desired = poll_tier_for(counts[uid]) if uid in counts else current_tier
+        if desired == 1 and tier1_used < max_tier1:
+            tier = 1
+            tier1_used += 1
+        elif desired in (1, 2) and tier2_used < max_tier2:
+            tier = 2
+            tier2_used += 1
+        else:
+            tier = 4
+        if tier != current_tier:
             await storage.patch("kols", {"user_id": f"eq.{uid}"}, {"poll_tier": tier})
             changed += 1
     return changed

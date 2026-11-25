@@ -131,6 +131,23 @@ def test_retier_uses_real_post_counts() -> None:
     assert st.patches[0][1] == {"poll_tier": 1}
 
 
+def test_retier_enforces_tier1_and_tier2_caps_by_authority() -> None:
+    from nti_discovery.kol_maintain import retier
+
+    kols = [
+        {"user_id": i, "poll_tier": 1, "followers": i * 1000, "r_k": 1.0}
+        for i in range(1, 11)
+    ]
+    posts = [{"user_id": i} for i in range(1, 11) for _ in range(10)]
+    st = FakeStorage(kols=kols, posts=posts)
+    changed = asyncio.run(retier(st, NOW, max_tier1=2, max_tier2=3))
+    assert changed == 8
+    assigned = {int(f["user_id"].split(".")[1]): v["poll_tier"] for f, v in st.patches}
+    # Top 2 (uid 10, 9) stay tier 1 (unchanged); 8, 7, 6 become tier 2; 5..1 become tier 4
+    assert all(assigned[uid] == 2 for uid in (8, 7, 6))
+    assert all(assigned[uid] == 4 for uid in (5, 4, 3, 2, 1))
+
+
 def test_compute_reputation_rewards_high_signal_and_flags_dead_bots() -> None:
     from nti_discovery.kol_maintain import compute_reputation
 
