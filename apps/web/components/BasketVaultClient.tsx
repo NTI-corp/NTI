@@ -33,6 +33,9 @@ function safeParseEther(val: string): bigint | null {
   }
 }
 
+// A basket deposit or redeem swaps through every constituent (about 1 to 2.5 million gas); wallet estimates can undershoot.
+const BASKET_TX_GAS = 4_000_000n;
+
 export function BasketVaultClient({ basket }: BasketVaultClientProps) {
   const [mode, setMode] = useState<"deposit" | "redeem">("deposit");
   const [amount, setAmount] = useState("0.1");
@@ -212,6 +215,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
           functionName: "deposit",
           args: [minSharesOutWei],
           value: amtWei,
+          gas: BASKET_TX_GAS,
         },
         `Deposited into ${basket.symbol} vault.`,
       );
@@ -232,6 +236,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
         abi: basketAbi,
         functionName: "redeem",
         args: [amtWei, minEthOutWei],
+        gas: BASKET_TX_GAS,
       },
       `Redeemed ${basket.symbol} for ETH.`,
     );

@@ -12,6 +12,8 @@ export interface ChainTxParams {
   functionName: string;
   args?: readonly unknown[];
   value?: bigint;
+  /** Explicit gas limit for calls whose cost the wallet's estimate can undershoot (many internal swaps). */
+  gas?: bigint;
 }
 
 export interface TxActionState {

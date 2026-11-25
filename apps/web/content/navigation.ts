@@ -175,6 +175,12 @@ export const NAV_ITEMS: NavItem[] = [
             lottieSrc: "/assets/lottie/ai.json",
           },
           {
+            label: "Memecoin Basket",
+            href: "/baskets/9",
+            icon: "gaming",
+            lottieSrc: "/assets/lottie/gaming.json",
+          },
+          {
             label: "Stake $NTI",
             href: "/stake",
             icon: "payments",
