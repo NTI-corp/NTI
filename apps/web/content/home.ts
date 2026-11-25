@@ -70,7 +70,7 @@ export const HOME_CONTENT = {
   hero: {
     headline: "AI-priced crypto mindshare",
     subheadline:
-      "Autonomous AI reads 1,500+ crypto KOLs across X every 4 hours, turning narrative velocity into verifiable onchain indexes, pair markets, and self-rebalancing vaults on Robinhood Chain.",
+      "Narrative Token Index (NTI) uses autonomous AI to read 1,500+ crypto KOLs across X every 4 hours, turning narrative velocity into verifiable onchain indexes, pair markets, and self-rebalancing vaults on Robinhood Chain.",
     primaryCta: {
       label: "Open AI terminal",
       href: "/terminal",
