@@ -327,7 +327,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                 Whitelisted Constituents (Uniswap V3 TWAP Priced)
               </h2>
               <p className="mt-0.5 text-xs text-[#71717A]">
-                Every token requires admin whitelist approval, ≥20 ETH V3 liquidity, and 30-minute TWAP cardinality.
+                Every token requires admin whitelist approval, a Uniswap V3 pool against WETH and 30-minute TWAP history. The pool depth shown is the WETH held by that pool; thin pools mean more slippage.
               </p>
             </div>
             <div className="overflow-x-auto">

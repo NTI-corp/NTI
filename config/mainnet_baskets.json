@@ -1,6 +1,10 @@
 {
   "uniswapV3Factory": "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
-  "fees": [500, 3000, 10000],
+  "fees": [
+    500,
+    3000,
+    10000
+  ],
   "baskets": [
     {
       "narrativeId": 3,
@@ -24,7 +28,6 @@
       "tokens": [
         "0x39dBED3a2bd333467115dE45665cC57F813C4571",
         "0x2E8c31162b855A2ffa90F6F8634643Ad6F111e18",
-        "0x385F4f8ae47651ce5F58F5265395a669f8281e18",
         "0xcDcABf520Be369123C36796F9e53680C657f08f0"
       ]
     }

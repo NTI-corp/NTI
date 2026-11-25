@@ -33,7 +33,7 @@ async function BasketsContent() {
           Baskets
         </h1>
         <p className="mt-0.5 max-w-2xl text-xs text-[#71717A]">
-          Each basket holds admin-whitelisted tokens with Uniswap V3 pools (≥20 ETH depth, 30-minute TWAP cardinality verified). Max 40% single-token weight, 20% daily turnover cap, 0.50% annual fee routed to FeeRouter.
+          Each basket holds admin-whitelisted tokens with Uniswap V3 pools against WETH (30-minute TWAP history verified, pool depth shown per token). Max 40% single-token weight, 20% daily turnover cap, 0.50% annual fee routed to FeeRouter.
         </p>
       </div>
 
