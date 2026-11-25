@@ -172,7 +172,7 @@ export function NtiPreloader() {
       >
         {/* Top Sparse Eyebrow */}
         <div className="flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.16em] text-black/75">
-          <span>ROBINHOOD CHAIN · 46630</span>
+          <span>ROBINHOOD CHAIN · 4663</span>
           <span>4H MINDSHARE EPOCH</span>
         </div>
 

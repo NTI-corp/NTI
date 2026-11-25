@@ -57,7 +57,7 @@ export function ClosingCtaSection() {
                     label="8-bit Narrative Rocket"
                   />
                   <RobinhoodMark className="h-[1.05em] w-auto inline-block -mt-[0.05em]" />
-                  <span>ROBINHOOD CHAIN TESTNET · 46630</span>
+                  <span>ROBINHOOD CHAIN MAINNET · 4663</span>
                 </div>
 
                 <h2 className="text-[2.25em] sm:text-[3.5em] md:text-[4.5em] font-normal leading-[1] tracking-[-0.045em] text-white">

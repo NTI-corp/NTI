@@ -35,19 +35,19 @@ const FAQ_ITEMS: FaqItem[] = [
     number: "04",
     question: "What are self-rebalancing TWAP Narrative Baskets?",
     answer:
-      "NTI Narrative Baskets are whitelisted Uniswap V3 vaults that automatically rebalance exposure toward sectors gaining positive mindshare velocity, using onchain TWAP execution and slippage guards to rotate capital without manual intervention.",
+      "NTI Narrative Baskets are whitelisted Uniswap V3 vaults priced via 30-minute onchain TWAP and pool depth checks. Live on mainnet today: the RWA Basket (8 tokenized stocks: NVDA, SPY, COIN, SPCX, META, GOOGL, AAPL, TSLA) and the Memecoin Basket (PONS, Artificial Inu, MEME, PEPE).",
   },
   {
     number: "05",
     question: "Can AI agents or external dApps consume NTI scores onchain?",
     answer:
-      "Yes. NarrativeOracle exposes permissionless read methods like latestScore(narrativeId) and latestRoot() directly on Robinhood Chain Testnet (46630), alongside a public REST snapshot endpoint at /api/indexes for offchain bots and trading agents.",
+      "Yes. OracleCommit exposes finalized epoch roots and narrative scores directly on Robinhood Chain Mainnet (4663), alongside a public REST snapshot endpoint at /api/indexes for offchain bots and trading agents.",
   },
   {
     number: "06",
     question: "Where is NTI deployed right now?",
     answer:
-      "All 15 core, oracle, market, vault, and governance smart contracts are live and verified on Robinhood Chain Testnet (Chain ID 46630). You can inspect every contract address and explorer link directly in the Deployed Contracts section above.",
+      "All 14 core, oracle, market, basket, buyback, and grant smart contracts are live and verified on Robinhood Chain Mainnet (Chain ID 4663) via Sourcify and Blockscout. Staking and markets run on prelaunch pNTI (claimable on the Stake page) until $NTI launches on Pons.",
   },
 ];
 

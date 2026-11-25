@@ -6,8 +6,8 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Check, Copy } from "lucide-react";
 import {
   PROTOCOL_ADDRESSES,
-  ROBINHOOD_TESTNET_ID,
-  robinhoodTestnet,
+  ROBINHOOD_MAINNET_ID,
+  robinhoodMainnet,
 } from "@nti/sdk";
 import { HOME_CONTENT, type DeployedContractMeta } from "@/content/home";
 import { DottedDivider } from "@/components/ui/DottedDivider";
@@ -50,10 +50,10 @@ function runDomScramble(el: HTMLElement, text: string) {
 
 export function StayInLoopSection() {
   const { deployedContracts } = HOME_CONTENT;
-  const addresses = PROTOCOL_ADDRESSES[ROBINHOOD_TESTNET_ID];
+  const addresses = PROTOCOL_ADDRESSES[ROBINHOOD_MAINNET_ID];
   const explorerBase =
-    robinhoodTestnet.blockExplorers?.default.url ??
-    "https://explorer.testnet.chain.robinhood.com";
+    robinhoodMainnet.blockExplorers?.default.url ??
+    "https://robinhoodchain.blockscout.com";
 
   const sectionRef = useRef<HTMLElement>(null);
   const headingCharsRef = useRef<(HTMLSpanElement | null)[]>([]);
@@ -241,9 +241,9 @@ export function StayInLoopSection() {
             <PixelOwlMascot variant="sentinel" size={30} label="8-bit Validator Sentinel" />
             <div className="relative overflow-hidden">
               <p className="text-[0.9375em] md:text-[1.0625em] text-[#c2c6cd] inline-flex flex-wrap items-center justify-center gap-x-[0.35em]">
-                <span>15 protocol contracts live on</span>
+                <span>14 protocol contracts live on</span>
                 <RobinhoodMark className="inline-block h-[1em] w-auto -mt-[0.1em] opacity-95" />
-                <span>Chain Testnet (46630)</span>
+                <span>Chain Mainnet (4663)</span>
               </p>
               <div
                 ref={subtitleMaskRef}
@@ -467,7 +467,7 @@ function ContractTimelineCard({
         <div className="flex items-center gap-[0.5em] font-mono text-[0.75em] text-[#89919f]">
           <span className="text-[#CCFF00]">{card.number}</span>
           <span className="text-[#4b515b]">/</span>
-          <span>CHAIN 46630</span>
+          <span>CHAIN 4663</span>
         </div>
 
         <a

@@ -69,7 +69,7 @@ export function LogoMarqueeSection() {
             <div className="sui-container-1400 border-t border-b border-black/10 py-[0.85em] flex items-center justify-between gap-[1em] font-mono text-[0.7em] tracking-[0.08em] uppercase text-[#4b515b]">
               <span>01 / MINDSHARE INDEX</span>
               <span className="hidden sm:inline">10 SECTORS · 4H EPOCHS</span>
-              <span>ROBINHOOD CHAIN · 46630</span>
+              <span>ROBINHOOD CHAIN · 4663</span>
             </div>
           </div>
 

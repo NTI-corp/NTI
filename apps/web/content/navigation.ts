@@ -71,7 +71,7 @@ export interface AnnouncementBanner {
 
 export const ANNOUNCEMENT_BANNER: AnnouncementBanner = {
   enabled: false,
-  text: "NTI is live on Robinhood Chain Testnet (46630). Open Terminal →",
+  text: "NTI is live on Robinhood Chain Mainnet (4663). Open Terminal →",
   href: "/terminal",
 };
 
@@ -239,7 +239,7 @@ export const NAV_ITEMS: NavItem[] = [
           },
           {
             label: "Chain Explorer",
-            href: "https://explorer.testnet.chain.robinhood.com",
+            href: "https://robinhoodchain.blockscout.com",
             external: true,
             icon: "events",
           },
@@ -249,15 +249,15 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     id: "govern",
-    label: "Govern",
+    label: "Ecosystem",
     kind: "dropdown",
     iconKind: "plus",
     columns: [
       {
-        category: "Governance/",
+        category: "Ecosystem/",
         links: [
           {
-            label: "NTIGovernor",
+            label: "Staking & Yield",
             href: "/stake",
             icon: "funding",
           },
@@ -345,9 +345,9 @@ export const GET_STARTED_CTA: {
       icon: "coding",
     },
     {
-      label: "Stake $NTI",
+      label: "Stake pNTI",
       description:
-        "Earn ETH fee yield, unlock real-time Radar, and vote in governance",
+        "Claim prelaunch pNTI, earn native ETH fee yield, and unlock real-time Radar",
       href: "/stake",
       icon: "earning",
     },

@@ -53,15 +53,14 @@ export interface DeployedContractMeta {
     | "narrativeMarket"
     | "basketFactory"
     | "buybackAdapterV3"
+    | "buybackAdapterV4"
     | "feeRouter"
     | "grants"
-    | "governor"
-    | "timelock"
     | "insuranceFund"
     | "kolRegistry";
   number: string;
   name: string;
-  category: "CORE" | "ORACLE" | "MARKETS" | "VAULTS" | "GOVERNANCE";
+  category: "CORE" | "ORACLE" | "MARKETS" | "VAULTS" | "ECOSYSTEM";
   column: "left" | "right";
   description: string;
 }
@@ -319,7 +318,7 @@ export const HOME_CONTENT = {
     headingPrefix: "Deployed",
     headingSuffix: "contracts",
     subtitle:
-      "15 protocol contracts live on Robinhood Chain Testnet (Chain ID 46630)",
+      "14 protocol contracts live on Robinhood Chain Mainnet (Chain ID 4663)",
     cards: [
       {
         key: "registry",
@@ -327,15 +326,15 @@ export const HOME_CONTENT = {
         name: "NTIRegistry",
         category: "CORE",
         column: "left",
-        description: "Canonical module directory resolving all protocol contracts.",
+        description: "Canonical module directory resolving all protocol UUPS proxies.",
       },
       {
         key: "ntiToken",
         number: "02",
-        name: "NTIToken ($NTI)",
+        name: "Prelaunch NTI (pNTI)",
         category: "CORE",
         column: "right",
-        description: "ERC-20 protocol asset with ERC20Votes governance snapshots.",
+        description: "Prelaunch ERC-20 stand-in token active for staking & markets until $NTI launches on Pons.",
       },
       {
         key: "staking",
@@ -343,7 +342,7 @@ export const HOME_CONTENT = {
         name: "NTIStaking",
         category: "CORE",
         column: "left",
-        description: "7-day cooldown staking vault streaming native ETH fee yield.",
+        description: "Staking vault streaming real native ETH protocol fee yield to stakers.",
       },
       {
         key: "oracleCommit",
@@ -359,7 +358,7 @@ export const HOME_CONTENT = {
         name: "DisputeGuard",
         category: "ORACLE",
         column: "left",
-        description: "Enforces the contract-defined challenge window and validator slash bonds.",
+        description: "Enforces the onchain challenge window and validator slash bonds.",
       },
       {
         key: "narrativeMarket",
@@ -375,7 +374,7 @@ export const HOME_CONTENT = {
         name: "NarrativeBasketFactory",
         category: "VAULTS",
         column: "left",
-        description: "Deploys whitelisted Uniswap V3 TWAP narrative basket vaults.",
+        description: "Deploys whitelisted Uniswap V3 30-minute TWAP narrative basket vaults (RWA & Memecoin).",
       },
       {
         key: "buybackAdapterV3",
@@ -383,63 +382,55 @@ export const HOME_CONTENT = {
         name: "BuybackAdapterV3",
         category: "VAULTS",
         column: "right",
-        description: "Routes protocol ETH fees into automated Uniswap V3 $NTI buybacks.",
+        description: "Routes protocol ETH fees into automated Uniswap V3 buybacks.",
+      },
+      {
+        key: "buybackAdapterV4",
+        number: "09",
+        name: "BuybackAdapterV4",
+        category: "VAULTS",
+        column: "left",
+        description: "Routes protocol ETH fees through the Uniswap V4 Universal Router.",
       },
       {
         key: "feeRouter",
-        number: "09",
+        number: "10",
         name: "FeeRouter",
         category: "CORE",
-        column: "left",
+        column: "right",
         description: "Splits market & basket fees across stakers, buybacks, and treasury.",
       },
       {
         key: "grants",
-        number: "10",
-        name: "NTIGrants",
-        category: "GOVERNANCE",
-        column: "right",
-        description: "Snapshot IVotes grant rounds funded with native ETH allocations.",
-      },
-      {
-        key: "governor",
         number: "11",
-        name: "NTIGovernor",
-        category: "GOVERNANCE",
+        name: "NTIGrants",
+        category: "ECOSYSTEM",
         column: "left",
-        description: "Onchain voting contract governing protocol caps and basket whitelists.",
-      },
-      {
-        key: "timelock",
-        number: "12",
-        name: "NTITimelock",
-        category: "GOVERNANCE",
-        column: "right",
-        description: "Queued execution delay protecting governor parameter changes.",
+        description: "Keeper-funded builder grant rounds distributed in native ETH.",
       },
       {
         key: "configRegistry",
-        number: "13",
+        number: "12",
         name: "ConfigRegistry",
         category: "ORACLE",
-        column: "left",
+        column: "right",
         description: "Immutable hash anchor for EMA alpha and sector taxonomy specs.",
       },
       {
         key: "insuranceFund",
-        number: "14",
+        number: "13",
         name: "InsuranceFund",
         category: "MARKETS",
-        column: "right",
+        column: "left",
         description: "Protocol reserve backstopping market settlement edge cases.",
       },
       {
         key: "kolRegistry",
-        number: "15",
+        number: "14",
         name: "KOLRegistry",
         category: "ORACLE",
-        column: "left",
-        description: "Verified X contributor weights backing deterministic epoch scoring.",
+        column: "right",
+        description: "Contributor reputation registry backing deterministic epoch scoring.",
       },
     ] as DeployedContractMeta[],
   },

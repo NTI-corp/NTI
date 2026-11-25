@@ -37,7 +37,7 @@ export const FOOTER_CONTENT = {
         { label: "Deployed Contracts", href: "/#deployed-contracts" },
         {
           label: "Explorer",
-          href: "https://explorer.testnet.chain.robinhood.com",
+          href: "https://robinhoodchain.blockscout.com",
           external: true,
         },
         { label: "API Status", href: "/api/health", external: true },
@@ -47,6 +47,6 @@ export const FOOTER_CONTENT = {
   ] as FooterGroup[],
   xUrl: "https://x.com/NTI_Index",
   xHandle: "@NTI_Index",
-  networkLabel: "Chain Testnet · 46630",
+  networkLabel: "Robinhood Chain · 4663",
   copyright: "©2026 Narrative Token Index (NTI)",
 };
