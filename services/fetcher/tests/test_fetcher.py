@@ -442,6 +442,36 @@ async def test_runner_marks_incomplete_when_over_1_pct_fail_after_fallback(tmp_p
 
 
 @pytest.mark.asyncio
+async def test_runner_tolerates_failures_under_a_configured_threshold(tmp_path: Path) -> None:
+    from nti_fetcher.adapters import InMemoryMockSource
+    from nti_fetcher.runner import FetchRunner
+
+    boundary = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
+    kols = [
+        KolProfile(user_id=uid, handle=f"kol_{uid}", followers=10_000, poll_tier=1)
+        for uid in range(1, 21)
+    ]
+    timelines = {
+        uid: [_make_post(uid * 10, uid, boundary - timedelta(minutes=15), f"kol_{uid}")]
+        for uid in range(1, 21)
+    }
+    primary = InMemoryMockSource(name="twscrape", timelines=timelines, permanent_fail_ids={1})
+    backup = InMemoryMockSource(name="scweet", timelines=timelines, permanent_fail_ids={1})
+    runner = FetchRunner(
+        primary=primary,
+        fallback=backup,
+        output_dir=tmp_path / "snapshots",
+        lock_path=tmp_path / "fetcher.lock",
+        jitter_range=(0.0, 0.0),
+        max_retries=2,
+        incomplete_threshold=0.10,
+    )
+    res = await runner.run_cycle(epoch_id=101, boundary=boundary, kols=kols)
+    assert res.status == EpochStatus.COLLECTING
+    assert res.total_failed == 1
+
+
+@pytest.mark.asyncio
 async def test_storage_upserts_and_retention_purge_48h_10d() -> None:
     from nti_fetcher.purge import RetentionPurger
     from nti_fetcher.storage import SupabaseStorage

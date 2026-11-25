@@ -301,6 +301,7 @@ async def _main_async(args: argparse.Namespace) -> int:
         max_kols=max_kols,
         max_cooldown_wait_seconds=max_cooldown_wait,
         stagger_tiers=stagger_tiers,
+        incomplete_threshold=float(os.environ.get("FETCHER_INCOMPLETE_THRESHOLD", "0.10")),
         recovery_rounds=int(os.environ.get("FETCHER_RECOVERY_ROUNDS", "3")),
         recovery_wait_seconds=float(os.environ.get("FETCHER_RECOVERY_WAIT_SECONDS", "960")),
         recovery_deadline_seconds=float(
