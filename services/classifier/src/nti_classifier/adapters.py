@@ -211,7 +211,7 @@ class MiMoAdapter:
         }
         resp: httpx.Response | None = None
         last_exc: Exception | None = None
-        for attempt in range(3):
+        for attempt in range(8):
             try:
                 if self._client is not None:
                     resp = await self._client.post(url, headers=headers, json=payload)
@@ -222,9 +222,15 @@ class MiMoAdapter:
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 last_exc = exc
                 resp = None
-                if attempt == 2:
+                if attempt >= 2:
                     break
                 await asyncio.sleep(1.0 * (attempt + 1))
+                continue
+            if resp.status_code == 429 and attempt < 7:
+                # Provider rate limit: back off (honouring Retry-After), do not fail the run.
+                wait = resp.headers.get("retry-after", "")
+                delay = float(wait) if wait.replace(".", "", 1).isdigit() else 5.0 * (attempt + 1)
+                await asyncio.sleep(min(delay, 60.0))
                 continue
             if resp.status_code not in (500, 502, 503, 504) or attempt == 2:
                 break
