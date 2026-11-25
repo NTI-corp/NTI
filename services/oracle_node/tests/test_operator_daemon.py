@@ -58,3 +58,13 @@ def test_daemon_survives_a_failed_run_and_keeps_looping(monkeypatch: Any) -> Non
     except KeyboardInterrupt:
         pass
     assert state["runs"] == 2
+
+
+def test_mainnet_refuses_to_commit_without_the_independent_omission_check() -> None:
+    import pytest
+    from nti_oracle.operator import OmissionCheckRequiredError, require_omission_check_on_mainnet
+
+    with pytest.raises(OmissionCheckRequiredError):
+        require_omission_check_on_mainnet(4663, omission_enabled=False)
+    require_omission_check_on_mainnet(4663, omission_enabled=True)
+    require_omission_check_on_mainnet(46630, omission_enabled=False)  # testnet stays permissive

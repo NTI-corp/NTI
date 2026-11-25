@@ -50,6 +50,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile || pnpm install
       - run: pnpm build:sdk
+      - name: SDK matches the mainnet manifest (once mainnet is deployed)
+        run: |
+          if [ -f contracts/deployments/4663.json ]; then python3 infra/scripts/mainnet_wire.py --check; fi
       - run: pnpm build:indexer
       - run: pnpm indexer:test
       - run: pnpm typecheck

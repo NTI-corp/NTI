@@ -1,0 +1,54 @@
+name: Deploy NTI mainnet services
+
+# Manual only. Starts or updates the mainnet data plane (indexer, fetcher, operator, keeper, ...) on the
+# dedicated mainnet host. It never touches the contracts: those are deployed from your own machine with
+# contracts/script/DeployMainnet.s.sol (see MAINNET.md). The deploy script runs the services preflight on the
+# host first and starts nothing if it fails.
+#
+# Required repository secrets: MAINNET_VPS_HOST, MAINNET_VPS_USER, MAINNET_VPS_SSH_KEY.
+# Recommended: create a GitHub Environment named "mainnet" with required reviewers; this job uses it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DEPLOY_MAINNET_SERVICES to continue"
+        required: true
+
+jobs:
+  deploy-mainnet-services:
+    name: Sync and reload mainnet services
+    if: github.ref == 'refs/heads/main' && github.event.inputs.confirm == 'DEPLOY_MAINNET_SERVICES'
+    runs-on: ubuntu-latest
+    environment: mainnet
+    concurrency:
+      group: deploy-mainnet
+      cancel-in-progress: false
+    steps:
+      - name: Deploy via SSH
+        env:
+          VPS_HOST: ${{ secrets.MAINNET_VPS_HOST }}
+          VPS_USER: ${{ secrets.MAINNET_VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.MAINNET_VPS_SSH_KEY }}
+        run: |
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_SSH_KEY" ]; then
+            echo "Mainnet VPS secrets are not configured." >&2
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "${VPS_USER}@${VPS_HOST}" '
+            set -e
+            export PATH=$HOME/.local/bin:$PATH NTI_NETWORK=mainnet
+            APP_DIR=/home/ubuntu/apps/nti-mainnet
+            if [ ! -d "$APP_DIR/.git" ]; then
+              mkdir -p "$(dirname "$APP_DIR")"
+              git clone --branch main https://github.com/NTI-corp/NTI.git "$APP_DIR"
+            fi
+            cd "$APP_DIR"
+            git config core.fileMode false
+            git diff --quiet || git stash push -q -m "pre-deploy-$(date +%s)"
+            bash infra/scripts/deploy-vps.sh
+          '
