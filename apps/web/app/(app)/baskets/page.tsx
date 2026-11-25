@@ -113,7 +113,7 @@ async function BasketsContent() {
                                 />
                                 <span className="truncate">${h.symbol}</span>
                               </span>
-                              <span className="text-[#71717A]">{formatBpsPercent(h.weightBps, 0)}</span>
+                              <span className="text-[#71717A]">{formatBpsPercent(h.weightBps, 1)}</span>
                             </li>
                           ))}
                         </ul>

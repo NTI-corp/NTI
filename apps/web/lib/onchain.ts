@@ -1,5 +1,14 @@
-import { BaseError, ContractFunctionRevertedError, createPublicClient, formatEther, http, type Address } from "viem";
-import { NARRATIVE_BY_ID } from "@nti/sdk";
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  createPublicClient,
+  formatEther,
+  http,
+  parseAbi,
+  type Address,
+  type PublicClient,
+} from "viem";
+import { EXTERNAL_ADDRESSES, NARRATIVE_BY_ID } from "@nti/sdk";
 import {
   basketAbi,
   basketFactoryAbi,
@@ -26,7 +35,7 @@ function getServerPublicClient() {
       transport: http(
         (chainId === 46630 ? process.env.RPC_URL_TESTNET : process.env.RPC_URL_MAINNET) ??
           chain.rpcUrls.default.http[0],
-        { timeout: 7_000, retryCount: 1, fetchOptions: { cache: "no-store" } },
+        { timeout: 10_000, retryCount: 2, fetchOptions: { cache: "no-store" } },
       ),
     }),
   };
@@ -179,9 +188,61 @@ export async function readLiveMarketsFromChain(
   }
 }
 
+
+const basketTokenConfigAbi = parseAbi([
+  "function tokenConfigs(address) view returns (bool whitelisted, address pool, uint24 fee)",
+]);
+const uniswapV3PoolAbi = parseAbi([
+  "function token0() view returns (address)",
+  "function observe(uint32[] secondsAgos) view returns (int56[] tickCumulatives, uint160[] secondsPerLiquidityCumulativeX128s)",
+]);
+const TWAP_WINDOW_SECONDS = 1800;
+
+/** 30 minute TWAP (ETH per token) and WETH-side depth of the Uniswap V3 pool behind a basket constituent. */
+async function readConstituentMarket(
+  client: PublicClient,
+  basket: Address,
+  token: Address,
+  weth: Address,
+  decimals: number,
+): Promise<{ twap30mEth: number | null; liquidityEth: number | null }> {
+  try {
+    const [, pool] = await client.readContract({
+      address: basket,
+      abi: basketTokenConfigAbi,
+      functionName: "tokenConfigs",
+      args: [token],
+    });
+    const [token0, observed, wethInPool] = await Promise.all([
+      client.readContract({ address: pool, abi: uniswapV3PoolAbi, functionName: "token0" }),
+      client.readContract({
+        address: pool,
+        abi: uniswapV3PoolAbi,
+        functionName: "observe",
+        args: [[TWAP_WINDOW_SECONDS, 0]],
+      }),
+      client.readContract({ address: weth, abi: erc20Abi, functionName: "balanceOf", args: [pool] }),
+    ]);
+    const cumulative = observed[0];
+    const start = cumulative[0];
+    const end = cumulative[1];
+    if (start === undefined || end === undefined) return { twap30mEth: null, liquidityEth: null };
+    const tick = Number((end - start) / BigInt(TWAP_WINDOW_SECONDS));
+    const price = 1.0001 ** tick; // token1 per token0, raw units
+    const wethPerRawToken = token0.toLowerCase() === token.toLowerCase() ? price : 1 / price;
+    return {
+      twap30mEth: wethPerRawToken * 10 ** (decimals - 18),
+      liquidityEth: Number(formatEther(wethInPool)),
+    };
+  } catch {
+    return { twap30mEth: null, liquidityEth: null };
+  }
+}
+
 export async function readLiveBasketsFromChain(): Promise<BasketItem[] | null> {
-  const { addresses, client } = getServerPublicClient();
+  const { addresses, client, chainId } = getServerPublicClient();
   if (!addresses.basketFactory) return null;
+  const weth = EXTERNAL_ADDRESSES[chainId]?.weth?.address ?? null;
 
   try {
     const basketAddrs = await client.readContract({
@@ -216,21 +277,27 @@ export async function readLiveBasketsFromChain(): Promise<BasketItem[] | null> {
           const [tokAddrs, weights] = constituents;
           const holdings = await Promise.all(
             tokAddrs.map(async (tokAddr, idx) => {
-              const [tokSym, tokName] = await Promise.all([
+              const [tokSym, tokName, tokDecimals] = await Promise.all([
                 client
                   .readContract({ address: tokAddr, abi: erc20Abi, functionName: "symbol" })
                   .catch(() => `TOK${idx + 1}`),
                 client
                   .readContract({ address: tokAddr, abi: erc20Abi, functionName: "name" })
                   .catch(() => tokAddr),
+                client
+                  .readContract({ address: tokAddr, abi: erc20Abi, functionName: "decimals" })
+                  .catch(() => 18),
               ]);
+              const market = weth
+                ? await readConstituentMarket(client as PublicClient, addr, tokAddr, weth, Number(tokDecimals))
+                : { twap30mEth: null, liquidityEth: null };
               return {
                 symbol: tokSym,
                 name: tokName,
                 address: tokAddr,
                 weightBps: Number(weights[idx] ?? 0),
-                liquidityEth: null,
-                twap30mEth: null,
+                liquidityEth: market.liquidityEth,
+                twap30mEth: market.twap30mEth,
               };
             }),
           );
