@@ -586,6 +586,14 @@ export function IndexChart({
           style={fill ? undefined : { height: `${heightProp}px` }}
         />
 
+        {pointLookup.size > 0 && pointLookup.size < 4 && (
+          <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[19rem] border border-[#26262A] bg-[#111113]/90 px-3 py-2 font-mono text-[10px] leading-relaxed text-[#A1A1AA]">
+            <span className="text-[#CCFF00]">{pointLookup.size} EPOCH{pointLookup.size === 1 ? "" : "S"} ON MAINNET SO FAR</span>
+            <br />
+            The chart gains one point every 4 hours; the 24h velocity V_n needs 7 epochs in the same series.
+          </div>
+        )}
+
         {/* Floating Bloomberg Crosshair Tooltip (GPU-composited lerp) */}
         <div
           ref={tooltipRef}
