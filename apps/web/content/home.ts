@@ -68,16 +68,16 @@ export interface DeployedContractMeta {
 
 export const HOME_CONTENT = {
   hero: {
-    headline: "Track & trade crypto mindshare",
+    headline: "AI-priced crypto mindshare",
     subheadline:
-      "Narrative Token Index (NTI) scores real-time sector attention across X every 4 hours, powering relative pair markets, TWAP vaults, and native ETH yield on Robinhood Chain.",
+      "Autonomous AI reads 1,500+ crypto KOLs across X every 4 hours, turning narrative velocity into verifiable onchain indexes, pair markets, and self-rebalancing vaults on Robinhood Chain.",
     primaryCta: {
-      label: "Open terminal",
+      label: "Open AI terminal",
       href: "/terminal",
       external: false,
     },
     secondaryCta: {
-      label: "Trade markets",
+      label: "Trade narratives",
       href: "/markets",
       external: false,
     },
@@ -89,7 +89,7 @@ export const HOME_CONTENT = {
     dividerImage: "/assets/images/hero-divider-gradient-rule.avif",
   },
   marquee: {
-    heading: "Tracking 10 crypto narratives every 4 hours",
+    heading: "AI-scored attention across 10 crypto narratives",
     apiUrl: "/api/indexes",
     sectors: [
       { narrativeId: 1, slug: "privacy", label: "Privacy / ZK", iBps: 1120, vBps: 85 },
@@ -105,36 +105,36 @@ export const HOME_CONTENT = {
     ] as SectorTickerItem[],
   },
   manifesto: {
-    badge: "Crypto attention, priced with deterministic precision",
+    badge: "AI-native intelligence, verified onchain",
     statement:
-      "Capital rotates around narratives long before price catches up. NTI scores X sector mindshare every 4 hours with EMA smoothing and Hamilton bps weighting, verified by at least three EIP-712 validators before settling pair markets and TWAP baskets on Robinhood Chain.",
+      "Narratives move markets before charts ever react. NTI deploys deterministic AI classification across 1,500+ X voices every 4 hours, filtering noise with anti-bot reputation scoring and EIP-712 validator quorum so traders and AI agents can price attention onchain.",
   },
   suiIs: {
     prefix: "[ → ]",
     badge: "NTI is",
     items: [
-      { tag: "4H CADENCE", title: "4-hour mindshare scoring", kind: "svg" },
+      { tag: "AI ENGINE", title: "Autonomous AI narrative scoring", kind: "svg" },
       {
-        tag: "10,000 BPS",
-        title: "Hamilton bps index weights",
+        tag: "1,500+ KOLS",
+        title: "Anti-bot KOL reputation weights",
         kind: "lottie",
         lottieSrc: "/assets/lottie/onchain-validation.json",
       },
       {
         tag: "QUORUM 2/3",
-        title: "validator EIP-712 oracle roots",
+        title: "Verifiable EIP-712 AI oracle roots",
         kind: "lottie",
         lottieSrc: "/assets/lottie/research.json",
       },
       {
         tag: "2H GUARD",
-        title: "contract-defined dispute protection",
+        title: "Bonded onchain dispute protection",
         kind: "lottie",
         lottieSrc: "/assets/lottie/shield-security.json",
       },
       {
         tag: "ETH YIELD",
-        title: "Native ETH fee yield",
+        title: "Real ETH yield from narrative flow",
         kind: "lottie",
         lottieSrc: "/assets/lottie/performance.json",
       },
@@ -146,19 +146,19 @@ export const HOME_CONTENT = {
     frameExt: ".webp",
   },
   stackTimeline: {
-    heading: "The stack mindshare markets run on",
+    heading: "The AI oracle stack behind every epoch",
     cards: [
       {
         number: "01",
-        title: "Deterministic mindshare scoring",
-        protocol: "NTI Engine",
+        title: "Autonomous AI post classification",
+        protocol: "NTI AI Engine",
         column: "right",
         iconKey: "engine",
         rivePadClass: "",
       },
       {
         number: "02",
-        title: "Raw tweet snapshot hashing",
+        title: "Immutable X dataset hashing",
         protocol: "IPFS & Archive",
         column: "left",
         iconKey: "archive",
@@ -166,7 +166,7 @@ export const HOME_CONTENT = {
       },
       {
         number: "03",
-        title: "validator EIP-712 attestations",
+        title: "Validator EIP-712 quorum roots",
         protocol: "NarrativeOracle",
         column: "right",
         iconKey: "oracle",
@@ -174,7 +174,7 @@ export const HOME_CONTENT = {
       },
       {
         number: "04",
-        title: "contract-defined challenge bonds",
+        title: "Bonded challenge & slash guard",
         protocol: "Dispute Guard",
         column: "left",
         iconKey: "guard",
@@ -182,7 +182,7 @@ export const HOME_CONTENT = {
       },
       {
         number: "05",
-        title: "Parimutuel pair liquidity",
+        title: "Narrative spread pair markets",
         protocol: "RelativePairMarket",
         column: "right",
         iconKey: "market",
@@ -190,7 +190,7 @@ export const HOME_CONTENT = {
       },
       {
         number: "06",
-        title: "Automated TWAP basket execution",
+        title: "Auto-rebalancing AI & sector vaults",
         protocol: "Uniswap V3 Vaults",
         column: "left",
         iconKey: "twap",
@@ -208,67 +208,67 @@ export const HOME_CONTENT = {
   ],
   benefits: {
     leftColumn: {
-      heading: "For traders",
+      heading: "For traders & AI agents",
       items: [
-        "Compare sector velocity across 10 crypto narratives in real time.",
-        "Trade relative mindshare spreads without picking single-token tops.",
-        "Allocate ETH into whitelisted Uniswap V3 TWAP narrative baskets.",
-        "Audit every epoch dataset hash and validator signature onchain.",
+        "Track AI-scored mindshare velocity across 10 narratives before price catches up.",
+        "Trade AI Agents vs. DeFi, RWA, or Memecoins without timing single-token tops.",
+        "Discover live tokens mentioned by top KOLs, auto-enriched with DEX liquidity.",
+        "Feed verifiable 4-hour AI oracle roots directly into autonomous trading strategies.",
       ],
     },
     rightColumn: {
       heading: "For stakers & builders",
       items: [
-        "Stake $NTI with 7-day cooldowns to earn native ETH fee distributions.",
-        "Unlock live Emerging Radar spikes and Builder Heatmap saturation metrics.",
-        "Vote on ecosystem grants via Snapshot IVotes and NTIGovernor.",
-        "Spot crowded narratives early before launching new protocols.",
+        "Stake $NTI to earn native ETH fee yield from pair markets and TWAP vaults.",
+        "Unlock live AI Radar breakout alerts and sector saturation heatmaps.",
+        "Govern narrative taxonomy, AI scoring upgrades, and ETH grants onchain.",
+        "Audit every dataset hash, KOL score, and validator signature with zero black boxes.",
       ],
     },
     cta: {
-      label: "Explore NTI Terminal",
+      label: "Launch AI Terminal",
       href: "/terminal",
     },
   },
   industry: {
-    headingWords: ["Narrative", "markets", "powered", "by", "NTI"],
+    headingWords: ["AI-powered", "narrative", "markets", "onchain"],
     cards: [
       {
-        title: "Mindshare Analytics",
-        subtitle: "See capital rotation across 10 crypto sectors",
+        title: "AI Mindshare Terminal",
+        subtitle: "Real-time sector intelligence from 1,500+ KOLs",
         href: "/terminal",
-        ctaLabel: "Open Mindshare Terminal",
+        ctaLabel: "Open AI Terminal",
         bullets: [
-          "4-hour EMA smoothed attention scores",
-          "Deterministic Hamilton bps ranking",
-          "KOL velocity & sector heatmaps",
+          "Deterministic AI classification every 4 hours",
+          "Anti-bot KOL reputation & spam-decay scoring",
+          "Auto-extracted KOL token mentions & heatmaps",
         ],
         iconKind: "svg-ai",
         protocolMarks: ["engine", "archive", "oracle"],
       },
       {
         title: "Relative Pair Markets",
-        subtitle: "Trade which narrative wins the 4-hour epoch",
+        subtitle: "Bet which narrative leads the next 4-hour epoch",
         href: "/markets",
         ctaLabel: "Trade Pair Markets",
         bullets: [
-          "Parimutuel ETH pools settled by oracle roots",
-          "Zero external price-feed oracle risk",
-          "contract-defined dispute window before payout claims",
+          "Parimutuel ETH pools settled by AI oracle roots",
+          "Trade sector rotation with zero single-token risk",
+          "Bonded onchain dispute window before payout claims",
         ],
         iconKind: "lottie",
         lottieSrc: "/assets/lottie/capital-markets.json",
         protocolMarks: ["engine", "market", "guard"],
       },
       {
-        title: "TWAP Baskets & Yield",
-        subtitle: "Automated execution meets native ETH fees",
+        title: "Autonomous TWAP Vaults",
+        subtitle: "Hands-free sector exposure meets native ETH yield",
         href: "/baskets",
-        ctaLabel: "Explore TWAP Baskets",
+        ctaLabel: "Explore TWAP Vaults",
         bullets: [
-          "Whitelisted Uniswap V3 narrative baskets",
-          "ETH-denominated fee yield for $NTI stakers",
-          "Governor-controlled grants and parameters",
+          "Self-rebalancing Uniswap V3 narrative baskets",
+          "Native ETH fee yield streamed to $NTI stakers",
+          "Onchain governance over caps, weights, and grants",
         ],
         iconKind: "lottie",
         lottieSrc: "/assets/lottie/defi.json",
@@ -278,36 +278,36 @@ export const HOME_CONTENT = {
     getStartedHeading: "Get started",
     getStartedRows: [
       {
-        title: "Inspect live terminal",
+        title: "Open AI terminal",
         description:
-          "Track all 10 crypto sectors scored in Hamilton bps across 4-hour epochs.",
+          "Explore 10 live narratives, KOL reputation rankings, and AI-extracted token signals.",
         ctaLabel: "Open Terminal",
         href: "/terminal",
         lottieSrc: "/assets/lottie/intro-sui-stack.json",
         mobileIconKey: "building",
       },
       {
-        title: "Trade pair markets",
+        title: "Trade narrative pairs",
         description:
-          "Take positions on relative mindshare spreads settled by validator-attested oracle roots.",
+          "Long AI Agents against any crypto sector in ETH markets settled by validator-attested AI roots.",
         ctaLabel: "View Markets",
         href: "/markets",
         lottieSrc: "/assets/lottie/developer.json",
         mobileIconKey: "coding",
       },
       {
-        title: "Stake & earn yield",
+        title: "Stake for ETH yield",
         description:
-          "Stake $NTI to unlock Emerging Radar signals and claim native ETH fee yield.",
+          "Stake $NTI to unlock live AI breakout radar and claim native ETH protocol fees.",
         ctaLabel: "Go to Staking",
         href: "/stake",
         lottieSrc: "/assets/lottie/assets-fiscal.json",
         mobileIconKey: "earning",
       },
       {
-        title: "Verify methodology",
+        title: "Audit the AI oracle",
         description:
-          "Inspect formula docs, EIP-712 dataset hashes, and validator quorum rules.",
+          "Inspect deterministic formulas, archived X snapshots, and EIP-712 validator proofs.",
         ctaLabel: "Read Methodology",
         href: "/methodology",
         lottieSrc: "/assets/lottie/community-people.json",
