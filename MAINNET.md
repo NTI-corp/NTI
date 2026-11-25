@@ -140,7 +140,7 @@ registry. Finish with `mainnet_verify.py --phase handed-over`: the deployer must
 
 ## Known limits
 
-* No independent audit yet. The substitutes are 56 Foundry tests including the mainnet scripts, fork-style
+* No independent audit yet. The substitutes are 54 Foundry tests including the mainnet scripts, fork-style
   tests, the Slither triage below and the conservative caps.
 * Pons v1 tokens are not covered by discovery; `txs_7d` is a 24 hour lower bound.
 * Dataset hashes live on chain and the files in the public Supabase bucket; permanent storage (Irys or Arweave)
