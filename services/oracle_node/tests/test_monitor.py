@@ -22,6 +22,7 @@ def inputs(now: int, last_processed: int, latest_final: int, **kw: object) -> Mo
         balances_eth=kw.get("balances_eth", {}),  # type: ignore[arg-type]
         fetch_failure_pct=kw.get("fetch_failure_pct"),  # type: ignore[arg-type]
         fetch_epoch_id=kw.get("fetch_epoch_id"),  # type: ignore[arg-type]
+        fetch_finished_unix=kw.get("fetch_finished_unix"),  # type: ignore[arg-type]
     )
 
 
@@ -87,3 +88,22 @@ def test_deduper_suppresses_repeats_within_cooldown(tmp_path: Path) -> None:
     assert first["alerts_sent"] == 1
     assert again["alerts_sent"] == 0
     assert later["alerts_sent"] == 1
+
+
+def test_commit_alert_waits_for_the_pipeline_after_the_scrape_is_recorded() -> None:
+    boundary = GENESIS + 100 * EPOCH
+    done = {100: boundary + 50 * 60}
+    # 200 minutes in, the scrape was recorded 150 minutes ago: not yet overdue
+    quiet = run(inputs(boundary + 200 * 60, 99, 99, fetch_finished_unix=done), [])
+    assert quiet["findings"] == []
+    # 15 minutes later the operator is overdue
+    loud = run(inputs(boundary + 215 * 60, 99, 99, fetch_finished_unix=done), [])
+    assert "epoch_100_late" in loud["findings"]
+
+
+def test_commit_alert_without_any_scrape_waits_until_close_to_the_incomplete_cutoff() -> None:
+    boundary = GENESIS + 100 * EPOCH
+    early = run(inputs(boundary + 200 * 60, 99, 99, fetch_finished_unix={}), [])
+    assert early["findings"] == []
+    late = run(inputs(boundary + 215 * 60, 99, 99, fetch_finished_unix={}), [])
+    assert "epoch_100_late" in late["findings"]

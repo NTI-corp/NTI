@@ -17,6 +17,9 @@ from nti_oracle.node import DisputeWatcher, TelegramNotifier
 
 EPOCH_SECONDS = 14_400
 DEFAULT_COOLDOWN_SECONDS = 6 * 3600
+# The epoch commit alert waits for the pipeline's real timings instead of a fixed +150 minutes:
+COMMIT_ALERT_AFTER_EVIDENCE_MINUTES = 150  # scrape recorded, operator should have committed by now
+COMMIT_ALERT_NO_EVIDENCE_MINUTES = 210  # no complete scrape yet; chain marks incomplete at 240
 # Gas on 4663 is ~0.02 gwei: a commit costs ~0.00003 ETH plus an L1 data share that spikes with
 # Ethereum gas. 0.001 ETH is days of normal use: refill when the alert fires.
 DEFAULT_MIN_ETH = {4663: Decimal("0.001"), 46630: Decimal("0.0003")}
@@ -31,6 +34,8 @@ class MonitorInputs:
     balances_eth: dict[str, tuple[str, Decimal]]  # role -> (address, balance)
     fetch_failure_pct: float | None
     fetch_epoch_id: int | None
+    # epoch id -> unix time its complete fetch evidence was recorded (None: unknown, old behaviour)
+    fetch_finished_unix: dict[int, int] | None = None
 
 
 def default_min_eth(chain_id: int) -> Decimal:
@@ -100,6 +105,16 @@ async def run_monitor(
         minutes = max(0, (inputs.now - boundary) // 60)
         committed = inputs.last_processed_epoch >= epoch_id
         finalized = inputs.latest_final_epoch >= epoch_id
+        if not committed and inputs.fetch_finished_unix is not None:
+            # The commit cannot start before the X scrape is recorded and then needs time to
+            # classify the window (hours after a model change). Only call it late once that has
+            # had its normal time, and always before the on-chain incomplete cutoff (4 hours).
+            finished = inputs.fetch_finished_unix.get(epoch_id)
+            if finished is None:
+                if minutes <= COMMIT_ALERT_NO_EVIDENCE_MINUTES:
+                    continue
+            elif (inputs.now - finished) // 60 <= COMMIT_ALERT_AFTER_EVIDENCE_MINUTES:
+                continue
         if await watcher.check_epoch_timeliness(
             epoch_id, int(minutes), committed=committed, finalized=finalized
         ):

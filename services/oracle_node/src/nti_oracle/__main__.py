@@ -616,6 +616,26 @@ async def _run_monitor(args: argparse.Namespace) -> dict[str, Any]:
     notifier = TelegramNotifier(
         os.environ.get("TELEGRAM_BOT_TOKEN", ""), os.environ.get("TELEGRAM_CHAT_ID", "")
     )
+    finished_by_epoch: dict[int, int] | None = None
+    if os.environ.get("SUPABASE_URL") and os.environ.get("SUPABASE_SERVICE_KEY"):
+        try:
+            now_ts = now_unix()
+            current = (now_ts - state.genesis_timestamp) // 14_400
+            rows = await SupabaseStorage(
+                os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"]
+            ).select(
+                "fetch_cycle_runs",
+                columns="epoch_id,status,finished_at",
+                filters={"epoch_id": f"in.({current - 1},{current})", "status": "eq.collecting"},
+            )
+            finished_by_epoch = {
+                int(r["epoch_id"]): int(
+                    datetime.fromisoformat(str(r["finished_at"]).replace("Z", "+00:00")).timestamp()
+                )
+                for r in rows
+            }
+        except Exception:  # noqa: BLE001 - alert timing is best effort; keep the old behaviour
+            finished_by_epoch = None
     inputs = MonitorInputs(
         now=now_unix(),
         genesis_timestamp=state.genesis_timestamp,
@@ -624,6 +644,7 @@ async def _run_monitor(args: argparse.Namespace) -> dict[str, Any]:
         balances_eth=balances,
         fetch_failure_pct=fetch_pct,
         fetch_epoch_id=fetch_epoch,
+        fetch_finished_unix=finished_by_epoch,
     )
     result = await run_monitor(
         inputs,
