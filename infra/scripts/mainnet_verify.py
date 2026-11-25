@@ -118,7 +118,7 @@ def main() -> int:
     if args.env_file:
         load_env_file(args.env_file)
 
-    rpc_url = os.environ.get("RPC_URL_MAINNET", "")
+    rpc_url = os.environ.get("RPC_URL_MAINNET", "").split(",")[0].strip()
     if not rpc_url or not args.manifest.exists():
         print("RPC_URL_MAINNET and a deployment manifest are required", file=sys.stderr)
         return 2

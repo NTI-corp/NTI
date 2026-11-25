@@ -311,7 +311,7 @@ def main() -> int:
         load_env_file(args.env_file)
 
     r = Report()
-    rpc_url = os.environ.get("RPC_URL_MAINNET", "")
+    rpc_url = os.environ.get("RPC_URL_MAINNET", "").split(",")[0].strip()
     print("1. Network")
     if not rpc_url:
         r.fail("RPC_URL_MAINNET is not set")
