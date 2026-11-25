@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
 import { encodeAbiParameters, isAddress, keccak256, maxUint256, stringToHex, type Address, type Hex } from "viem";
 import { getActiveChainId, getProtocolAddresses } from "./contracts";
@@ -48,27 +49,42 @@ function normalizeHex(raw: unknown): string | null {
   return raw;
 }
 
+export const PUBLIC_DATA_REVALIDATE_SECONDS = 15;
+
+async function fetchSupabaseRows(pathWithQuery: string, mode: "anon" | "service"): Promise<unknown[]> {
+  const cfg = getSupabaseConfig();
+  const key = mode === "service" ? cfg.serviceKey ?? cfg.anonKey : cfg.anonKey;
+  if (!cfg.url || !key) throw new Error("Supabase is not configured");
+  const res = await fetch(`${cfg.url}/rest/v1/${pathWithQuery}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!res.ok) throw new Error(`Supabase ${res.status}`);
+  const data: unknown = await res.json();
+  if (!Array.isArray(data)) throw new Error("Supabase returned a non-array body");
+  return data;
+}
+
+// Pages are rendered per request, but these rows are public and identical for every visitor, so a 15 second
+// shared cache removes the round trip from most navigations. A failed read throws inside the cache wrapper and
+// is therefore never cached.
+const cachedSupabaseRows = unstable_cache(fetchSupabaseRows, ["supabase-select"], {
+  revalidate: PUBLIC_DATA_REVALIDATE_SECONDS,
+});
+
 export async function supabaseSelect<T>(
   pathWithQuery: string,
   mode: "anon" | "service" = "anon",
 ): Promise<T[] | null> {
   const cfg = getSupabaseConfig();
-  const key = mode === "service" ? cfg.serviceKey ?? cfg.anonKey : cfg.anonKey;
-  if (!cfg.url || !key) return null;
-
+  if (!cfg.url || !(mode === "service" ? cfg.serviceKey ?? cfg.anonKey : cfg.anonKey)) return null;
   try {
-    const res = await fetch(`${cfg.url}/rest/v1/${pathWithQuery}`, {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!res.ok) return null;
-    const data: unknown = await res.json();
-    return Array.isArray(data) ? (data as T[]) : null;
+    return (await cachedSupabaseRows(pathWithQuery, mode)) as T[];
   } catch {
     return null;
   }

@@ -8,6 +8,7 @@ import {
   type Address,
   type PublicClient,
 } from "viem";
+import { unstable_cache } from "next/cache";
 import { EXTERNAL_ADDRESSES, NARRATIVE_BY_ID } from "@nti/sdk";
 import {
   basketAbi,
@@ -35,7 +36,11 @@ function getServerPublicClient() {
       transport: http(
         (chainId === 46630 ? process.env.RPC_URL_TESTNET : process.env.RPC_URL_MAINNET) ??
           chain.rpcUrls.default.http[0],
-        { timeout: 10_000, retryCount: 2, fetchOptions: { cache: "no-store" } },
+        {
+          timeout: 10_000,
+          retryCount: 2,
+          fetchOptions: { next: { revalidate: 15 } } as RequestInit,
+        },
       ),
     }),
   };
@@ -239,7 +244,7 @@ async function readConstituentMarket(
   }
 }
 
-export async function readLiveBasketsFromChain(): Promise<BasketItem[] | null> {
+async function readLiveBasketsUncached(): Promise<BasketItem[] | null> {
   const { addresses, client, chainId } = getServerPublicClient();
   if (!addresses.basketFactory) return null;
   const weth = EXTERNAL_ADDRESSES[chainId]?.weth?.address ?? null;
@@ -324,6 +329,26 @@ export async function readLiveBasketsFromChain(): Promise<BasketItem[] | null> {
     );
 
     return items.every((item) => item !== null) ? items : null;
+  } catch {
+    return null;
+  }
+}
+
+// The vault list and its pool reads are the same for every visitor. A 15 second shared cache keeps the page quick;
+// an unavailable read throws inside the wrapper so a failure is not cached.
+const cachedLiveBaskets = unstable_cache(
+  async (): Promise<BasketItem[]> => {
+    const items = await readLiveBasketsUncached();
+    if (items === null) throw new Error("basket data unavailable");
+    return items;
+  },
+  ["live-baskets"],
+  { revalidate: 15 },
+);
+
+export async function readLiveBasketsFromChain(): Promise<BasketItem[] | null> {
+  try {
+    return await cachedLiveBaskets();
   } catch {
     return null;
   }

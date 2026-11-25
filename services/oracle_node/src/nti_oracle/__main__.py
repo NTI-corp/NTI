@@ -716,11 +716,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _repo_head() -> str:
+    """The last commit that touched code the operator runs (services/ and config/).
+
+    A deploy that only changes web, docs or contracts must not restart the daemon, so this is
+    not the repository HEAD: it moves only when the oracle's own code or config moves.
+    """
     import subprocess
 
     try:
         out = subprocess.run(
-            ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+            ["git", "-C", str(REPO_ROOT), "log", "-1", "--format=%H", "--", "services", "config"],
             capture_output=True,
             text=True,
             timeout=15,

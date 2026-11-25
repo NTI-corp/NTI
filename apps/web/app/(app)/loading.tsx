@@ -1,6 +1,6 @@
-import { InstantRouteShell } from "@/components/InstantRouteShell";
+import { RouteLoading } from "@/components/RouteLoading";
 
-/** Fallback shown while Next.js streams an app segment directly without client optimistic shell. */
+/** Shown at once while a page streams in; the shell follows the URL being opened. */
 export default function AppLoading() {
-  return <InstantRouteShell path="/terminal" />;
+  return <RouteLoading />;
 }
