@@ -71,7 +71,8 @@ def test_cutover_clears_chain_tables_and_keeps_the_reusable_ones() -> None:
 
 def test_cutover_replaces_only_the_wanted_env_keys() -> None:
     cutover = load("cutover_to_mainnet")
-    before = "\n".join(["CHAIN_ID=46630", "SUPABASE_URL=https://x.supabase.co", "OPERATOR_PRIVATE_KEY=old"])
+    lines = ["CHAIN_ID=46630", "SUPABASE_URL=https://x.supabase.co", "OPERATOR_PRIVATE_KEY=old"]
+    before = "\n".join(lines)
     mainnet = {
         "CHAIN_ID": "4663",
         "OPERATOR_PRIVATE_KEY": "new",

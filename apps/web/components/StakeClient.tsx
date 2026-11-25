@@ -10,6 +10,7 @@ import {
   estimateTxGas,
   getActiveChainId,
   getProtocolAddresses,
+  ntiRegistryAbi,
   stakingAbi,
   type GasEstimateDisplay,
 } from "@/lib/contracts";
@@ -48,6 +49,16 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
   const { refresh: refreshSiwe } = useSiweSession();
   const addresses = getProtocolAddresses(activeChainId);
 
+  // The faucet exists on testnet and on mainnet while the prelaunch token is in use (registry not frozen).
+  const { data: registryFrozen } = useReadContract({
+    address: addresses.registry ?? undefined,
+    abi: ntiRegistryAbi,
+    functionName: "frozen",
+    chainId: activeChainId,
+    query: { enabled: Boolean(addresses.registry), staleTime: 60_000 },
+  });
+  const faucetEnabled = isTestnet || registryFrozen === false;
+
   const [tab, setTab] = useState<"stake" | "unstake">("stake");
   const [amountInput, setAmountInput] = useState("100000");
   const [gasEst, setGasEst] = useState<GasEstimateDisplay | null>(null);
@@ -83,7 +94,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
     functionName: "lastFaucetClaim",
     args: address ? [address] : undefined,
     chainId: activeChainId,
-    query: { enabled: Boolean(isTestnet && addresses.ntiToken && address) },
+    query: { enabled: Boolean(faucetEnabled && addresses.ntiToken && address) },
   });
 
   const { data: activeStakeWei, refetch: refetchStake } = useReadContract({
@@ -338,7 +349,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
           </p>
         </div>
 
-        {isTestnet && (
+        {faucetEnabled && (
           <button
             type="button"
             disabled={isBusy || faucetOnCooldown}
@@ -595,7 +606,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
         </div>
       </div>
 
-      <GovernorPanel proposals={proposals} />
+      {addresses.governor && <GovernorPanel proposals={proposals} />}
       <KolRegistryPanel />
     </div>
   );

@@ -26,10 +26,10 @@ export function TestnetBanner() {
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 font-mono text-[9.5px] uppercase tracking-[0.08em] sm:px-7">
         <span className="inline-flex items-center gap-2 text-[#E2A856]">
           <FlaskConical className="h-3 w-3" aria-hidden="true" />
-          {isMainnet ? "Pre-freeze registry" : "Testnet · test token"}
+          {isMainnet ? "Prelaunch token" : "Testnet · test token"}
           <span className="hidden text-[#71717A] normal-case tracking-normal sm:inline">
             {isMainnet
-              ? "Staking, markets and disputes open once the $NTI contract is attached and the registry is frozen."
+              ? "Staking and markets run on the pNTI prelaunch token (free from the faucet) until the real $NTI launches on Pons."
               : "Staking, markets and disputes use tNTI until the live $NTI address is locked."}
           </span>
         </span>
