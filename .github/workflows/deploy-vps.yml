@@ -3,6 +3,19 @@ name: Deploy NTI to VPS
 on:
   push:
     branches: [main]
+    # Only changes to what runs on the VPS may touch it. A web, docs or contract change never restarts
+    # the operator, fetcher, validators or indexer.
+    paths:
+      - "services/**"
+      - "indexer/**"
+      - "infra/**"
+      - "config/**"
+      - "packages/sdk/**"
+      - "supabase/**"
+      - "contracts/deployments/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
   workflow_dispatch:
 
 jobs:

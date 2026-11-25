@@ -276,8 +276,9 @@ async function readLiveBasketsUncached(): Promise<BasketItem[] | null> {
 
           const meta = NARRATIVE_BY_ID.get(Number(narrativeId));
           const navEth = Number(formatEther(navWei));
-          const supplyEth = Number(formatEther(totalSupply));
-          const sharePriceEth = supplyEth > 0 ? navEth / supplyEth : null;
+          // Same pricing as Basket.deposit: virtual shares and assets of 1e6 each, so an empty basket starts at 1 ETH.
+          const virtual = 1_000_000n;
+          const sharePriceEth = Number(formatEther(((navWei + virtual) * 10n ** 18n) / (totalSupply + virtual)));
 
           const [tokAddrs, weights] = constituents;
           const holdings = await Promise.all(

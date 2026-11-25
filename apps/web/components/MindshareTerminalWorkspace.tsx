@@ -272,7 +272,7 @@ export function MindshareTerminalWorkspace({
                       windowDeltaById.get(hoveredSector.narrativeId) ?? null,
                       windowChip === "4H" && hoveredSector.vBps !== null ? hoveredSector.vFlag : null,
                     )
-                  : "—"}
+                  : "NEW"}
               </span>
             </span>
           ) : (
@@ -355,7 +355,7 @@ export function MindshareTerminalWorkspace({
                   >
                     {delta !== null
                       ? `${windowChip === "4H" && n.vBps === null ? "~" : ""}${formatSignedBps(delta, windowChip === "4H" && n.vBps !== null ? n.vFlag : null)}`
-                      : "—"}
+                      : "NEW"}
                   </span>
                 </div>
 
