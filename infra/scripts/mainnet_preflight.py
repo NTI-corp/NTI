@@ -19,6 +19,7 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -216,15 +217,21 @@ def stage_services(r: Report, rpc_url: str) -> None:
     head = int(str(rpc(logs_url, "eth_blockNumber", [])), 16)
     best = 0
     for span in LOG_PROBE_RANGES:
-        try:
-            rpc(
-                logs_url,
-                "eth_getLogs",
-                [{"fromBlock": hex(max(0, head - span)), "toBlock": hex(head), "address": EXTERNALS["WETH"]}],
-            )
-            best = span
-        except (RuntimeError, httpx.HTTPError):
+        served = False
+        for attempt in range(4):  # a free endpoint answers 429 now and then; only a stable refusal counts
+            try:
+                rpc(
+                    logs_url,
+                    "eth_getLogs",
+                    [{"fromBlock": hex(max(0, head - span)), "toBlock": hex(head), "address": EXTERNALS["WETH"]}],
+                )
+                served = True
+                break
+            except (RuntimeError, httpx.HTTPError):
+                time.sleep(2 * (attempt + 1))
+        if not served:
             break
+        best = span
     wanted = int(os.environ.get("INDEXER_BATCH_BLOCKS", "500"))
     if best == 0:
         r.fail("eth_getLogs failed even for 10 blocks; use a provider that serves logs")
