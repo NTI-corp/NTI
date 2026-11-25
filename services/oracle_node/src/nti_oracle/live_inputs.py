@@ -126,47 +126,64 @@ async def prepare_engine_posts(
     ]
     failed: set[int] = set()
     if unclassified:
-        adapter = MiMoAdapter(api_key=os.environ.get("MIMO_API_KEY", ""), model=model)
-        pipeline = ClassifierPipeline(
-            primary=adapter,
-            batch_size=min(cfg.classifier.batch_size, 30),
-            max_split_depth=6,
-            daily_primary_limit=100000,
-        )
         spec = load_prompt_spec(prompt, repo_root / "services/classifier/prompts", cfg.narratives)
-        # Persist each checkpoint before starting the next one. A restart never discards
-        # a completed hour of provider work or records a failed response as "unrelated".
-        for offset in range(0, len(unclassified), 150):
-            output = await pipeline.run(unclassified[offset : offset + 150], spec)
-            failed.update(output.failed_tweet_ids)
-            good = [r for r in output.results if r.tweet_id not in output.failed_tweet_ids]
-            await storage.upsert_classifications(
-                [
-                    {
-                        "tweet_id": r.tweet_id,
-                        "model_version": model,
-                        "prompt_version": prompt,
-                        "series_id": 0,
-                        "q": {str(k): v for k, v in r.q.items()},
-                    }
-                    for r in good
-                ]
+        batch_size = min(cfg.classifier.batch_size, 30)
+        workers = max(1, int(os.environ.get("CLASSIFIER_CONCURRENCY", "4")))
+        chunks = [unclassified[i : i + 150] for i in range(0, len(unclassified), 150)]
+        queue: asyncio.Queue[list[PostIn]] = asyncio.Queue()
+        for chunk in chunks:
+            queue.put_nowait(chunk)
+
+        async def classify_worker() -> None:
+            # One pipeline per worker: a pipeline keeps per-run failure state and is not shareable.
+            # Each finished chunk is persisted at once, so a restart never discards provider work
+            # and a failed response is never recorded as "unrelated".
+            adapter = MiMoAdapter(api_key=os.environ.get("MIMO_API_KEY", ""), model=model)
+            pipeline = ClassifierPipeline(
+                primary=adapter,
+                batch_size=batch_size,
+                max_split_depth=6,
+                daily_primary_limit=100000,
             )
-            await storage.upsert_llm_runs(
-                [
-                    {
-                        "epoch_id": epoch_id,
-                        "provider": "mimo",
-                        "model_version": model,
-                        "prompt_version": prompt,
-                        "batch_size": min(cfg.classifier.batch_size, 30),
-                        "valid_count": len(good),
-                        "failed_count": len(output.failed_tweet_ids),
+            while True:
+                try:
+                    chunk = queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    return
+                output = await pipeline.run(chunk, spec)
+                failed.update(output.failed_tweet_ids)
+                good = [r for r in output.results if r.tweet_id not in output.failed_tweet_ids]
+                await storage.upsert_classifications(
+                    [
+                        {
+                            "tweet_id": r.tweet_id,
+                            "model_version": model,
+                            "prompt_version": prompt,
+                            "series_id": 0,
+                            "q": {str(k): v for k, v in r.q.items()},
+                        }
+                        for r in good
+                    ]
+                )
+                await storage.upsert_llm_runs(
+                    [
+                        {
+                            "epoch_id": epoch_id,
+                            "provider": "mimo",
+                            "model_version": model,
+                            "prompt_version": prompt,
+                            "batch_size": batch_size,
+                            "valid_count": len(good),
+                            "failed_count": len(output.failed_tweet_ids),
+                        }
+                    ]
+                )
+                for result in good:
+                    q_by_id[result.tweet_id] = {
+                        int(k): Decimal(str(v)) for k, v in result.q.items()
                     }
-                ]
-            )
-            for result in good:
-                q_by_id[result.tweet_id] = {int(k): Decimal(str(v)) for k, v in result.q.items()}
+
+        await asyncio.gather(*(classify_worker() for _ in range(min(workers, len(chunks)))))
 
     ready = [
         EnginePost(
