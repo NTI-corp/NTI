@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Script} from "forge-std/Script.sol";
 
 import {ConfigRegistry} from "../src/ConfigRegistry.sol";
@@ -96,14 +97,12 @@ contract DisputeE2ETestnet is Script {
         returns (OracleCommit oracle, Dispute dispute, Staking staking, NTITestToken token)
     {
         vm.startBroadcast(k.deployer);
-        NTIRegistry registry = new NTIRegistry(deployer, address(0xdead0001));
+        NTIRegistry registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (deployer, address(0xdead0001))))));
         token = new NTITestToken(deployer);
-        staking = new Staking(address(registry), deployer, deployer);
-        ConfigRegistry config = new ConfigRegistry(deployer);
-        oracle = new OracleCommit(
-            address(staking), address(config), uint64(block.timestamp - 3 days), deployer, deployer
-        );
-        dispute = new Dispute(address(registry), address(oracle), address(staking), deployer, deployer);
+        staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), deployer, deployer)))));
+        ConfigRegistry config = ConfigRegistry(payable(deployProxy(address(new ConfigRegistry()), abi.encodeCall(ConfigRegistry.initialize, (deployer)))));
+        oracle = OracleCommit(payable(deployProxy(address(new OracleCommit()), abi.encodeCall(OracleCommit.initialize, (address(staking), address(config), uint64(block.timestamp - 3 days), deployer, deployer)))));
+        dispute = Dispute(payable(deployProxy(address(new Dispute()), abi.encodeCall(Dispute.initialize, (address(registry), address(oracle), address(staking), deployer, deployer)))));
 
         registry.setStaking(address(staking));
         registry.setNti(address(token));

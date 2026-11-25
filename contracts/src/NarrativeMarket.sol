@@ -1,27 +1,29 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {IOracleCommit} from "./interfaces/IOracleCommit.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title NarrativeMarket
 /// @notice Fixed-horizon (24h / 7d) parimutuel narrative pair market settled from OracleCommit.
 ///         Pausing only gates market creation and betting; settle() and claim() always remain open.
-contract NarrativeMarket is AccessControl, ReentrancyGuard, Pausable {
+contract NarrativeMarket is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     uint64 public constant MAX_TIMEOUT = 14 days;
 
     // Defaults are the production schedule; testnet shortens them, mainnet freezes them.
-    uint32 public HORIZON_SHORT = 6; // 6 epochs = 24 hours
-    uint32 public HORIZON_LONG = 42; // 42 epochs = 7 days
-    uint32 public BET_CUTOFF_EPOCHS = 2; // 8 hours before settleEpoch boundary
-    uint64 public SETTLE_TIMEOUT = 48 hours;
+    uint32 public HORIZON_SHORT; // 6 epochs = 24 hours
+    uint32 public HORIZON_LONG; // 42 epochs = 7 days
+    uint32 public BET_CUTOFF_EPOCHS; // 8 hours before settleEpoch boundary
+    uint64 public SETTLE_TIMEOUT;
     bool public timingsLocked;
     uint16 public constant BASE_FEE_BPS = 10; // 0.1%
 
@@ -53,16 +55,16 @@ contract NarrativeMarket is AccessControl, ReentrancyGuard, Pausable {
         bool claimed;
     }
 
-    IOracleCommit public immutable oracleCommit;
-    IStaking public immutable staking;
-    address public immutable feeRouter;
+    IOracleCommit public oracleCommit;
+    IStaking public staking;
+    address public feeRouter;
 
-    uint256 public minBet = 0.001 ether;
-    uint256 public maxPoolPerMarket = 5 ether;
-    uint256 public maxOpenMarkets = 20;
-    uint256 public maxGlobalTVL = 50 ether;
+    uint256 public minBet;
+    uint256 public maxPoolPerMarket;
+    uint256 public maxOpenMarkets;
+    uint256 public maxGlobalTVL;
 
-    uint256 public nextMarketId = 1;
+    uint256 public nextMarketId;
     uint256 public openMarketsCount;
     uint256 public globalTVL;
 
@@ -115,13 +117,31 @@ contract NarrativeMarket is AccessControl, ReentrancyGuard, Pausable {
     event TimingsFrozen();
     event RiskParamsUpdated(uint256 minBet, uint256 maxPoolPerMarket, uint256 maxOpenMarkets, uint256 maxGlobalTVL);
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
         address oracleCommit_,
         address staking_,
         address feeRouter_,
         address admin_,
         address pauser_
-    ) {
+    ) external initializer {
+        __AccessControl_init();
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        HORIZON_SHORT = 6;
+        HORIZON_LONG = 42;
+        BET_CUTOFF_EPOCHS = 2;
+        SETTLE_TIMEOUT = 48 hours;
+        minBet = 0.001 ether;
+        maxPoolPerMarket = 5 ether;
+        maxOpenMarkets = 20;
+        maxGlobalTVL = 50 ether;
+        nextMarketId = 1;
         if (
             oracleCommit_ == address(0) || staking_ == address(0) || feeRouter_ == address(0)
                 || admin_ == address(0) || pauser_ == address(0)
@@ -395,4 +415,9 @@ contract NarrativeMarket is AccessControl, ReentrancyGuard, Pausable {
         }
         return 0;
     }
+
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /// @dev Reserved storage so later versions can add variables without shifting the layout.
+    uint256[50] private __gap;
 }

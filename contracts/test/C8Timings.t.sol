@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Test} from "forge-std/Test.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
@@ -28,13 +29,13 @@ contract C8TimingsTest is Test {
 
     function setUp() public {
         vm.startPrank(admin);
-        registry = new NTIRegistry(admin, makeAddr("weth"));
+        registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, makeAddr("weth"))))));
         nti = new NTITestToken(admin);
-        staking = new Staking(address(registry), admin, pauser);
-        ConfigRegistry config = new ConfigRegistry(admin);
-        oracle = new OracleCommit(address(staking), address(config), 0, admin, pauser);
-        dispute = new Dispute(address(registry), address(oracle), address(staking), admin, pauser);
-        market = new NarrativeMarket(address(oracle), address(staking), makeAddr("feeRouter"), admin, pauser);
+        staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), admin, pauser)))));
+        ConfigRegistry config = ConfigRegistry(payable(deployProxy(address(new ConfigRegistry()), abi.encodeCall(ConfigRegistry.initialize, (admin)))));
+        oracle = OracleCommit(payable(deployProxy(address(new OracleCommit()), abi.encodeCall(OracleCommit.initialize, (address(staking), address(config), 0, admin, pauser)))));
+        dispute = Dispute(payable(deployProxy(address(new Dispute()), abi.encodeCall(Dispute.initialize, (address(registry), address(oracle), address(staking), admin, pauser)))));
+        market = NarrativeMarket(payable(deployProxy(address(new NarrativeMarket()), abi.encodeCall(NarrativeMarket.initialize, (address(oracle), address(staking), makeAddr("feeRouter"), admin, pauser)))));
         registry.setStaking(address(staking));
         registry.setNti(address(nti));
         require(nti.transfer(alice, 1_000e18), "fund");

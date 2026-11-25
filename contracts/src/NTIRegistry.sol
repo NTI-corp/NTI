@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 
 import {INTIRegistry} from "./interfaces/INTIRegistry.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title NTIRegistry
 /// @notice Single source of truth for the $NTI token address, WETH, burn sink, and buyback adapter.
 ///         Before freeze(), owner may switch from NTITestToken to the live $NTI CA only when
 ///         IStaking.totalLocked() == 0 (no active or cooldown test tokens left in Staking).
-contract NTIRegistry is INTIRegistry, Ownable2Step {
+contract NTIRegistry is INTIRegistry, Initializable, Ownable2StepUpgradeable, UUPSUpgradeable {
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     address public override nti;
@@ -30,7 +32,15 @@ contract NTIRegistry is INTIRegistry, Ownable2Step {
     event BuybackAdapterUpdated(address indexed adapter);
     event RegistryFrozen(address indexed ntiToken);
 
-    constructor(address initialOwner, address weth_) Ownable(initialOwner) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialOwner, address weth_) external initializer {
+        __UUPSUpgradeable_init();
+        __Ownable_init(initialOwner);
+        __Ownable2Step_init();
         if (weth_ == address(0)) revert ZeroAddress();
         weth = weth_;
     }
@@ -72,4 +82,9 @@ contract NTIRegistry is INTIRegistry, Ownable2Step {
     function buybackReady() external view override returns (bool) {
         return buybackAdapter != address(0) && nti != address(0);
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    /// @dev Reserved storage so later versions can add variables without shifting the layout.
+    uint256[50] private __gap;
 }

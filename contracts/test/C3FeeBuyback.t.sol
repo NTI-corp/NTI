@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -161,20 +162,18 @@ contract C3FeeBuybackTest is Test {
     function setUp() public {
         vm.startPrank(admin);
         weth = new MockWETH();
-        registry = new NTIRegistry(admin, address(weth));
+        registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, address(weth))))));
         nti = new NTITestToken(admin);
-        staking = new Staking(address(registry), admin, pauser);
-        insurance = new InsuranceFund(admin);
-        grants = new Grants(address(staking), admin, keeper, pauser);
-        feeRouter = new FeeRouter(
-            address(registry),
+        staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), admin, pauser)))));
+        insurance = InsuranceFund(payable(deployProxy(address(new InsuranceFund()), abi.encodeCall(InsuranceFund.initialize, (admin)))));
+        grants = Grants(payable(deployProxy(address(new Grants()), abi.encodeCall(Grants.initialize, (address(staking), admin, keeper, pauser)))));
+        feeRouter = FeeRouter(payable(deployProxy(address(new FeeRouter()), abi.encodeCall(FeeRouter.initialize, (address(registry),
             address(staking),
             address(grants),
             address(insurance),
             admin,
             keeper,
-            pauser
-        );
+            pauser)))));
 
         registry.setStaking(address(staking));
         registry.setNti(address(nti));

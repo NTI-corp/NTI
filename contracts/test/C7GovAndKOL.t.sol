@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Test} from "forge-std/Test.sol";
 import {IGovernor} from "@openzeppelin/contracts/governance/IGovernor.sol";
 
@@ -39,18 +40,18 @@ contract C7GovAndKOLTest is Test {
         vm.roll(10);
 
         vm.startPrank(admin);
-        registry = new NTIRegistry(admin, makeAddr("weth"));
+        registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, makeAddr("weth"))))));
         nti = new NTITestToken(admin);
-        staking = new Staking(address(registry), admin, pauser);
-        configRegistry = new ConfigRegistry(admin);
-        insurance = new InsuranceFund(admin);
+        staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), admin, pauser)))));
+        configRegistry = ConfigRegistry(payable(deployProxy(address(new ConfigRegistry()), abi.encodeCall(ConfigRegistry.initialize, (admin)))));
+        insurance = InsuranceFund(payable(deployProxy(address(new InsuranceFund()), abi.encodeCall(InsuranceFund.initialize, (admin)))));
 
         address[] memory proposers = new address[](0);
         address[] memory executors = new address[](1);
         executors[0] = address(0);
         timelock = new NTITimelock(proposers, executors, admin);
         governor = new NTIGovernor(staking, timelock, 1, 100, 0);
-        kolRegistry = new KOLRegistry(admin, attester);
+        kolRegistry = KOLRegistry(payable(deployProxy(address(new KOLRegistry()), abi.encodeCall(KOLRegistry.initialize, (admin, attester)))));
 
         registry.setStaking(address(staking));
         registry.setNti(address(nti));

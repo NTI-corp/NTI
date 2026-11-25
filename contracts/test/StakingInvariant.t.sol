@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Test} from "forge-std/Test.sol";
 import {StdInvariant} from "forge-std/StdInvariant.sol";
 
@@ -103,9 +104,9 @@ contract StakingInvariantTest is StdInvariant, Test {
         address slasher = makeAddr("slasher");
 
         vm.startPrank(admin);
-        registry = new NTIRegistry(admin, makeAddr("weth"));
+        registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, makeAddr("weth"))))));
         token = new NTITestToken(admin);
-        staking = new Staking(address(registry), admin, pauser);
+        staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), admin, pauser)))));
         registry.setStaking(address(staking));
         registry.setNti(address(token));
         staking.grantRole(staking.SLASHER_ROLE(), slasher);

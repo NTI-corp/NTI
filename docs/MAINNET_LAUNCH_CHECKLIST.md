@@ -16,6 +16,10 @@ mainnet. **yours** needs a wallet, an account or a decision. Procedure: `MAINNET
 - [x] **built** `mainnet_wire.py` writes the addresses into the SDK; CI fails if they drift.
 - [ ] **yours** `mainnet_verify.py` reports no FAIL.
 
+## Upgrades
+- [x] **built** All contracts are UUPS proxies, baskets are beacon proxies; `UpgradeMainnet.s.sol` upgrades one contract (or all baskets); the manifest lists proxies and implementations; `mainnet_verify.py` flags an implementation that changed. Covered by `Upgradeability.t.sol`.
+- [ ] **yours** Treat the deployer key as the key to every contract: hardware wallet if possible.
+
 ## Cutover
 - [x] **built** `cutover_to_mainnet.py`: backup, empty the chain tables, switch the host `.env`, restart PM2.
 - [x] **built** Operator starts at the newest mature epoch on a fresh chain.

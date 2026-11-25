@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {Basket} from "../src/Basket.sol";
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Script} from "forge-std/Script.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -100,28 +102,24 @@ contract DeployTestnet is Script {
         d.weth = wethAddr;
 
         // Step 1: NTIRegistry -> NTITestToken -> Staking -> ConfigRegistry -> OracleCommit -> Dispute
-        NTIRegistry registry = new NTIRegistry(deployer, wethAddr);
+        NTIRegistry registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (deployer, wethAddr)))));
         NTITestToken testToken = new NTITestToken(deployer);
-        Staking staking = new Staking(address(registry), deployer, pauser);
-        ConfigRegistry configRegistry = new ConfigRegistry(deployer);
+        Staking staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), deployer, pauser)))));
+        ConfigRegistry configRegistry = ConfigRegistry(payable(deployProxy(address(new ConfigRegistry()), abi.encodeCall(ConfigRegistry.initialize, (deployer)))));
         OracleCommit oracleCommit =
-            new OracleCommit(address(staking), address(configRegistry), genesisTs, deployer, pauser);
-        Dispute dispute = new Dispute(
-            address(registry), address(oracleCommit), address(staking), deployer, pauser
-        );
+            OracleCommit(payable(deployProxy(address(new OracleCommit()), abi.encodeCall(OracleCommit.initialize, (address(staking), address(configRegistry), genesisTs, deployer, pauser)))));
+        Dispute dispute = Dispute(payable(deployProxy(address(new Dispute()), abi.encodeCall(Dispute.initialize, (address(registry), address(oracleCommit), address(staking), deployer, pauser)))));
 
         // Step 2: InsuranceFund -> Grants -> FeeRouter -> BuybackAdapters -> NarrativeMarket -> BasketFactory -> KOLRegistry
-        InsuranceFund insuranceFund = new InsuranceFund(deployer);
-        Grants grants = new Grants(address(staking), deployer, keeper, pauser);
-        FeeRouter feeRouter = new FeeRouter(
-            address(registry),
+        InsuranceFund insuranceFund = InsuranceFund(payable(deployProxy(address(new InsuranceFund()), abi.encodeCall(InsuranceFund.initialize, (deployer)))));
+        Grants grants = Grants(payable(deployProxy(address(new Grants()), abi.encodeCall(Grants.initialize, (address(staking), deployer, keeper, pauser)))));
+        FeeRouter feeRouter = FeeRouter(payable(deployProxy(address(new FeeRouter()), abi.encodeCall(FeeRouter.initialize, (address(registry),
             address(staking),
             address(grants),
             address(insuranceFund),
             deployer,
             keeper,
-            pauser
-        );
+            pauser)))));
 
         if (v3Router != address(0) && v3Factory != address(0)) {
             d.buybackAdapterV3 = address(new BuybackAdapterV3(wethAddr, v3Router, v3Factory, 3000));
@@ -134,13 +132,11 @@ contract DeployTestnet is Script {
             );
         }
 
-        NarrativeMarket narrativeMarket = new NarrativeMarket(
-            address(oracleCommit), address(staking), address(feeRouter), deployer, pauser
-        );
+        NarrativeMarket narrativeMarket = NarrativeMarket(payable(deployProxy(address(new NarrativeMarket()), abi.encodeCall(NarrativeMarket.initialize, (address(oracleCommit), address(staking), address(feeRouter), deployer, pauser)))));
         address basketRouter = v3Router != address(0) ? v3Router : TESTNET_UNIVERSAL_ROUTER;
         BasketFactory basketFactory =
-            new BasketFactory(address(registry), basketRouter, address(feeRouter), deployer);
-        KOLRegistry kolRegistry = new KOLRegistry(deployer, attester);
+            BasketFactory(payable(deployProxy(address(new BasketFactory()), abi.encodeCall(BasketFactory.initialize, (address(registry), basketRouter, address(feeRouter), deployer, address(new Basket()))))));
+        KOLRegistry kolRegistry = KOLRegistry(payable(deployProxy(address(new KOLRegistry()), abi.encodeCall(KOLRegistry.initialize, (deployer, attester)))));
 
         // Step 3: NTITimelock -> NTIGovernor
         address[] memory proposers = new address[](0);

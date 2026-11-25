@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Script} from "forge-std/Script.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
@@ -63,7 +64,7 @@ contract DeployTestnetFinalize is Script {
             new TestnetMockToken("Testnet Agent Beta", "tAGB"),
             new TestnetMockToken("Testnet Agent Gamma", "tAGC")
         ];
-        BasketFactory basketFactory = new BasketFactory(registryAddr, address(router), feeRouter, deployer);
+        BasketFactory basketFactory = BasketFactory(payable(deployProxy(address(new BasketFactory()), abi.encodeCall(BasketFactory.initialize, (registryAddr, address(router), feeRouter, deployer, address(new Basket()))))));
         address basketAddr = basketFactory.createBasket(2, "NTI AI Agents Vault", "nAI", deployer, keeper, pauser);
         Basket basket = Basket(payable(basketAddr));
 

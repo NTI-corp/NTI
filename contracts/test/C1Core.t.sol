@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -45,9 +46,9 @@ contract C1CoreTest is Test {
 
     function setUp() public {
         vm.startPrank(admin);
-        registry = new NTIRegistry(admin, weth);
+        registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, weth)))));
         token = new NTITestToken(admin);
-        staking = new Staking(address(registry), admin, pauser);
+        staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), admin, pauser)))));
         registry.setStaking(address(staking));
         registry.setNti(address(token));
         staking.grantRole(staking.SLASHER_ROLE(), slasher);
@@ -264,9 +265,9 @@ contract C1CoreTest is Test {
 
     function test_FeeOnTransferTokenHandledAccurately() public {
         vm.startPrank(admin);
-        NTIRegistry taxReg = new NTIRegistry(admin, weth);
+        NTIRegistry taxReg = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, weth)))));
         TaxTokenMock taxToken = new TaxTokenMock(500, makeAddr("creator")); // 5% tax
-        Staking taxStaking = new Staking(address(taxReg), admin, pauser);
+        Staking taxStaking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(taxReg), admin, pauser)))));
         taxReg.setStaking(address(taxStaking));
         taxReg.setNti(address(taxToken));
         taxToken.transfer(alice, 1_000_000e18);

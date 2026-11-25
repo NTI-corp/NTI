@@ -1,25 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {INTIRegistry} from "./interfaces/INTIRegistry.sol";
 import {ISwapRouter02Minimal, IUniswapV3PoolMinimal} from "./interfaces/IUniswapV3Minimal.sol";
 import {IWETH} from "./interfaces/IWETH.sol";
 import {UniswapV3TwapLib} from "./libraries/UniswapV3TwapLib.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title Basket
 /// @notice ERC-20 narrative token vault backed by governance-whitelisted Uniswap V3 tokens.
 ///         Uses 30-min V3 TWAP NAV pricing, virtual-offset share minting (anti-inflation),
 ///         40% max weight, 20% max daily NAV turnover, 3% max slippage, and 0.5%/yr mgmt fee.
 ///         Pause only halts deposit() and rebalance(); redeem() ALWAYS stays open.
-contract Basket is ERC20, AccessControl, ReentrancyGuard, Pausable {
+contract Basket is Initializable, ERC20Upgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
@@ -47,13 +49,13 @@ contract Basket is ERC20, AccessControl, ReentrancyGuard, Pausable {
         uint256 minAmountOut;
     }
 
-    uint8 public immutable narrativeId;
-    INTIRegistry public immutable registry;
-    ISwapRouter02Minimal public immutable swapRouter02;
-    address public immutable feeRouter;
+    uint8 public narrativeId;
+    INTIRegistry public registry;
+    ISwapRouter02Minimal public swapRouter02;
+    address public feeRouter;
 
-    uint256 public maxTVL = 10 ether;
-    uint128 public minPoolLiquidity = 20 ether;
+    uint256 public maxTVL;
+    uint128 public minPoolLiquidity;
     uint64 public lastFeeAccrual;
     uint64 public lastRebalanceAt;
 
@@ -89,7 +91,12 @@ contract Basket is ERC20, AccessControl, ReentrancyGuard, Pausable {
     event ManagementFeeAccrued(uint256 feeShares);
     event RiskLimitsUpdated(uint256 maxTVL, uint128 minPoolLiquidity);
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
         uint8 narrativeId_,
         string memory name_,
         string memory symbol_,
@@ -99,7 +106,14 @@ contract Basket is ERC20, AccessControl, ReentrancyGuard, Pausable {
         address admin_,
         address keeper_,
         address pauser_
-    ) ERC20(name_, symbol_) {
+    ) external initializer {
+        __AccessControl_init();
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        __ERC20_init(name_, symbol_);
+        maxTVL = 10 ether;
+        minPoolLiquidity = 20 ether;
         if (
             registry_ == address(0) || swapRouter02_ == address(0) || feeRouter_ == address(0)
                 || admin_ == address(0) || keeper_ == address(0) || pauser_ == address(0)
@@ -445,4 +459,9 @@ contract Basket is ERC20, AccessControl, ReentrancyGuard, Pausable {
         amountOut = IERC20(tokenOut).balanceOf(address(this)) - outBefore;
         if (amountOut < minOut) revert SlippageExceeded(amountOut, minOut);
     }
+
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /// @dev Reserved storage so later versions can add variables without shifting the layout.
+    uint256[50] private __gap;
 }

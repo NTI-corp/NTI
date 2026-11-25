@@ -28,6 +28,30 @@ on-chain delay for users to react to a change. The pauser wallet can pause and u
 means challenges are practically impossible, so the oracle is trusted rather than optimistic. Protect the deployer
 key; consider moving it to a hardware wallet.
 
+## 2b. Upgradeable contracts (owner decision)
+
+**Chosen.** All eleven protocol contracts are UUPS proxies (OpenZeppelin 5.4 upgradeable). A bug or a change is
+fixed by deploying new logic and pointing the proxy at it; addresses, storage and integrations stay. Baskets are
+beacon proxies created by the factory, so one transaction upgrades all of them. Implementations disable their own
+initializers. `UpgradeMainnet.s.sol` performs an upgrade, and the manifest records each implementation.
+
+**Why UUPS.** Upgrade logic lives in the implementation (cheaper proxies, one standard) and is guarded by the admin
+role, which `NTIRegistry` ties to its owner. The proxy refuses an implementation that is not itself UUPS-capable, so
+a mistaken upgrade cannot lock the proxy forever.
+
+**Consequences, accepted.**
+* Whoever holds the admin key can replace any contract's code instantly, including the code that holds staked
+  tokens and market pools. Without a Timelock nothing stands between a stolen key and a malicious upgrade.
+  The admin key therefore deserves a hardware wallet. Making a contract immutable again later is possible by
+  upgrading to a version whose `_authorizeUpgrade` always reverts.
+* Storage layout discipline is now a rule for every change (see the upgrade section in `MAINNET.md`).
+* Deployment costs a little more (a proxy per contract) and every call pays a small delegatecall overhead.
+* The buyback adapters stay plain contracts: they hold no state and are swapped through the registry.
+
+**Testing.** `Upgradeability.t.sol` proves that the admin can upgrade and state survives, nobody else can, an
+initialized proxy or a bare implementation cannot be initialized again, an upgrade to a non-UUPS contract is
+refused, and an upgrade of the basket beacon changes every basket. All 54 existing tests run against proxies.
+
 ## 3. Prelaunch token, swapped at launch (owner decision)
 
 **Chosen.** `NTIPrelaunchToken` (`pNTI`, 1B supply, 10k per day faucet) is deployed and set in the registry; the

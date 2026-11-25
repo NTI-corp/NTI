@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 
 import {IConfigRegistry} from "./interfaces/IConfigRegistry.sol";
 import {IOracleCommit} from "./interfaces/IOracleCommit.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
 import {MedianMath} from "./libraries/MedianMath.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title OracleCommit
 /// @notice On-chain oracle storing 4-hour narrative index vectors (I_n, V_n) committed by
 ///         OPERATOR_ROLE with >= 3 EIP-712 validator attestations, median aggregation,
 ///         2-hour dispute window, and bootstrap -> permissionless validator mode.
-contract OracleCommit is IOracleCommit, AccessControl, Pausable, EIP712 {
+contract OracleCommit is IOracleCommit, Initializable, AccessControlUpgradeable, PausableUpgradeable, EIP712Upgradeable, UUPSUpgradeable {
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     bytes32 public constant VALIDATOR_ROLE = keccak256("VALIDATOR_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
@@ -33,9 +35,9 @@ contract OracleCommit is IOracleCommit, AccessControl, Pausable, EIP712 {
 
     // Timing parameters. Production values are the defaults; testnet shortens them with setTimings(),
     // and mainnet freezes them with lockTimings() right after deployment.
-    uint64 public COMMIT_DELAY = 60 minutes;
-    uint64 public override DISPUTE_WINDOW = 2 hours;
-    uint64 public INCOMPLETE_DELAY = 4 hours;
+    uint64 public COMMIT_DELAY;
+    uint64 public override DISPUTE_WINDOW;
+    uint64 public INCOMPLETE_DELAY;
     bool public timingsLocked;
     uint16 public constant MAX_DEVIATION_BPS = 100;
     uint256 public constant MIN_VALIDATORS = 3;
@@ -62,12 +64,12 @@ contract OracleCommit is IOracleCommit, AccessControl, Pausable, EIP712 {
         uint16[] i;
     }
 
-    IStaking public immutable staking;
-    IConfigRegistry public immutable configRegistry;
-    uint64 public immutable genesisTimestamp;
+    IStaking public staking;
+    IConfigRegistry public configRegistry;
+    uint64 public genesisTimestamp;
 
     bool public permissionless;
-    uint256 public minValidatorStake = 5_000_000e18;
+    uint256 public minValidatorStake;
 
     uint32 public firstEpoch;
     uint32 public override lastProcessedEpoch;
@@ -114,13 +116,26 @@ contract OracleCommit is IOracleCommit, AccessControl, Pausable, EIP712 {
     event TimingsUpdated(uint64 commitDelay, uint64 disputeWindow, uint64 incompleteDelay);
     event TimingsFrozen();
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
         address staking_,
         address configRegistry_,
         uint64 genesisTimestamp_,
         address admin_,
         address pauser_
-    ) EIP712("NTIOracleCommit", "1") {
+    ) external initializer {
+        __AccessControl_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        __EIP712_init("NTIOracleCommit", "1");
+        COMMIT_DELAY = 60 minutes;
+        DISPUTE_WINDOW = 2 hours;
+        INCOMPLETE_DELAY = 4 hours;
+        minValidatorStake = 5_000_000e18;
         if (
             staking_ == address(0) || configRegistry_ == address(0) || admin_ == address(0)
                 || pauser_ == address(0)
@@ -475,4 +490,9 @@ contract OracleCommit is IOracleCommit, AccessControl, Pausable, EIP712 {
             iVectors[k] = stored[k].i;
         }
     }
+
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /// @dev Reserved storage so later versions can add variables without shifting the layout.
+    uint256[50] private __gap;
 }

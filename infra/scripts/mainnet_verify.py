@@ -139,6 +139,20 @@ def main() -> int:
         code = str(a.rpc("eth_getCode", [target, "latest"])) if target else "0x"
         a.check(code not in ("0x", "0x0"), f"{name} {target}", f"{name} has no bytecode at {target}")
 
+    print("1b. Proxies (upgradeable contracts)")
+    impl_slot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+    for name in ("registry", *ADMIN_CONTRACTS):
+        want = manifest.get(f"{name}Impl")
+        if not want:
+            a.warn(f"{name}: no implementation recorded in the manifest")
+            continue
+        raw = str(a.rpc("eth_getStorageAt", [addr[name], impl_slot, "latest"]))
+        got = to_checksum_address("0x" + raw[-40:])
+        a.check(got == to_checksum_address(want), f"{name} proxy -> implementation {got}", f"{name} runs {got}, the manifest says {want} (upgraded since the deploy?)")
+    if manifest.get("basketImpl"):
+        (beacon_impl,) = a.call(addr["basketFactory"], "basketImplementation()", [], [], ["address"])
+        (a.ok if to_checksum_address(beacon_impl) == to_checksum_address(manifest["basketImpl"]) else a.warn)(f"basket beacon implementation {beacon_impl}")
+
     print("2. Registry and token")
     reg = addr["registry"]
     (staking_in_registry,) = a.call(reg, "staking()", [], [], ["address"])

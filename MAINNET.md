@@ -100,10 +100,36 @@ token that is already set, locked stake, or a buyback adapter that is not in the
 bonding curve keeps the 40% buyback share parked in FeeRouter until `registry.setBuybackAdapter` is called later.
 Retune `RADAR_MIN_STAKE`, the dispute bond, the validator minimum stake and the tier discounts to the live price.
 
+## Upgrades (fix or change a contract without redeploying it)
+
+Every protocol contract is an ERC-1967 proxy with UUPS upgrade logic: the address, the storage (stakes, markets,
+roles) and every integration stay as they are while the code behind them is replaced. Baskets are beacon proxies:
+one call upgrades all of them. The manifest lists the proxies (the addresses everything uses) and, next to them, the
+current implementations (`stakingImpl`, ...). Only the admin wallet can upgrade, and there is no delay.
+
+```powershell
+$env:UPGRADE_TARGET = "staking"                 # or registry, oracleCommit, dispute, ..., or "baskets"
+$env:UPGRADE_ARTIFACT = "Staking.sol:Staking"   # the new code, after you edit contracts/src
+# optional: $env:UPGRADE_CALLDATA = "0x..."     # a reinitializer for new storage
+forge script contracts/script/UpgradeMainnet.s.sol:UpgradeMainnet --root contracts --rpc-url $env:RPC_URL_MAINNET --private-key $env:DEPLOYER_PRIVATE_KEY --broadcast
+uv run --directory services python ../infra/scripts/mainnet_verify.py --env-file ../.env.mainnet   # warns that an implementation changed
+```
+
+Rules that keep an upgrade safe:
+* **Never reorder, retype or delete a storage variable.** Add new variables at the end (each contract reserves a
+  50 slot gap for that) and run `forge inspect <Contract> storage-layout` on the old and new versions.
+* The new code must still be a UUPS implementation (`proxiableUUID`): the proxy refuses an upgrade to anything else,
+  so a typo cannot brick it. It must keep the `_authorizeUpgrade` function, otherwise the next upgrade is impossible.
+* Test the new version on testnet first by deploying it there the same way (`DeployTestnet`) and upgrading.
+* After upgrading, update the ABIs the web and indexer use if functions or events changed, and redeploy them.
+
+The buyback adapters are not proxies (they hold no state): to change one, deploy the new adapter and call
+`registry.setBuybackAdapter`.
+
 ## Operations
 
 * Pause and unpause: the pauser wallet calls `pause()` / `unpause()` on the contract that misbehaves.
-* Parameter changes (timings, config, roles): the deployer wallet, directly. Keep that key safe: it is the admin.
+* Parameter changes (timings, config, roles) and **contract upgrades**: the deployer wallet, directly. Keep that key safe: whoever holds it can replace any contract's code.
 * Routine checks: `mainnet_verify.py` from anywhere, `mainnet_preflight.py --stage services` on the host.
 
 ## Known limits

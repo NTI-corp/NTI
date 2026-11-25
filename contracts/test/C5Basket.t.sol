@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -115,16 +116,14 @@ contract C5BasketTest is Test {
     function setUp() public {
         vm.startPrank(admin);
         weth = new BasketMockWETH();
-        registry = new NTIRegistry(admin, address(weth));
-        Staking staking = new Staking(address(registry), admin, pauser);
-        InsuranceFund ins = new InsuranceFund(admin);
-        Grants grants = new Grants(address(staking), admin, keeper, pauser);
-        feeRouter = new FeeRouter(
-            address(registry), address(staking), address(grants), address(ins), admin, keeper, pauser
-        );
+        registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, address(weth))))));
+        Staking staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), admin, pauser)))));
+        InsuranceFund ins = InsuranceFund(payable(deployProxy(address(new InsuranceFund()), abi.encodeCall(InsuranceFund.initialize, (admin)))));
+        Grants grants = Grants(payable(deployProxy(address(new Grants()), abi.encodeCall(Grants.initialize, (address(staking), admin, keeper, pauser)))));
+        feeRouter = FeeRouter(payable(deployProxy(address(new FeeRouter()), abi.encodeCall(FeeRouter.initialize, (address(registry), address(staking), address(grants), address(ins), admin, keeper, pauser)))));
 
         router = new BasketMockRouter();
-        factory = new BasketFactory(address(registry), address(router), address(feeRouter), admin);
+        factory = BasketFactory(payable(deployProxy(address(new BasketFactory()), abi.encodeCall(BasketFactory.initialize, (address(registry), address(router), address(feeRouter), admin, address(new Basket()))))));
         basket = Basket(payable(factory.createBasket(1, "AI Agents Basket", "bAI", admin, keeper, pauser)));
 
         tokA = new BasketMockERC20("Token A", "TOKA");

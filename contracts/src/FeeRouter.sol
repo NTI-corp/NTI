@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {IBuybackAdapter} from "./interfaces/IBuybackAdapter.sol";
 import {INTIRegistry} from "./interfaces/INTIRegistry.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
 import {IWETH} from "./interfaces/IWETH.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 interface IBasketRedeemable {
     function redeem(uint256 shares, uint256 minEthOut) external returns (uint256 ethOut);
@@ -19,7 +21,7 @@ interface IBasketRedeemable {
 /// @title FeeRouter
 /// @notice Splits protocol ETH revenue 40% buyback / 30% Staking / 20% Grants / 10% InsuranceFund,
 ///         buffers staking share when totalActiveStaked == 0, and executes rate-limited buyback-and-burn.
-contract FeeRouter is AccessControl, ReentrancyGuard, Pausable {
+contract FeeRouter is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
@@ -31,14 +33,14 @@ contract FeeRouter is AccessControl, ReentrancyGuard, Pausable {
     uint16 public constant INSURANCE_BPS = 1000;
     uint64 public constant BUYBACK_COOLDOWN = 5 minutes;
 
-    INTIRegistry public immutable registry;
-    IStaking public immutable staking;
-    address public immutable grants;
-    address public immutable insuranceFund;
+    INTIRegistry public registry;
+    IStaking public staking;
+    address public grants;
+    address public insuranceFund;
 
     uint256 public buybackPool;
     uint256 public pendingStakingETH;
-    uint256 public maxPerCall = 0.2 ether;
+    uint256 public maxPerCall;
     uint64 public lastBuybackAt;
 
     error ZeroAddress();
@@ -63,7 +65,12 @@ contract FeeRouter is AccessControl, ReentrancyGuard, Pausable {
     event MaxPerCallUpdated(uint256 newMaxPerCall);
     event BasketFeeRedeemed(address indexed basket, uint256 shares, uint256 ethOut);
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
         address registry_,
         address staking_,
         address grants_,
@@ -71,7 +78,12 @@ contract FeeRouter is AccessControl, ReentrancyGuard, Pausable {
         address admin_,
         address keeper_,
         address pauser_
-    ) {
+    ) external initializer {
+        __AccessControl_init();
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        maxPerCall = 0.2 ether;
         if (
             registry_ == address(0) || staking_ == address(0) || grants_ == address(0)
                 || insuranceFund_ == address(0) || admin_ == address(0) || keeper_ == address(0)
@@ -214,4 +226,9 @@ contract FeeRouter is AccessControl, ReentrancyGuard, Pausable {
         ethOut = IBasketRedeemable(basket).redeem(shares, minEthOut);
         emit BasketFeeRedeemed(basket, shares, ethOut);
     }
+
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /// @dev Reserved storage so later versions can add variables without shifting the layout.
+    uint256[50] private __gap;
 }

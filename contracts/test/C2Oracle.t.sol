@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -67,12 +68,12 @@ contract C2OracleTest is Test {
         val4 = vm.addr(val4Pk);
 
         vm.startPrank(admin);
-        registry = new NTIRegistry(admin, weth);
+        registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, weth)))));
         token = new NTITestToken(admin);
-        staking = new Staking(address(registry), admin, pauser);
-        configRegistry = new ConfigRegistry(admin);
-        oracle = new OracleCommit(address(staking), address(configRegistry), 0, admin, pauser);
-        dispute = new Dispute(address(registry), address(oracle), address(staking), admin, pauser);
+        staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), admin, pauser)))));
+        configRegistry = ConfigRegistry(payable(deployProxy(address(new ConfigRegistry()), abi.encodeCall(ConfigRegistry.initialize, (admin)))));
+        oracle = OracleCommit(payable(deployProxy(address(new OracleCommit()), abi.encodeCall(OracleCommit.initialize, (address(staking), address(configRegistry), 0, admin, pauser)))));
+        dispute = Dispute(payable(deployProxy(address(new Dispute()), abi.encodeCall(Dispute.initialize, (address(registry), address(oracle), address(staking), admin, pauser)))));
 
         registry.setStaking(address(staking));
         registry.setNti(address(token));
@@ -451,11 +452,11 @@ contract C2OracleTest is Test {
     function test_DisputeExpireRefundsBondAndMarksIncompleteWithTaxToken() public {
         // Deploy with 5% fee-on-transfer token to verify actualBondReceived accounting
         vm.startPrank(admin);
-        NTIRegistry taxReg = new NTIRegistry(admin, weth);
+        NTIRegistry taxReg = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, weth)))));
         TaxTokenC2Mock taxTok = new TaxTokenC2Mock(500, makeAddr("creator"));
-        Staking taxStaking = new Staking(address(taxReg), admin, pauser);
-        OracleCommit taxOracle = new OracleCommit(address(taxStaking), address(configRegistry), 0, admin, pauser);
-        Dispute taxDispute = new Dispute(address(taxReg), address(taxOracle), address(taxStaking), admin, pauser);
+        Staking taxStaking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(taxReg), admin, pauser)))));
+        OracleCommit taxOracle = OracleCommit(payable(deployProxy(address(new OracleCommit()), abi.encodeCall(OracleCommit.initialize, (address(taxStaking), address(configRegistry), 0, admin, pauser)))));
+        Dispute taxDispute = Dispute(payable(deployProxy(address(new Dispute()), abi.encodeCall(Dispute.initialize, (address(taxReg), address(taxOracle), address(taxStaking), admin, pauser)))));
 
         taxReg.setStaking(address(taxStaking));
         taxReg.setNti(address(taxTok));

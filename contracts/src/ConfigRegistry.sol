@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IConfigRegistry} from "./interfaces/IConfigRegistry.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title ConfigRegistry
 /// @notice Stores governance-approved oracle configuration hashes, narrative counts (<= 32),
 ///         effective epochs, and the approved KOL universe hash.
-contract ConfigRegistry is IConfigRegistry, AccessControl {
+contract ConfigRegistry is IConfigRegistry, Initializable, AccessControlUpgradeable, UUPSUpgradeable {
     uint8 public constant override MAX_NARRATIVES = 32;
 
     bytes32 public override kolSetHash;
@@ -22,7 +24,14 @@ contract ConfigRegistry is IConfigRegistry, AccessControl {
     event ConfigSet(bytes32 indexed configHash, uint8 narrativeCount, uint32 indexed effectiveEpoch);
     event KolSetHashUpdated(bytes32 indexed kolSetHash);
 
-    constructor(address admin_) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address admin_) external initializer {
+        __AccessControl_init();
+        __UUPSUpgradeable_init();
         if (admin_ == address(0)) revert ZeroAddress();
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
     }
@@ -77,4 +86,9 @@ contract ConfigRegistry is IConfigRegistry, AccessControl {
     function versionAt(uint256 index) external view override returns (ConfigVersion memory) {
         return _versions[index];
     }
+
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /// @dev Reserved storage so later versions can add variables without shifting the layout.
+    uint256[50] private __gap;
 }

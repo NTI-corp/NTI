@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Test} from "forge-std/Test.sol";
 
 import {Grants} from "../src/Grants.sol";
@@ -24,10 +25,10 @@ contract C6GrantsTest is Test {
     function setUp() public {
         vm.roll(10);
         vm.startPrank(admin);
-        registry = new NTIRegistry(admin, makeAddr("weth"));
+        registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (admin, makeAddr("weth"))))));
         nti = new NTITestToken(admin);
-        staking = new Staking(address(registry), admin, pauser);
-        grants = new Grants(address(staking), admin, keeper, pauser);
+        staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), admin, pauser)))));
+        grants = Grants(payable(deployProxy(address(new Grants()), abi.encodeCall(Grants.initialize, (address(staking), admin, keeper, pauser)))));
 
         registry.setStaking(address(staking));
         registry.setNti(address(nti));

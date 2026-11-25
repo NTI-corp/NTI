@@ -12,6 +12,7 @@ via_ir = true
 bytecode_hash = "none"
 remappings = [
   "@openzeppelin/contracts/=../node_modules/@openzeppelin/contracts/",
+  "@openzeppelin/contracts-upgradeable/=../node_modules/@openzeppelin/contracts-upgradeable/",
   "forge-std/=lib/forge-std/src/",
 ]
 fs_permissions = [

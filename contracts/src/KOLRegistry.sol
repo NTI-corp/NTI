@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title KOLRegistry
 /// @notice Opt-in on-chain registry binding verified X handles (keccak256 handleHash) to wallets
 ///         via EIP-712 signatures from ATTESTER_ROLE.
-contract KOLRegistry is AccessControl, EIP712 {
+contract KOLRegistry is Initializable, AccessControlUpgradeable, EIP712Upgradeable, UUPSUpgradeable {
     bytes32 public constant ATTESTER_ROLE = keccak256("ATTESTER_ROLE");
 
     bytes32 public constant REGISTER_TYPEHASH =
@@ -29,7 +31,15 @@ contract KOLRegistry is AccessControl, EIP712 {
     event KOLRegistered(address indexed wallet, bytes32 indexed handleHash, address indexed attester);
     event KOLUnregistered(address indexed wallet, bytes32 indexed handleHash);
 
-    constructor(address admin_, address attester_) EIP712("NTIKOLRegistry", "1") {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address admin_, address attester_) external initializer {
+        __AccessControl_init();
+        __UUPSUpgradeable_init();
+        __EIP712_init("NTIKOLRegistry", "1");
         if (admin_ == address(0) || attester_ == address(0)) revert ZeroAddress();
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(ATTESTER_ROLE, attester_);
@@ -90,4 +100,9 @@ contract KOLRegistry is AccessControl, EIP712 {
         delete walletOf[h];
         emit KOLUnregistered(wallet, h);
     }
+
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /// @dev Reserved storage so later versions can add variables without shifting the layout.
+    uint256[50] private __gap;
 }

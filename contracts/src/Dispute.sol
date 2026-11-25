@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 
 import {INTIRegistry} from "./interfaces/INTIRegistry.sol";
 import {IOracleCommit} from "./interfaces/IOracleCommit.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
 import {MedianMath} from "./libraries/MedianMath.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title Dispute
 /// @notice Bonded oracle dispute mechanism with fee-on-transfer safe $NTI bond escrow,
 ///         6-hour validator resolution, slashing of operator & deviating validators, and expiry refund.
-contract Dispute is AccessControl, ReentrancyGuard, Pausable, EIP712 {
+contract Dispute is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable, EIP712Upgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
@@ -29,7 +31,7 @@ contract Dispute is AccessControl, ReentrancyGuard, Pausable, EIP712 {
     uint8 public constant STATE_EXPIRED = 4;
 
     uint64 public constant MAX_TIMING = 7 days;
-    uint64 public RESOLUTION_WINDOW = 6 hours;
+    uint64 public RESOLUTION_WINDOW;
     bool public timingsLocked;
     uint16 public constant DEVIATION_THRESHOLD_BPS = 100;
     uint256 public constant MIN_VALIDATORS = 3;
@@ -49,15 +51,15 @@ contract Dispute is AccessControl, ReentrancyGuard, Pausable, EIP712 {
         uint8 state;
     }
 
-    INTIRegistry public immutable registry;
-    IOracleCommit public immutable oracleCommit;
-    IStaking public immutable staking;
+    INTIRegistry public registry;
+    IOracleCommit public oracleCommit;
+    IStaking public staking;
 
-    uint256 public disputeBond = 50_000e18;
-    uint256 public operatorSlashAmount = 500_000e18;
-    uint256 public validatorSlashAmount = 250_000e18;
+    uint256 public disputeBond;
+    uint256 public operatorSlashAmount;
+    uint256 public validatorSlashAmount;
 
-    uint256 public nextDisputeId = 1;
+    uint256 public nextDisputeId;
     mapping(uint256 => DisputeRecord) public disputes;
     mapping(uint32 => uint256) public disputeOfEpoch;
 
@@ -94,13 +96,28 @@ contract Dispute is AccessControl, ReentrancyGuard, Pausable, EIP712 {
     event ResolutionWindowUpdated(uint64 window);
     event TimingsFrozen();
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
         address registry_,
         address oracleCommit_,
         address staking_,
         address admin_,
         address pauser_
-    ) EIP712("NTIDispute", "1") {
+    ) external initializer {
+        __AccessControl_init();
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        __EIP712_init("NTIDispute", "1");
+        RESOLUTION_WINDOW = 6 hours;
+        disputeBond = 50_000e18;
+        operatorSlashAmount = 500_000e18;
+        validatorSlashAmount = 250_000e18;
+        nextDisputeId = 1;
         if (
             registry_ == address(0) || oracleCommit_ == address(0) || staking_ == address(0)
                 || admin_ == address(0) || pauser_ == address(0)
@@ -328,4 +345,9 @@ contract Dispute is AccessControl, ReentrancyGuard, Pausable, EIP712 {
 
         emit DisputeExpired(disputeId, d.epochId);
     }
+
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /// @dev Reserved storage so later versions can add variables without shifting the layout.
+    uint256[50] private __gap;
 }

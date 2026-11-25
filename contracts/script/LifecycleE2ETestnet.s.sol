@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 import {Script} from "forge-std/Script.sol";
 
 import {ConfigRegistry} from "../src/ConfigRegistry.sol";
@@ -71,20 +72,18 @@ contract LifecycleE2ETestnet is Script {
         address keeper = vm.addr(k.keeper);
 
         vm.startBroadcast(k.deployer);
-        NTIRegistry registry = new NTIRegistry(deployer, address(0xdead0002));
+        NTIRegistry registry = NTIRegistry(payable(deployProxy(address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (deployer, address(0xdead0002))))));
         NTITestToken token = new NTITestToken(deployer);
-        Staking staking = new Staking(address(registry), deployer, deployer);
-        ConfigRegistry config = new ConfigRegistry(deployer);
+        Staking staking = Staking(payable(deployProxy(address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), deployer, deployer)))));
+        ConfigRegistry config = ConfigRegistry(payable(deployProxy(address(new ConfigRegistry()), abi.encodeCall(ConfigRegistry.initialize, (deployer)))));
         // epoch 3 starts about 240 seconds from now; epochs 1 and 2 are already in the past
-        OracleCommit oracle = new OracleCommit(
-            address(staking), address(config), uint64(block.timestamp + 240 - 3 * 4 hours), deployer, deployer
-        );
-        InsuranceFund insurance = new InsuranceFund(deployer);
-        Grants grants = new Grants(address(staking), deployer, keeper, deployer);
+        OracleCommit oracle = OracleCommit(payable(deployProxy(address(new OracleCommit()), abi.encodeCall(OracleCommit.initialize, (address(staking), address(config), uint64(block.timestamp + 240 - 3 * 4 hours), deployer, deployer)))));
+        InsuranceFund insurance = InsuranceFund(payable(deployProxy(address(new InsuranceFund()), abi.encodeCall(InsuranceFund.initialize, (deployer)))));
+        Grants grants = Grants(payable(deployProxy(address(new Grants()), abi.encodeCall(Grants.initialize, (address(staking), deployer, keeper, deployer)))));
         FeeRouter feeRouter =
-            new FeeRouter(address(registry), address(staking), address(grants), address(insurance), deployer, keeper, deployer);
+            FeeRouter(payable(deployProxy(address(new FeeRouter()), abi.encodeCall(FeeRouter.initialize, (address(registry), address(staking), address(grants), address(insurance), deployer, keeper, deployer)))));
         NarrativeMarket market =
-            new NarrativeMarket(address(oracle), address(staking), address(feeRouter), deployer, deployer);
+            NarrativeMarket(payable(deployProxy(address(new NarrativeMarket()), abi.encodeCall(NarrativeMarket.initialize, (address(oracle), address(staking), address(feeRouter), deployer, deployer)))));
 
         registry.setStaking(address(staking));
         registry.setNti(address(token));

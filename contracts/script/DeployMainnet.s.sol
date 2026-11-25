@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {Basket} from "../src/Basket.sol";
 import {Script} from "forge-std/Script.sol";
+
+import {deployProxy} from "../src/libraries/ProxyDeploy.sol";
 
 import {BasketFactory} from "../src/BasketFactory.sol";
 import {BuybackAdapterV3} from "../src/BuybackAdapterV3.sol";
@@ -45,6 +48,15 @@ contract DeployMainnet is Script {
     uint64 internal constant INCOMPLETE_DELAY = 4 hours;
     uint64 internal constant DISPUTE_RESOLUTION_WINDOW = 10 minutes;
     uint64 internal constant UNSTAKE_COOLDOWN = 10 seconds;
+
+    /// @dev Implementation address behind each proxy, recorded in the manifest for the upgrade script.
+    mapping(string => address) internal impls;
+    address internal basketImpl;
+
+    function _proxy(string memory key, address implementation, bytes memory initData) internal returns (address) {
+        impls[key] = implementation;
+        return deployProxy(implementation, initData);
+    }
 
     struct Deployed {
         address registry;
@@ -96,22 +108,20 @@ contract DeployMainnet is Script {
         vm.startBroadcast();
 
         // Step 1: NTIRegistry -> Staking -> ConfigRegistry -> OracleCommit -> Dispute
-        NTIRegistry registry = new NTIRegistry(deployer, MAINNET_WETH);
+        NTIRegistry registry = NTIRegistry(payable(_proxy("registry", address(new NTIRegistry()), abi.encodeCall(NTIRegistry.initialize, (deployer, MAINNET_WETH)))));
         if (ntiToken == address(0)) {
             ntiToken = address(new NTIPrelaunchToken(deployer));
         }
-        Staking staking = new Staking(address(registry), deployer, pauser);
-        ConfigRegistry configRegistry = new ConfigRegistry(deployer);
+        Staking staking = Staking(payable(_proxy("staking", address(new Staking()), abi.encodeCall(Staking.initialize, (address(registry), deployer, pauser)))));
+        ConfigRegistry configRegistry = ConfigRegistry(payable(_proxy("configRegistry", address(new ConfigRegistry()), abi.encodeCall(ConfigRegistry.initialize, (deployer)))));
         OracleCommit oracleCommit =
-            new OracleCommit(address(staking), address(configRegistry), genesisTs, deployer, pauser);
-        Dispute dispute = new Dispute(address(registry), address(oracleCommit), address(staking), deployer, pauser);
+            OracleCommit(payable(_proxy("oracleCommit", address(new OracleCommit()), abi.encodeCall(OracleCommit.initialize, (address(staking), address(configRegistry), genesisTs, deployer, pauser)))));
+        Dispute dispute = Dispute(payable(_proxy("dispute", address(new Dispute()), abi.encodeCall(Dispute.initialize, (address(registry), address(oracleCommit), address(staking), deployer, pauser)))));
 
         // Step 2: InsuranceFund -> Grants -> FeeRouter -> BuybackAdapters -> NarrativeMarket -> BasketFactory -> KOLRegistry
-        InsuranceFund insuranceFund = new InsuranceFund(deployer);
-        Grants grants = new Grants(address(staking), deployer, keeper, pauser);
-        FeeRouter feeRouter = new FeeRouter(
-            address(registry), address(staking), address(grants), address(insuranceFund), deployer, keeper, pauser
-        );
+        InsuranceFund insuranceFund = InsuranceFund(payable(_proxy("insuranceFund", address(new InsuranceFund()), abi.encodeCall(InsuranceFund.initialize, (deployer)))));
+        Grants grants = Grants(payable(_proxy("grants", address(new Grants()), abi.encodeCall(Grants.initialize, (address(staking), deployer, keeper, pauser)))));
+        FeeRouter feeRouter = FeeRouter(payable(_proxy("feeRouter", address(new FeeRouter()), abi.encodeCall(FeeRouter.initialize, (address(registry), address(staking), address(grants), address(insuranceFund), deployer, keeper, pauser)))));
 
         BuybackAdapterV3 adapterV3 =
             new BuybackAdapterV3(MAINNET_WETH, MAINNET_V3_SWAP_ROUTER02, MAINNET_V3_FACTORY, 3000);
@@ -120,10 +130,11 @@ contract DeployMainnet is Script {
         );
 
         NarrativeMarket narrativeMarket =
-            new NarrativeMarket(address(oracleCommit), address(staking), address(feeRouter), deployer, pauser);
+            NarrativeMarket(payable(_proxy("narrativeMarket", address(new NarrativeMarket()), abi.encodeCall(NarrativeMarket.initialize, (address(oracleCommit), address(staking), address(feeRouter), deployer, pauser)))));
+        basketImpl = address(new Basket());
         BasketFactory basketFactory =
-            new BasketFactory(address(registry), MAINNET_V3_SWAP_ROUTER02, address(feeRouter), deployer);
-        KOLRegistry kolRegistry = new KOLRegistry(deployer, attester);
+            BasketFactory(payable(_proxy("basketFactory", address(new BasketFactory()), abi.encodeCall(BasketFactory.initialize, (address(registry), MAINNET_V3_SWAP_ROUTER02, address(feeRouter), deployer, basketImpl)))));
+        KOLRegistry kolRegistry = KOLRegistry(payable(_proxy("kolRegistry", address(new KOLRegistry()), abi.encodeCall(KOLRegistry.initialize, (deployer, attester)))));
 
         // Step 3: wire dependencies and roles (buybackAdapter stays address(0) until the real token's pool is live).
         // The registry is NOT frozen: the prelaunch token is swapped out by SwapTokenMainnet at launch.
@@ -228,6 +239,21 @@ contract DeployMainnet is Script {
         vm.serializeAddress(key, "narrativeMarket", d.narrativeMarket);
         vm.serializeAddress(key, "basketFactory", d.basketFactory);
         vm.serializeAddress(key, "kolRegistry", d.kolRegistry);
+        // Contracts are ERC-1967 (UUPS) proxies; the addresses above are the proxies. The implementations
+        // behind them are listed so an upgrade can be audited against the manifest. Baskets are beacon
+        // proxies whose shared implementation is basketImpl.
+        vm.serializeAddress(key, "registryImpl", impls["registry"]);
+        vm.serializeAddress(key, "stakingImpl", impls["staking"]);
+        vm.serializeAddress(key, "configRegistryImpl", impls["configRegistry"]);
+        vm.serializeAddress(key, "oracleCommitImpl", impls["oracleCommit"]);
+        vm.serializeAddress(key, "disputeImpl", impls["dispute"]);
+        vm.serializeAddress(key, "insuranceFundImpl", impls["insuranceFund"]);
+        vm.serializeAddress(key, "grantsImpl", impls["grants"]);
+        vm.serializeAddress(key, "feeRouterImpl", impls["feeRouter"]);
+        vm.serializeAddress(key, "narrativeMarketImpl", impls["narrativeMarket"]);
+        vm.serializeAddress(key, "basketFactoryImpl", impls["basketFactory"]);
+        vm.serializeAddress(key, "kolRegistryImpl", impls["kolRegistry"]);
+        vm.serializeAddress(key, "basketImpl", basketImpl);
         // No governance on this deployment: the fields stay so readers keep one manifest shape.
         vm.serializeAddress(key, "governor", address(0));
         vm.serializeAddress(key, "timelock", address(0));

@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import {IStaking} from "./interfaces/IStaking.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title Grants
 /// @notice Stake-weighted ETH grant rounds funded by 20% of protocol fees.
 ///         Tracks totalReservedUnclaimed so unclaimed past prizes are never double-counted.
 ///         Pause only gates round start, proposals, and voting; finalizeRound and claim ALWAYS work.
-contract Grants is AccessControl, ReentrancyGuard, Pausable {
+contract Grants is Initializable, AccessControlUpgradeable, ReentrancyGuardUpgradeable, PausableUpgradeable, UUPSUpgradeable {
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
@@ -39,9 +41,9 @@ contract Grants is AccessControl, ReentrancyGuard, Pausable {
         bool claimed;
     }
 
-    IStaking public immutable staking;
+    IStaking public staking;
 
-    uint256 public minProposalStake = 50_000e18;
+    uint256 public minProposalStake;
     uint256 public totalReservedUnclaimed;
     uint256 public currentRoundId;
 
@@ -90,7 +92,17 @@ contract Grants is AccessControl, ReentrancyGuard, Pausable {
     );
     event MinProposalStakeUpdated(uint256 newMinStake);
 
-    constructor(address staking_, address admin_, address keeper_, address pauser_) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address staking_, address admin_, address keeper_, address pauser_) external initializer {
+        __AccessControl_init();
+        __ReentrancyGuard_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+        minProposalStake = 50_000e18;
         if (
             staking_ == address(0) || admin_ == address(0) || keeper_ == address(0)
                 || pauser_ == address(0)
@@ -300,4 +312,9 @@ contract Grants is AccessControl, ReentrancyGuard, Pausable {
 
         emit GrantClaimed(roundId, proposalId, p.recipient, amount);
     }
+
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
+
+    /// @dev Reserved storage so later versions can add variables without shifting the layout.
+    uint256[50] private __gap;
 }
