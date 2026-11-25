@@ -150,6 +150,7 @@ async def prepare_engine_posts(
                     chunk = queue.get_nowait()
                 except asyncio.QueueEmpty:
                     return
+                tokens_in0, tokens_out0 = adapter.input_tokens, adapter.output_tokens
                 output = await pipeline.run(chunk, spec)
                 failed.update(output.failed_tweet_ids)
                 good = [r for r in output.results if r.tweet_id not in output.failed_tweet_ids]
@@ -173,6 +174,8 @@ async def prepare_engine_posts(
                             "model_version": model,
                             "prompt_version": prompt,
                             "batch_size": batch_size,
+                            "input_tokens": adapter.input_tokens - tokens_in0,
+                            "output_tokens": adapter.output_tokens - tokens_out0,
                             "valid_count": len(good),
                             "failed_count": len(output.failed_tweet_ids),
                         }

@@ -186,6 +186,10 @@ class MiMoAdapter:
         self.version = self._model
         self._client = client
         self._timeout = timeout
+        # Provider-reported usage, summed over every call this adapter made (retries included).
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.calls = 0
 
     async def classify(self, batch: list[PostIn], spec: PromptSpec) -> list[ClassResult]:
         if not batch:
@@ -234,6 +238,11 @@ class MiMoAdapter:
             raise InvalidResponseError(f"MiMo HTTP {resp.status_code}: {resp.text}")
 
         data = resp.json()
+        usage = data.get("usage") if isinstance(data, dict) else None
+        if isinstance(usage, dict):
+            self.input_tokens += int(usage.get("prompt_tokens") or 0)
+            self.output_tokens += int(usage.get("completion_tokens") or 0)
+        self.calls += 1
         try:
             text = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
