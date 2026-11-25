@@ -56,6 +56,9 @@ class LaunchInfo:
         return self.phase == PHASE_GRADUATED
 
 
+RETRYABLE_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
+
+
 class HttpRpc:
     """Minimal async JSON-RPC client."""
 
@@ -74,9 +77,15 @@ class HttpRpc:
         for attempt in range(self._retries + 1):
             if delay:
                 await asyncio.sleep(delay)
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.post(self._url, json=payload)
-            if resp.status_code in (429, 502, 503, 504) and attempt < self._retries:
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    resp = await client.post(self._url, json=payload)
+            except httpx.TransportError:
+                if attempt == self._retries:
+                    raise
+                delay = min(30.0, max(self._pace, 1.0) * 2 ** (attempt + 1))
+                continue
+            if resp.status_code in RETRYABLE_STATUS and attempt < self._retries:
                 delay = min(30.0, max(self._pace, 1.0) * 2 ** (attempt + 1))
                 continue
             resp.raise_for_status()
