@@ -50,7 +50,13 @@ if command -v pm2 >/dev/null 2>&1 && grep -qE '^SUPABASE_URL=https://' "$APP_DIR
   fi
   # Cron-driven jobs: re-register so schedule changes in ecosystem.config.cjs take effect. These are
   # idempotent (they exit early when there is nothing to do), so the immediate first run is harmless.
-  for app in nti-oracle-operator nti-oracle-validators nti-keeper nti-monitor nti-discovery nti-kol-harvest nti-purge; do
+  # The operator is a daemon that restarts itself between runs when the checkout moves to a new commit,
+  # so a deploy must not kill it while it is committing an epoch. Start it only when it is not running.
+  if ! pm2 describe nti-oracle-operator 2>/dev/null | grep -q "status.*online"; then
+    pm2 delete nti-oracle-operator >/dev/null 2>&1 || true
+    pm2 start "$APP_DIR/infra/ecosystem.config.cjs" --only nti-oracle-operator --update-env
+  fi
+  for app in nti-oracle-validators nti-keeper nti-monitor nti-discovery nti-kol-harvest nti-purge; do
     pm2 delete "$app" >/dev/null 2>&1 || true
     pm2 start "$APP_DIR/infra/ecosystem.config.cjs" --only "$app" --update-env
   done

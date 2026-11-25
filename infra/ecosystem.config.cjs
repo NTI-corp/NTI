@@ -34,12 +34,13 @@ module.exports = {
       name: "nti-oracle-operator",
       cwd: "/home/ubuntu/apps/nti/services",
       script: "/home/ubuntu/apps/nti/infra/scripts/run-with-env.sh",
-      args: "uv run python -m nti_oracle --role operator",
-      // Idempotent: exits "up_to_date" when the due epoch is already committed. Running every 20 minutes
-      // (instead of fixed hours) keeps commit latency independent of the VPS timezone.
-      cron_restart: "10,30,50 * * * *",
-      autorestart: false,
-      max_memory_restart: "180M",
+      // Daemon, not cron: a commit of a large epoch (thousands of posts to classify plus validator
+      // signing) can take longer than any fixed schedule, and a cron restart would kill it mid-run.
+      // The loop pauses 5 minutes between runs and is idempotent ("up_to_date" when nothing is due).
+      args: "uv run python -m nti_oracle --role operator --loop 300",
+      autorestart: true,
+      restart_delay: 10000,
+      max_memory_restart: "600M",
       env: {
         PYTHONUNBUFFERED: "1",
       },

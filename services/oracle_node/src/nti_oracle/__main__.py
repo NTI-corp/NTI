@@ -104,9 +104,7 @@ def _due_operator_epoch(
     if mature_epoch <= last_processed_epoch:
         return None
     candidates = (
-        epoch
-        for epoch in ready_fetch_epochs
-        if last_processed_epoch < epoch <= mature_epoch
+        epoch for epoch in ready_fetch_epochs if last_processed_epoch < epoch <= mature_epoch
     )
     return min(candidates, default=None)
 
@@ -175,8 +173,7 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
         commit_delay = await client.get_commit_delay()
         mature_epoch = max(
             0,
-            (state.block_timestamp - state.genesis_timestamp - commit_delay)
-            // cfg.epoch_seconds,
+            (state.block_timestamp - state.genesis_timestamp - commit_delay) // cfg.epoch_seconds,
         )
         if mature_epoch <= state.last_processed_epoch:
             target_epoch = state.last_processed_epoch
@@ -679,7 +676,57 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Compute consensus without sending on-chain commit transaction",
     )
+    parser.add_argument(
+        "--loop",
+        type=int,
+        default=0,
+        metavar="SECONDS",
+        help="Operator only: run as a daemon, pausing this long between runs. A run is never "
+        "interrupted by a schedule, so a slow commit (classification of a large epoch) can finish.",
+    )
     return parser
+
+
+def _repo_head() -> str:
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        return out.stdout.strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _run_operator_forever(args: argparse.Namespace, cfg: NTIConfig) -> int:
+    """Run the operator repeatedly in one process; each run completes before the next starts.
+
+    After a deploy the checkout moves to a new commit. The daemon notices between runs and exits,
+    and PM2 restarts it on the new code, so a deploy never interrupts a commit in progress.
+    """
+    import gc
+    import time
+    import traceback
+
+    started_at_head = _repo_head()
+    while True:
+        try:
+            res = asyncio.run(_run_operator(args, cfg))
+        except Exception as exc:  # noqa: BLE001 - one failed run must not stop the daemon
+            traceback.print_exc()
+            res = {"role": "operator", "status": "run_failed", "error": str(exc)[:300]}
+        print(json.dumps({"at": datetime.now(UTC).isoformat(), **res}), flush=True)
+        gc.collect()
+        head = _repo_head()
+        if started_at_head and head and head != started_at_head:
+            print(json.dumps({"role": "operator", "status": "restarting_on_new_code"}), flush=True)
+            return 0
+        time.sleep(max(30, args.loop))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -691,6 +738,8 @@ def main(argv: list[str] | None = None) -> int:
         and os.environ.get("SUPABASE_URL")
         and os.environ.get("OPERATOR_PRIVATE_KEY")
     ):
+        if args.loop > 0:
+            return _run_operator_forever(args, cfg)
         res = asyncio.run(_run_operator(args, cfg))
     elif (
         args.role == "keeper"
