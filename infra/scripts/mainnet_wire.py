@@ -59,9 +59,14 @@ def render_entry(manifest: dict[str, object]) -> str:
 
 
 def rewrite(source: str, manifest: dict[str, object]) -> str:
-    if not MAINNET_ENTRY.search(source):
+    # Only the PROTOCOL_ADDRESSES table: EXTERNAL_ADDRESSES has a mainnet entry of the same shape.
+    marker = source.find("export const PROTOCOL_ADDRESSES")
+    if marker < 0:
+        raise ValueError("could not find PROTOCOL_ADDRESSES in addresses.ts")
+    head, tail = source[:marker], source[marker:]
+    if not MAINNET_ENTRY.search(tail):
         raise ValueError("could not find the ROBINHOOD_MAINNET_ID entry in addresses.ts")
-    return MAINNET_ENTRY.sub(lambda m: m.group(1) + render_entry(manifest) + m.group(3), source, count=1)
+    return head + MAINNET_ENTRY.sub(lambda m: m.group(1) + render_entry(manifest) + m.group(3), tail, count=1)
 
 
 def main() -> int:

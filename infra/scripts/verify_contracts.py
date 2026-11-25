@@ -63,8 +63,10 @@ def constructor_args(artifact: Path, creation_input: str) -> str:
 
 
 def run(cmd: list[str]) -> tuple[int, str]:
-    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=REPO, check=False)
-    return proc.returncode, (proc.stdout + proc.stderr).strip()
+    proc = subprocess.run(
+        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=REPO, check=False
+    )
+    return proc.returncode, ((proc.stdout or "") + (proc.stderr or "")).strip()
 
 
 def forge_verify(address: str, ident: str, chain: int, args_hex: str, verifier: str, url: str | None) -> tuple[int, str]:

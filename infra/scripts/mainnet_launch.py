@@ -27,6 +27,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -34,7 +35,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 ENV_FILE = REPO / ".env.mainnet"
-MANIFEST = REPO / "contracts" / "deployments" / "4663.json"
+CONTRACTS = REPO / "contracts"
+MANIFEST = CONTRACTS / "deployments" / "4663.json"
 APP_DIR = "/home/ubuntu/apps/nti"
 STEPS = ("preflight", "deploy", "wire", "audit", "baskets", "sources", "publish", "cutover", "web", "final")
 EXPLORER = "https://robinhoodchain.blockscout.com"
@@ -52,8 +54,14 @@ def parse_env(path: Path) -> dict[str, str]:
 
 def sh(cmd: list[str] | str, *, env: dict[str, str] | None = None, cwd: Path = REPO, check: bool = True) -> int:
     shown = cmd if isinstance(cmd, str) else " ".join(shlex.quote(c) for c in cmd)
-    print(f"\n$ {re.sub(r'(0x[0-9a-fA-F]{64})', '<key>', shown)}", flush=True)
+    shown = re.sub(r"0x[0-9a-fA-F]{64}", "<key>", shown)
+    shown = re.sub(r"(https?://[^\s/]+/v2/)\S+", r"\1<key>", shown)
+    print(f"\n$ {shown}", flush=True)
     merged = {**os.environ, **(env or {})}
+    if not isinstance(cmd, str):
+        # Windows resolves the executable against this process's PATH, not the child's, so resolve it here.
+        found = shutil.which(cmd[0], path=merged.get("PATH"))
+        cmd = [found or cmd[0], *cmd[1:]]
     proc = subprocess.run(cmd, cwd=cwd, env=merged, shell=isinstance(cmd, str), check=False)
     if check and proc.returncode != 0:
         raise SystemExit(f"step failed (exit {proc.returncode}); fix the cause and rerun with --from <step>")
@@ -113,12 +121,13 @@ def main() -> int:
         if deployed(env):
             print("deploy: the manifest already points at live contracts, skipping")
         else:
-            cmd = ["forge", "script", "script/DeployMainnet.s.sol", "--root", "contracts", "--rpc-url", rpc, "--slow"]
+            cmd = ["forge", "script", "script/DeployMainnet.s.sol:DeployMainnet", "--rpc-url", rpc, "--slow"]
             if args.go:
                 cmd += ["--broadcast", "--private-key", env["DEPLOYER_PRIVATE_KEY"]]
             else:
+                cmd += ["--sender", env["DEPLOYER_ADDRESS"]]
                 print("rehearsal: simulating the deploy only")
-            sh(cmd, env=forge)
+            sh(cmd, env=forge, cwd=CONTRACTS)
             if not args.go:
                 print("\nRehearsal finished. Run again with --go to launch.")
                 return 0
@@ -141,13 +150,14 @@ def main() -> int:
 
     if "baskets" in todo:
         sh(
-            ["forge", "script", "script/SetupBasketsMainnet.s.sol", "--root", "contracts", "--rpc-url", rpc, "--broadcast",
+            ["forge", "script", "script/SetupBasketsMainnet.s.sol:SetupBasketsMainnet", "--rpc-url", rpc, "--broadcast",
              "--private-key", env["DEPLOYER_PRIVATE_KEY"]],
             env=forge,
+            cwd=CONTRACTS,
         )
 
     if "sources" in todo:
-        sh(["forge", "build", "--root", "contracts"], env=forge)
+        sh(["forge", "build"], env=forge, cwd=CONTRACTS)
         sh(
             [sys.executable, "infra/scripts/verify_contracts.py", "--chain", "4663", "--broadcast",
              "contracts/broadcast/DeployMainnet.s.sol/4663/run-latest.json", "--blockscout", EXPLORER],
@@ -155,7 +165,7 @@ def main() -> int:
         )
 
     if "publish" in todo:
-        paths = ["contracts/deployments/4663.json", "packages/sdk/src/addresses.ts", "contracts/verify/4663"]
+        paths = ["contracts/deployments/4663.json", "packages/sdk/src/addresses.ts"]
         sh(["git", "add", "--", *[p for p in paths if (REPO / p).exists()]])
         if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=REPO, check=False).returncode != 0:
             sh(["git", "commit", "-m", "chore(mainnet): record the deployed contract suite and verification sources"])
@@ -165,7 +175,7 @@ def main() -> int:
         remote_env = "/home/ubuntu/.nti-mainnet.env"
         sh(["scp", "-i", vps_key, "-o", "BatchMode=yes", str(ENV_FILE), f"{vps_host}:{remote_env}"])
         script = (
-            f"set -e; cd {APP_DIR}; chmod 600 {remote_env}; git pull --ff-only origin main; "
+            f"set -e; export PATH=\"$HOME/.local/bin:/usr/local/bin:$PATH\"; cd {APP_DIR}; chmod 600 {remote_env}; git pull --ff-only origin main; "
             f"if ! grep -q '^CHAIN_ID=4663$' .env; then "
             f"uv run --directory services --with 'psycopg[binary]' python ../infra/scripts/cutover_to_mainnet.py "
             f"--mainnet-env {remote_env} --yes; fi; "
