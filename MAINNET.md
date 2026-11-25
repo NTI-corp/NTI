@@ -1,152 +1,120 @@
 # NTI Mainnet Runbook (Robinhood Chain 4663)
 
-Status: **code complete, not deployed.** Nothing here has been broadcast to mainnet. The contracts, scripts,
-checks, services configuration and web are ready; what remains is yours: the wallets and gas, the Safe, the
-accounts and keys, the hosts, and the go-ahead. Why each choice was made: `docs/MAINNET_DECISIONS.md`. Evidence
-required before launch: `docs/MAINNET_LAUNCH_CHECKLIST.md`. How the live pipeline behaves and how to recover it:
-`docs/TESTNET_OPERATIONS.md`.
+Status: **code complete, not deployed.** Nothing here has been broadcast to mainnet. Why each choice was made:
+`docs/MAINNET_DECISIONS.md`. Evidence list: `docs/MAINNET_LAUNCH_CHECKLIST.md`. How the pipeline behaves and how
+to recover it: `docs/TESTNET_OPERATIONS.md`.
+
+Launch shape: the **existing** VPS, Supabase project, Vercel project, X accounts and Alchemy account switch from
+testnet to mainnet in one cutover. Only the wallets are new. There is no Timelock, no Governor and no locked
+timing; the admin wallet adjusts everything directly. The token is a prelaunch stand-in (`pNTI`) until the real
+$NTI launches on Pons.
 
 ## What you prepare
 
 | Item | Notes |
 | --- | --- |
-| 8 addresses | deployer, operator, keeper, attester, validators 1 to 3 (fresh keys, never reused from testnet), and the **Safe** (2 of 3 minimum, 3 owners minimum) as pauser. Fund deployer with at least 0.01 ETH and every hot wallet with at least 0.01 ETH (alerts fire at 0.05 on mainnet) |
-| Mainnet VPS | Ubuntu 22.04 or 24.04, 2 vCPU, 4 GB RAM. `ssh ubuntu@host 'bash -s' < infra/scripts/bootstrap-vps.sh` installs everything |
-| Supabase project (new) | Never the testnet project. Copy URL, anon key, service key and the database URL |
-| Vercel project (new) | Root `apps/web`, env `NEXT_PUBLIC_CHAIN_ID=4663` and the secrets from `infra/mainnet.env.example` |
-| RPC | Paid primary (Alchemy pay-as-you-go is the recommendation), a second provider, and the public endpoint as last fallback |
-| X accounts | At least 6 primary lane accounts and 3 dedicated validator accounts in `secrets/x_accounts.json` on the VPS |
-| Keys and tokens | MiMo, Telegram bot and chat id, WalletConnect project id, a 32+ character `SIWE_SESSION_SECRET` |
-| GitHub | Secrets `MAINNET_VPS_HOST`, `MAINNET_VPS_USER`, `MAINNET_VPS_SSH_KEY`; an Environment named `mainnet` with required reviewers |
-| $NTI contract address | Only needed at step 7 |
+| 8 new wallets | deployer (also the admin), operator, keeper, attester, validators 1 to 3, pauser (any wallet). Fund the deployer with at least 0.01 ETH and every hot wallet with at least 0.01 ETH |
+| Alchemy plan | The existing key already serves mainnet, but the free tier allows `eth_getLogs` over only 10 blocks (about 1 second). The indexer cannot keep up on that. Upgrade the same key to pay-as-you-go before the cutover |
+| `.env.mainnet` | Copy `infra/mainnet.env.example`, fill the wallets and the Alchemy URL |
 
-## 1. Environment
-
-Copy `infra/mainnet.env.example` to `.env.mainnet` on your machine (outside git) and fill it in. Print the
-canonical config hash and check everything that does not need the services host:
+## 1. Check, simulate, deploy
 
 ```powershell
 uv run --directory services python ../infra/scripts/mainnet_preflight.py --env-file ../.env.mainnet --stage deploy
-```
-
-It checks the chain id, bytecode at every external dependency, the eight role wallets (distinct, funded, keys
-derive to addresses), the Safe (threshold and owners), the config hash, `ORACLE_GENESIS_TIMESTAMP=0` and the
-token if already known. Fix every FAIL.
-
-## 2. Simulate, then deploy the contracts
-
-`DeployMainnet.s.sol` refuses to run unless the chain is 4663, the broadcaster equals `DEPLOYER_ADDRESS` and
-every external dependency has bytecode. It never deploys the test token, freezes the safety timings, reads the
-whole suite back and reverts if any role, timing or wiring is wrong, and only then writes
-`contracts/deployments/4663.json` (including `deployedAtBlock`).
-
-```powershell
 $env:PATH = "$HOME\.foundry\bin;$env:PATH"
-# simulate (no --broadcast); review the printed addresses and gas
+# simulate first (no --broadcast); review addresses and gas
 forge script contracts/script/DeployMainnet.s.sol:DeployMainnet --root contracts --rpc-url $env:RPC_URL_MAINNET --sender $env:DEPLOYER_ADDRESS
-# broadcast after sign-off
+# broadcast
 forge script contracts/script/DeployMainnet.s.sol:DeployMainnet --root contracts --rpc-url $env:RPC_URL_MAINNET --private-key $env:DEPLOYER_PRIVATE_KEY --broadcast --slow
 ```
 
-A simulation also writes the manifest: delete `contracts/deployments/4663.json` before the real run.
+The preflight checks the chain id, bytecode at every external dependency, the role wallets (distinct, funded,
+keys derive to their addresses), the config hash and `ORACLE_GENESIS_TIMESTAMP=0`. `DeployMainnet` refuses to run
+unless the chain is 4663 and the broadcaster is `DEPLOYER_ADDRESS`. It deploys the suite, creates the `pNTI`
+prelaunch token when `NTI_TOKEN_ADDRESS` is empty, sets the short windows (dispute window 5 s, dispute resolution
+10 min, unstake cooldown 10 s; the 1 hour commit delay stays because the X scrape needs it), reads everything back
+and reverts if a role or timing is wrong, then writes `contracts/deployments/4663.json` with `deployedAtBlock`.
+A simulation also writes that file: delete it before the real run.
 
-## 3. Wire the manifest into the SDK and audit it
+## 2. Wire the manifest and audit it
 
 ```powershell
-python infra/scripts/mainnet_wire.py          # rewrites packages/sdk/src/addresses.ts, prints INDEXER_START_BLOCK
+python infra/scripts/mainnet_wire.py     # rewrites packages/sdk/src/addresses.ts, prints INDEXER_START_BLOCK
 pnpm build:sdk
-uv run --directory services python ../infra/scripts/mainnet_verify.py --env-file ../.env.mainnet --phase deployed
+uv run --directory services python ../infra/scripts/mainnet_verify.py --env-file ../.env.mainnet
 ```
 
-Commit `contracts/deployments/4663.json` and the SDK change, then push. CI runs `mainnet_wire.py --check`, so the
-SDK can never drift from the manifest. `mainnet_verify.py` must report 0 failures: roles, locked timings
-(2 h dispute window, 1 h commit delay, 7 d cooldown, 6 h resolution, 48 h settle timeout), config hash, Timelock
-delay and who holds admin rights.
+Put `INDEXER_START_BLOCK` in `.env.mainnet`. Commit `contracts/deployments/4663.json` and the SDK change and push
+(CI runs `mainnet_wire.py --check`, so the SDK cannot drift from the manifest). `mainnet_verify.py` must show no
+FAIL: roles, config hash, the launch windows and that the admin wallet administers every contract.
 
-## 4. Data plane
+## 3. Cutover (VPS, Supabase, Vercel)
 
-On your machine, against the mainnet Supabase project:
+On the VPS, once the manifest is pulled (the normal deploy does it):
+
+```bash
+cd /home/ubuntu/apps/nti
+uv run --directory services --with "psycopg[binary]" python ../infra/scripts/cutover_to_mainnet.py --mainnet-env /path/to/.env.mainnet --dry-run
+uv run --directory services --with "psycopg[binary]" python ../infra/scripts/cutover_to_mainnet.py --mainnet-env /path/to/.env.mainnet
+```
+
+It stops the PM2 apps, exports every chain-specific table to `data/state/cutover-backup-<time>/`, empties them
+(epochs, chain events, markets, baskets, grants, attestations and so on), keeps the data that does not depend on
+the chain (KOLs, posts, engagement, classifications, fetch evidence), copies the mainnet keys and RPC settings into
+the host `.env` (the previous file is kept as `.env.testnet-<time>`) and restarts PM2. The next deploy runs
+`mainnet_preflight.py --stage services` on the host automatically because the `.env` now says `CHAIN_ID=4663`.
+
+The operator starts at the newest mature epoch, so the first mainnet epoch commits one hour after its boundary and
+finalizes within seconds.
+
+Vercel: switch the existing project to mainnet and redeploy.
 
 ```powershell
-uv run --directory services --with "psycopg[binary]" python ../infra/scripts/apply_migrations.py --database-url $env:DATABASE_URL
-# seed the KOL universe from testnet (configuration only: no posts, no epochs)
-python infra/scripts/copy_kol_universe.py
+cd apps/web
+echo 4663 | npx vercel env add NEXT_PUBLIC_CHAIN_ID production --force
+npx vercel --prod
 ```
 
-Copy `.env` (from the services section of the template, without the deployer key) and `secrets/x_accounts.json`
-to `/home/ubuntu/apps/nti-mainnet` on the VPS, set `INDEXER_START_BLOCK` and `RPC_URL_MAINNET` (comma-separated
-fallbacks are allowed here). Then run the GitHub workflow **Deploy NTI mainnet services** (type
-`DEPLOY_MAINNET_SERVICES`). The deploy script runs the services preflight on the host and starts nothing when it
-fails; it checks a log-capable RPC, a migrated and empty database, the X pool including the validator accounts,
-alerting and secrets.
+The testnet site stops being served by that project; the testnet contracts keep existing on chain.
 
-Result: `nti-*-mainnet` PM2 apps (indexer, fetcher, operator daemon, validators, keeper, monitor, discovery,
-KOL harvest, purge) run beside nothing else. The operator refuses to commit unless
-`VALIDATOR_OMISSION_CHECK=1`.
+## 4. Use it
 
-## 5. Web
+The app shows a "Prelaunch token" banner. Staking and markets work with `pNTI`, which anyone can claim from the
+faucet on the Stake page (10,000 per day). Watch the first epochs on Telegram and `/oracle`.
 
-Deploy the separate Vercel project with `NEXT_PUBLIC_CHAIN_ID=4663`, `SUPABASE_*`, `SIWE_SESSION_SECRET`, the
-WalletConnect id and `RPC_URL_MAINNET`. Until the registry is frozen the app shows a "Pre-freeze registry"
-banner and staking, markets and disputes stay closed.
+## 5. Swap in the real $NTI (when it launches on Pons)
 
-## 6. Soak
-
-Watch Telegram and the first epochs: commits and finalization on schedule, `nti-monitor` silent, the keeper
-tasks `ok`. The checklist asks for at least 6 consecutive final epochs with no fetch failures before anything is
-announced. Conservative caps stay at their defaults.
-
-## 7. Attach $NTI (when the contract address exists)
-
-Check it on the explorer first: ERC-20, 18 decimals, 1B supply, Pons version, graduation phase, creator tax.
-Send a small amount in and out to detect a transfer tax (Staking and Dispute measure balance deltas, so a tax
-does not break accounting). Then:
+Check it on the explorer first: ERC-20, 18 decimals, 1B supply, graduation phase, creator tax. Everyone must
+unstake first, because the registry only accepts a new token while nothing is staked (the cooldown is seconds).
 
 ```powershell
 $env:NTI_TOKEN_ADDRESS = "0x..."
-# optional, only when the token's pool is live: $env:BUYBACK_ADAPTER = <V3 or V4 adapter from the manifest>
-forge script contracts/script/AttachTokenMainnet.s.sol:AttachTokenMainnet --root contracts --rpc-url $env:RPC_URL_MAINNET --private-key $env:DEPLOYER_PRIVATE_KEY --broadcast
-uv run --directory services python ../infra/scripts/mainnet_verify.py --env-file ../.env.mainnet --phase attached
+$env:FREEZE = "1"                      # optional: the token can never change again
+# $env:BUYBACK_ADAPTER = <V3 or V4 adapter from the manifest>   once the token's pool is live
+forge script contracts/script/SwapTokenMainnet.s.sol:SwapTokenMainnet --root contracts --rpc-url $env:RPC_URL_MAINNET --private-key $env:DEPLOYER_PRIVATE_KEY --broadcast
+python infra/scripts/mainnet_wire.py   # then commit the SDK change
 ```
 
-The script refuses a token that is not 18 decimals with the expected supply, a registry that is already
-frozen, or a buyback adapter that is not in the manifest. It sets the token, optionally the adapter, and
-freezes the registry. A v2 token still on its bonding curve keeps the 40% buyback share parked in FeeRouter
-until you set an adapter later (`registry.setBuybackAdapter`, no freeze needed). Retune `RADAR_MIN_STAKE`, the
-dispute bond, the validator minimum stake and the tier discounts to the live price, then do one small
-end-to-end pass with real $NTI: stake, unstake request, one tiny market, one grant round.
+The script refuses a token that is not 18 decimals with the expected supply, a registry that is already frozen, a
+token that is already set, locked stake, or a buyback adapter that is not in the manifest. A v2 token still on its
+bonding curve keeps the 40% buyback share parked in FeeRouter until `registry.setBuybackAdapter` is called later.
+Retune `RADAR_MIN_STAKE`, the dispute bond, the validator minimum stake and the tier discounts to the live price.
 
-## 8. Hand over (after weeks without incidents, and enough stake for the 4% quorum)
+## Operations
 
-**Irreversible.** Read `docs/MAINNET_DECISIONS.md` section 4 first.
-
-```powershell
-$env:HANDOVER_CONFIRM = "TRANSFER_ADMIN_TO_TIMELOCK"
-$env:SAFE_ADDRESS = "0x..."
-forge script contracts/script/HandoverMainnet.s.sol:HandoverMainnet --root contracts --rpc-url $env:RPC_URL_MAINNET --private-key $env:DEPLOYER_PRIVATE_KEY --broadcast
-```
-
-The script checks that the token is attached, the registry frozen, all four timings locked and the Governor
-registered as proposer and canceller. It then moves admin rights on ten contracts to the Timelock, removes the
-deployer from the Timelock and starts the registry transfer. The Safe must call `acceptOwnership()` on the
-registry. Finish with `mainnet_verify.py --phase handed-over`: the deployer must hold nothing.
-
-## Operations on mainnet
-
-* Operator, keeper and validators use their own wallets; the monitor alerts below 0.05 ETH.
-* Safe: `pause()` and `unpause()` on the contract that misbehaves (both need `PAUSER_ROLE`, which the Safe holds). Changing who holds it needs the Timelock after the handover.
-* The testnet stack stays up as the public demo.
-* Routine checks: `mainnet_preflight.py --stage services` on the host and `mainnet_verify.py` from anywhere.
+* Pause and unpause: the pauser wallet calls `pause()` / `unpause()` on the contract that misbehaves.
+* Parameter changes (timings, config, roles): the deployer wallet, directly. Keep that key safe: it is the admin.
+* Routine checks: `mainnet_verify.py` from anywhere, `mainnet_preflight.py --stage services` on the host.
 
 ## Known limits
 
-* No independent audit yet. The substitutes are 54 Foundry tests including the mainnet scripts, fork-style
-  tests, the Slither triage below and the conservative caps.
+* No independent audit, no Timelock and no on-chain governance by choice: the admin wallet can change parameters
+  at once. Protect the deployer key accordingly.
+* Switching the token needs everyone to unstake first (a registry rule).
+* The indexer needs a log-capable RPC: the Alchemy free tier (10 blocks) is not enough.
+* Independent omission verification stays off without 3 dedicated validator X accounts (`VALIDATOR_OMISSION_CHECK`).
 * Pons v1 tokens are not covered by discovery; `txs_7d` is a 24 hour lower bound.
-* Dataset hashes live on chain and the files in the public Supabase bucket; permanent storage (Irys or Arweave)
-  is optional and tracked in the checklist.
-* Fetch capacity is bounded by X accounts. Each account is budgeted at about 800 requests per day; the tier
-  caps keep the load below it (see `docs/TESTNET_OPERATIONS.md`).
+* Fetch capacity is bounded by 8 X accounts at about 800 requests a day each; the tier caps keep the load below it.
 
 ## Static analysis triage (Slither, medium and above, CI run on 2026-11-20)
 

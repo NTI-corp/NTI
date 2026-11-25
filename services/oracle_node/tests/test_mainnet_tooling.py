@@ -92,8 +92,7 @@ def test_mainnet_env_example_lists_every_variable_the_preflight_requires() -> No
     keys = {ln.split("=")[0] for ln in lines}
     preflight = load("mainnet_preflight")
     required = set(preflight.ROLE_ENVS) | set(preflight.KEY_FOR_ROLE.values())
-    required |= {"RPC_URL_MAINNET", "SUPABASE_URL", "SUPABASE_SERVICE_KEY"}
-    required |= {"VALIDATOR_OMISSION_CHECK"}
-    required |= {"SIWE_SESSION_SECRET", "MIMO_API_KEY"}
+    required |= {"CHAIN_ID", "RPC_URL_MAINNET", "INITIAL_CONFIG_HASH"}
+    required |= {"NTI_TOKEN_ADDRESS", "INDEXER_START_BLOCK"}
     assert required <= keys, sorted(required - keys)
     assert json.dumps(sorted(keys))  # parses
