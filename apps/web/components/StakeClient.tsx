@@ -209,7 +209,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
         return;
       }
       await execute(
-        "Mint 10,000 tNTI from faucet",
+        `Mint 10,000 ${isTestnet ? "tNTI" : "pNTI"} from faucet`,
         {
           address: addresses.ntiToken,
           abi: erc20Abi,
@@ -358,7 +358,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
           >
             {faucetOnCooldown
               ? `FAUCET COOLDOWN (${Math.ceil(faucetCooldownRemaining / 3600)}H)`
-              : "TESTNET FAUCET (+10,000 tNTI)"}
+              : isTestnet ? "TESTNET FAUCET (+10,000 tNTI)" : "PRELAUNCH FAUCET (+10,000 pNTI)"}
           </button>
         )}
       </div>
