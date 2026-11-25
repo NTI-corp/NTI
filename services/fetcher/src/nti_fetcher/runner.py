@@ -8,6 +8,7 @@ import inspect
 import json
 import os
 import random
+import time
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -180,6 +181,9 @@ class FetchRunner:
         max_kols: int | None = None,
         max_cooldown_wait_seconds: float = 0.0,
         stagger_tiers: bool = False,
+        recovery_rounds: int = 0,
+        recovery_wait_seconds: float = 0.0,
+        recovery_deadline_seconds: float | None = None,
     ) -> None:
         self._primary = primary
         self._fallback = fallback
@@ -196,6 +200,11 @@ class FetchRunner:
         self._max_kols = max_kols
         self._max_cooldown_wait_seconds = max_cooldown_wait_seconds
         self._stagger_tiers = stagger_tiers
+        # Recovery: KOLs that failed (typically an exhausted or rate-limited account) are retried in
+        # later rounds inside the same cycle, so a temporary X limit does not cost the whole epoch.
+        self._recovery_rounds = max(0, recovery_rounds)
+        self._recovery_wait_seconds = max(0.0, recovery_wait_seconds)
+        self._recovery_deadline_seconds = recovery_deadline_seconds
 
     @staticmethod
     def eligible_kols(
@@ -272,6 +281,7 @@ class FetchRunner:
         since_ids: dict[int, int],
         boundary: datetime,
         epoch_dir: Path,
+        deadline: float | None = None,
     ) -> tuple[LaneReport, list[RawPost]]:
         started = datetime.now(UTC).isoformat()
         active_source: PostSource = self._primary
@@ -343,6 +353,31 @@ class FetchRunner:
                             failure_by_uid.pop(f_uid, None)
                     failed_ids = still_failed
 
+        for _ in range(self._recovery_rounds):
+            if not failed_ids:
+                break
+            if deadline is not None and time.monotonic() + self._recovery_wait_seconds > deadline:
+                break
+            await asyncio.sleep(self._recovery_wait_seconds)
+            still_failed: list[int] = []
+            for r_uid in failed_ids:
+                await self._sleep_jitter()
+                try:
+                    recovered = await self._fetch_with_retries(
+                        source=active_source,
+                        user_id=r_uid,
+                        since_id=since_ids.get(r_uid),
+                        boundary=boundary,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    still_failed.append(r_uid)
+                    failure_by_uid[r_uid] = type(exc).__name__
+                else:
+                    lane_posts.extend(recovered)
+                    ok_ids.add(r_uid)
+                    failure_by_uid.pop(r_uid, None)
+            failed_ids = still_failed
+
         lane_posts.sort(key=lambda p: p.tweet_id)
         filename = f"{lane_id}.jsonl"
         file_path = epoch_dir / filename
@@ -374,7 +409,12 @@ class FetchRunner:
         kols: Sequence[KolProfile],
         since_ids: dict[int, int] | None = None,
     ) -> FetchCycleResult:
-        with CycleLock(self._lock_path):
+        lock_stale = 2700
+        deadline: float | None = None
+        if self._recovery_rounds and self._recovery_deadline_seconds:
+            deadline = time.monotonic() + self._recovery_deadline_seconds
+            lock_stale = max(lock_stale, int(self._recovery_deadline_seconds) + 1800)
+        with CycleLock(self._lock_path, stale_seconds=lock_stale):
             started = datetime.now(UTC).isoformat()
             epoch_dir = self._output_dir / str(epoch_id)
             epoch_dir.mkdir(parents=True, exist_ok=True)
@@ -401,7 +441,9 @@ class FetchRunner:
 
             since_map = since_ids or {}
             tasks = [
-                self._run_lane(lane_id, partitions[lane_id], since_map, boundary, epoch_dir)
+                self._run_lane(
+                    lane_id, partitions[lane_id], since_map, boundary, epoch_dir, deadline
+                )
                 for lane_id in range(self._num_lanes)
             ]
             lane_outputs = await asyncio.gather(*tasks)

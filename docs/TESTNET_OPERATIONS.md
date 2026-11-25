@@ -55,6 +55,15 @@ as `missing_classification`), so a catch-up after downtime commits with a smalle
   window. An epoch without such evidence becomes `incomplete` on chain. That is intentional: a thin scrape must
   not publish an official index.
 
+### Automatic fetch recovery
+
+A KOL that fails to fetch (rate-limited or exhausted account) is retried inside the same cycle instead of
+costing the epoch. After the first pass each lane waits `FETCHER_RECOVERY_WAIT_SECONDS` (default 960, just over
+X's 15 minute window) and retries its failed KOLs, up to `FETCHER_RECOVERY_ROUNDS` times (default 3), and never
+past `FETCHER_RECOVERY_DEADLINE_SECONDS` (default 9000, 2.5 hours) from the start of the cycle. The recorded
+evidence counts the final result, so a recovered epoch commits normally. Failures that persist (for example a
+daily budget that is really spent) still mark the epoch `incomplete`; the tier caps exist to prevent that.
+
 ## 3. KOL universe
 
 `nti_discovery.kol_harvest` (daily, guarded to run once per ~20 hours):
@@ -90,5 +99,5 @@ uv run --directory services python ../infra/scripts/testnet_healthcheck.py --env
 
 * Only 8 X accounts and no validator pool, so independent omission checks stay disabled
   (`VALIDATOR_OMISSION_CHECK=0`). Mainnet needs at least 3 dedicated validator accounts.
-* Epochs lost to an exhausted account pool stay `incomplete`; there is no second-pass fetch yet.
+* An epoch whose fetch stays below 95% after all recovery rounds is still published as `incomplete`.
 * The classifier in production is MiMo (`MIMO_MODEL`); the Gemini adapter exists but is not on the live path.

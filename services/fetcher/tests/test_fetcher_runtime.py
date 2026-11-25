@@ -261,3 +261,63 @@ def test_stagger_tier_policy_is_shared_and_can_be_disabled(
     assert stagger_tiers_enabled()
     monkeypatch.setenv("FETCHER_STAGGER_TIERS", "0")
     assert not stagger_tiers_enabled()
+
+
+@pytest.mark.asyncio
+async def test_failed_kols_are_recovered_in_a_later_round_of_the_same_cycle(tmp_path: Path) -> None:
+    boundary = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
+    kols = [KolProfile(user_id=i, handle=f"k{i}", followers=1_000, poll_tier=1) for i in (1, 2, 3)]
+    # KOL 2 fails more times than one fetch's retries allow, then recovers in a later round.
+    source = InMemoryMockSource(name="mock", timelines={}, transient_failures={2: 3})
+    runner = FetchRunner(
+        primary=source,
+        output_dir=tmp_path / "snapshots",
+        lock_path=tmp_path / "fetcher.lock",
+        num_lanes=1,
+        jitter_range=(0, 0),
+        max_retries=3,
+        recovery_rounds=2,
+        recovery_wait_seconds=0.0,
+        recovery_deadline_seconds=60.0,
+    )
+    result = await runner.run_cycle(1, boundary, kols)
+    assert result.total_ok == 3
+    assert result.total_failed == 0
+    assert result.status == EpochStatus.COLLECTING
+
+
+@pytest.mark.asyncio
+async def test_permanently_failing_kol_stays_failed_after_recovery_rounds(tmp_path: Path) -> None:
+    boundary = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
+    kols = [KolProfile(user_id=i, handle=f"k{i}", followers=1_000, poll_tier=1) for i in (1, 2)]
+    runner = FetchRunner(
+        primary=InMemoryMockSource(name="mock", timelines={}, permanent_fail_ids={2}),
+        output_dir=tmp_path / "snapshots",
+        lock_path=tmp_path / "fetcher.lock",
+        num_lanes=1,
+        jitter_range=(0, 0),
+        recovery_rounds=2,
+        recovery_wait_seconds=0.0,
+        recovery_deadline_seconds=60.0,
+    )
+    result = await runner.run_cycle(1, boundary, kols)
+    assert (result.total_ok, result.total_failed) == (1, 1)
+    assert result.status == EpochStatus.INCOMPLETE
+
+
+@pytest.mark.asyncio
+async def test_recovery_stops_at_the_deadline(tmp_path: Path) -> None:
+    boundary = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
+    kols = [KolProfile(user_id=1, handle="k1", followers=1_000, poll_tier=1)]
+    runner = FetchRunner(
+        primary=InMemoryMockSource(name="mock", timelines={}, permanent_fail_ids={1}),
+        output_dir=tmp_path / "snapshots",
+        lock_path=tmp_path / "fetcher.lock",
+        num_lanes=1,
+        jitter_range=(0, 0),
+        recovery_rounds=5,
+        recovery_wait_seconds=30.0,  # a single wait would already pass the deadline
+        recovery_deadline_seconds=1.0,
+    )
+    result = await asyncio.wait_for(runner.run_cycle(1, boundary, kols), timeout=10)
+    assert result.total_failed == 1
