@@ -36,11 +36,16 @@ def test_wire_replaces_the_empty_mainnet_entry_and_keeps_testnet_intact() -> Non
     source = (REPO / "packages/sdk/src/addresses.ts").read_text(encoding="utf-8")
     out = wire.rewrite(source, fake_manifest())
 
-    assert "[ROBINHOOD_MAINNET_ID]: {\n    registry:" in out
-    assert "ntiToken: null," in out.split("[ROBINHOOD_TESTNET_ID]")[0]  # unset token stays null
-    assert '"0x0000000000000000000000000000000000000001"' in out
+    marker = "export const PROTOCOL_ADDRESSES"
+    protocol_out, protocol_in = out[out.index(marker) :], source[source.index(marker) :]
+    assert "[ROBINHOOD_MAINNET_ID]: {\n    registry:" in protocol_out
+    assert "ntiToken: null," in protocol_out.split("[ROBINHOOD_TESTNET_ID]")[0]  # unset stays null
+    assert '"0x0000000000000000000000000000000000000001"' in protocol_out
+    # nothing before the protocol table changes, in particular the external-address table
+    assert out[: out.index(marker)] == source[: source.index(marker)]
     # the testnet block is byte for byte what it was
-    assert out.split("[ROBINHOOD_TESTNET_ID]")[1] == source.split("[ROBINHOOD_TESTNET_ID]")[1]
+    testnet_out = protocol_out.split("[ROBINHOOD_TESTNET_ID]")[1]
+    assert testnet_out == protocol_in.split("[ROBINHOOD_TESTNET_ID]")[1]
 
 
 def test_wire_is_idempotent_so_check_mode_can_run_in_ci() -> None:

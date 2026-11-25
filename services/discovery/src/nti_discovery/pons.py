@@ -18,6 +18,7 @@ word in the log against ``getLaunchedToken`` and accepting the one whose struct 
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -58,16 +59,29 @@ class LaunchInfo:
 class HttpRpc:
     """Minimal async JSON-RPC client."""
 
-    def __init__(self, url: str, timeout: float = 30.0) -> None:
+    def __init__(
+        self, url: str, timeout: float = 30.0, pace: float = 0.0, retries: int = 6
+    ) -> None:
         self._url = url
         self._timeout = timeout
+        self._pace = pace
+        self._retries = retries
 
     async def request(self, method: str, params: list[Any]) -> Any:
+        """One JSON-RPC call, paced and retried (free endpoints answer 429 on bursts)."""
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.post(self._url, json=payload)
+        delay = self._pace
+        for attempt in range(self._retries + 1):
+            if delay:
+                await asyncio.sleep(delay)
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(self._url, json=payload)
+            if resp.status_code in (429, 502, 503, 504) and attempt < self._retries:
+                delay = min(30.0, max(self._pace, 1.0) * 2 ** (attempt + 1))
+                continue
             resp.raise_for_status()
             body = resp.json()
+            break
         if body.get("error"):
             raise RuntimeError(f"RPC {method} failed: {body['error']}")
         return body.get("result")

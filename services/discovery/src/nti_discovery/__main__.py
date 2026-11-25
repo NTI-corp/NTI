@@ -102,7 +102,7 @@ def main() -> int:
             raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_KEY are required")
         storage = SupabaseStorage(url, service_key)
 
-    rpc = pons.HttpRpc(rpc_url)
+    rpc = pons.HttpRpc(rpc_url, pace=float(os.environ.get("DISCOVERY_RPC_PACE_SECONDS", "0.8")))
     if is_testnet:
         runner = TestnetDiscoveryRunner(rpc, storage, cfg, initial_lookback=args.lookback)
     else:
