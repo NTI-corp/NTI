@@ -5,12 +5,11 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {DeployMainnet} from "../script/DeployMainnet.s.sol";
-import {AttachTokenMainnet} from "../script/AttachTokenMainnet.s.sol";
-import {HandoverMainnet} from "../script/HandoverMainnet.s.sol";
+import {SwapTokenMainnet} from "../script/SwapTokenMainnet.s.sol";
+import {NTIPrelaunchToken} from "../src/NTIPrelaunchToken.sol";
 import {NTIRegistry} from "../src/NTIRegistry.sol";
 import {OracleCommit} from "../src/OracleCommit.sol";
 import {Staking} from "../src/Staking.sol";
-import {NTITimelock} from "../src/NTITimelock.sol";
 
 address constant DEFAULT_SENDER = 0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38;
 
@@ -20,13 +19,7 @@ contract DeployHarness is DeployMainnet {
     }
 }
 
-contract AttachHarness is AttachTokenMainnet {
-    function _broadcaster() internal pure override returns (address) {
-        return DEFAULT_SENDER;
-    }
-}
-
-contract HandoverHarness is HandoverMainnet {
+contract SwapHarness is SwapTokenMainnet {
     function _broadcaster() internal pure override returns (address) {
         return DEFAULT_SENDER;
     }
@@ -38,9 +31,9 @@ contract SupplyToken is ERC20 {
     }
 }
 
-/// @notice Runs the real mainnet deploy, token attach and handover scripts against a local chain whose id is
-///         set to 4663 and whose external dependencies are stand-in contracts. The manifest goes to a temp
-///         file, never to deployments/4663.json.
+/// @notice Runs the real mainnet deploy and token-swap scripts against a local chain whose id is set to 4663 and
+///         whose external dependencies are stand-in contracts. The manifest goes to a temp file, never to
+///         deployments/4663.json.
 contract MainnetScriptsTest is Test {
     string internal constant MANIFEST = "deployments/4663.test.json";
 
@@ -54,7 +47,6 @@ contract MainnetScriptsTest is Test {
 
     // Broadcast calls inside forge test come from the default sender, so it plays the deployer.
     address internal deployer = DEFAULT_SENDER;
-    address internal safe;
 
     function setUp() public {
         vm.chainId(4663);
@@ -62,32 +54,24 @@ contract MainnetScriptsTest is Test {
         for (uint256 i = 0; i < externals.length; i++) {
             vm.etch(externals[i], hex"6001600055");
         }
-        safe = makeAddr("safe");
-        vm.etch(safe, hex"6001600055");
-
         vm.setEnv("DEPLOY_MANIFEST", MANIFEST);
         vm.setEnv("DEPLOYER_ADDRESS", vm.toString(deployer));
         vm.setEnv("OPERATOR_ADDRESS", vm.toString(makeAddr("operator")));
         vm.setEnv("KEEPER_ADDRESS", vm.toString(makeAddr("keeper")));
         vm.setEnv("ATTESTER_ADDRESS", vm.toString(makeAddr("attester")));
-        vm.setEnv("PAUSER_ADDRESS", vm.toString(safe));
+        vm.setEnv("PAUSER_ADDRESS", vm.toString(makeAddr("pauser")));
         vm.setEnv("VALIDATOR_1_ADDRESS", vm.toString(makeAddr("v1")));
         vm.setEnv("VALIDATOR_2_ADDRESS", vm.toString(makeAddr("v2")));
         vm.setEnv("VALIDATOR_3_ADDRESS", vm.toString(makeAddr("v3")));
         vm.setEnv("INITIAL_CONFIG_HASH", "0x07acec1d77949027e6ba95a4ec7b43ce380fb70efd317e79d0f024e4afc8c297");
         vm.setEnv("ORACLE_GENESIS_TIMESTAMP", "0");
-        vm.setEnv("SAFE_ADDRESS", vm.toString(safe));
-        vm.setEnv("HANDOVER_CONFIRM", "TRANSFER_ADMIN_TO_TIMELOCK");
+        vm.setEnv("NTI_TOKEN_ADDRESS", "0x0000000000000000000000000000000000000000");
         vm.setEnv("BUYBACK_ADAPTER", "0x0000000000000000000000000000000000000000");
+        vm.setEnv("FREEZE", "0");
     }
 
     function tearDown() public {
         if (vm.exists(MANIFEST)) vm.removeFile(MANIFEST);
-    }
-
-    function _deploy() internal {
-        DeployMainnet script = new DeployHarness();
-        script.run();
     }
 
     function test_deploy_refuses_a_chain_that_is_not_mainnet() public {
@@ -99,53 +83,54 @@ contract MainnetScriptsTest is Test {
 
     /// @dev One test on purpose: the scripts read process-wide env vars and one shared manifest file, so
     ///      separate tests would race under forge's parallel runner.
-    function test_deploy_attach_handover_sequence() public {
+    function test_deploy_then_swap_to_the_real_token() public {
         vm.roll(777);
-        _deploy();
-        string memory deployed = vm.readFile(MANIFEST);
-        assertEq(vm.parseJsonUint(deployed, ".chainId"), 4663);
-        assertEq(vm.parseJsonUint(deployed, ".deployedAtBlock"), 777);
-        assertEq(vm.parseJsonAddress(deployed, ".deployer"), deployer);
+        DeployMainnet script = new DeployHarness();
+        script.run();
 
-        OracleCommit oracle = OracleCommit(vm.parseJsonAddress(deployed, ".oracleCommit"));
-        assertTrue(oracle.timingsLocked());
-        assertEq(oracle.DISPUTE_WINDOW(), 2 hours);
+        string memory json = vm.readFile(MANIFEST);
+        assertEq(vm.parseJsonUint(json, ".chainId"), 4663);
+        assertEq(vm.parseJsonUint(json, ".deployedAtBlock"), 777);
+        assertEq(vm.parseJsonAddress(json, ".deployer"), deployer);
+        assertEq(vm.parseJsonAddress(json, ".governor"), address(0));
+        assertEq(vm.parseJsonAddress(json, ".timelock"), address(0));
+
+        OracleCommit oracle = OracleCommit(vm.parseJsonAddress(json, ".oracleCommit"));
+        Staking staking = Staking(vm.parseJsonAddress(json, ".staking"));
+        NTIRegistry registry = NTIRegistry(vm.parseJsonAddress(json, ".registry"));
+        NTIPrelaunchToken prelaunch = NTIPrelaunchToken(vm.parseJsonAddress(json, ".ntiToken"));
+
+        // Short windows, nothing locked, the deployer still administers everything.
+        assertEq(oracle.DISPUTE_WINDOW(), 5);
+        assertEq(oracle.COMMIT_DELAY(), 3600);
+        assertEq(staking.COOLDOWN_DURATION(), 10);
+        assertFalse(oracle.timingsLocked());
+        assertTrue(oracle.hasRole(0x00, deployer));
         assertTrue(oracle.hasRole(oracle.OPERATOR_ROLE(), makeAddr("operator")));
         assertFalse(oracle.hasRole(oracle.OPERATOR_ROLE(), deployer));
-        assertEq(NTIRegistry(vm.parseJsonAddress(deployed, ".registry")).owner(), deployer);
 
-        // The handover is refused until the token is attached and the registry is frozen.
-        HandoverMainnet early = new HandoverHarness();
-        vm.expectRevert(bytes("attach the token and freeze the registry first"));
-        early.run();
+        // Prelaunch token: registered, not frozen, with a faucet that anyone can use.
+        assertEq(registry.nti(), address(prelaunch));
+        assertEq(prelaunch.symbol(), "pNTI");
+        assertFalse(registry.frozen());
+        vm.prank(makeAddr("alice"));
+        prelaunch.faucet();
+        assertEq(prelaunch.balanceOf(makeAddr("alice")), 10_000e18);
 
-        // A token with the wrong supply is refused (env is process-wide, so this stays in one test).
+        // A token with the wrong supply is refused.
         SupplyToken wrong = new SupplyToken(42e18);
         vm.setEnv("NTI_TOKEN_ADDRESS", vm.toString(address(wrong)));
-        AttachTokenMainnet refused = new AttachHarness();
+        SwapTokenMainnet refused = new SwapHarness();
         vm.expectRevert(bytes("token supply != expected"));
         refused.run();
 
-        SupplyToken token = new SupplyToken(1_000_000_000e18);
-        vm.setEnv("NTI_TOKEN_ADDRESS", vm.toString(address(token)));
-        AttachTokenMainnet attach = new AttachHarness();
-        attach.run();
-
-        HandoverMainnet handover = new HandoverHarness();
-        handover.run();
-
-        string memory json = vm.readFile(MANIFEST);
-        NTITimelock timelock = NTITimelock(payable(vm.parseJsonAddress(json, ".timelock")));
-        Staking staking = Staking(vm.parseJsonAddress(json, ".staking"));
-        NTIRegistry registry = NTIRegistry(vm.parseJsonAddress(json, ".registry"));
-
-        assertTrue(staking.hasRole(0x00, address(timelock)));
-        assertFalse(staking.hasRole(0x00, deployer));
-        assertFalse(timelock.hasRole(0x00, deployer));
-        assertEq(registry.pendingOwner(), safe);
-
-        vm.prank(safe);
-        registry.acceptOwnership();
-        assertEq(registry.owner(), safe);
+        // The real token swaps in, optionally frozen.
+        SupplyToken real = new SupplyToken(1_000_000_000e18);
+        vm.setEnv("NTI_TOKEN_ADDRESS", vm.toString(address(real)));
+        vm.setEnv("FREEZE", "1");
+        SwapTokenMainnet swap = new SwapHarness();
+        swap.run();
+        assertEq(registry.nti(), address(real));
+        assertTrue(registry.frozen());
     }
 }

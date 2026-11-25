@@ -12,16 +12,20 @@ import {FeeRouter} from "../src/FeeRouter.sol";
 import {Grants} from "../src/Grants.sol";
 import {InsuranceFund} from "../src/InsuranceFund.sol";
 import {KOLRegistry} from "../src/KOLRegistry.sol";
-import {NTIGovernor} from "../src/NTIGovernor.sol";
+import {NTIPrelaunchToken} from "../src/NTIPrelaunchToken.sol";
 import {NTIRegistry} from "../src/NTIRegistry.sol";
-import {NTITimelock} from "../src/NTITimelock.sol";
 import {NarrativeMarket} from "../src/NarrativeMarket.sol";
 import {OracleCommit} from "../src/OracleCommit.sol";
 import {Staking} from "../src/Staking.sol";
 
 /// @title DeployMainnet
-/// @notice Deploys and wires the production NTI protocol suite onto Robinhood Chain Mainnet (4663).
-///         NEVER deploys NTITestToken. Writes contracts/deployments/4663.json.
+/// @notice Deploys and wires the NTI protocol suite onto Robinhood Chain Mainnet (4663) and writes
+///         contracts/deployments/4663.json.
+///
+///         Launch shape: no Timelock and no Governor (the admin wallet changes parameters directly) and no
+///         locked timings, so every window stays adjustable. The token is a prelaunch stand-in (`pNTI`, with a
+///         faucet) unless NTI_TOKEN_ADDRESS is already set; `SwapTokenMainnet` swaps in the real token once it
+///         launches on Pons.
 contract DeployMainnet is Script {
     // Verified Robinhood Chain Mainnet (4663) external dependencies
     address internal constant MAINNET_WETH = 0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73;
@@ -32,9 +36,15 @@ contract DeployMainnet is Script {
     address internal constant MAINNET_STATE_VIEW = 0xF3334192D15450CdD385c8B70e03f9A6bD9E673b;
     address internal constant MAINNET_PONS_V2_MEME_HOOK = 0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044;
 
-    uint48 internal constant DEFAULT_VOTING_DELAY = 1; // 1 block
-    uint32 internal constant DEFAULT_VOTING_PERIOD = 21_600; // ~3 days: Staking.clock() is block.number, which on Arbitrum Orbit is the ~12s parent-chain block
     uint8 internal constant INITIAL_NARRATIVE_COUNT = 10;
+
+    // Short windows: nothing waits on a long timer. The 1 hour commit delay is not a safety timer: it is the
+    // time the X scrape needs to finish before an epoch can be committed.
+    uint64 internal constant COMMIT_DELAY = 60 minutes;
+    uint64 internal constant DISPUTE_WINDOW = 5 seconds;
+    uint64 internal constant INCOMPLETE_DELAY = 4 hours;
+    uint64 internal constant DISPUTE_RESOLUTION_WINDOW = 10 minutes;
+    uint64 internal constant UNSTAKE_COOLDOWN = 10 seconds;
 
     struct Deployed {
         address registry;
@@ -51,8 +61,6 @@ contract DeployMainnet is Script {
         address narrativeMarket;
         address basketFactory;
         address kolRegistry;
-        address timelock;
-        address governor;
     }
 
     function run() external returns (Deployed memory d) {
@@ -77,11 +85,11 @@ contract DeployMainnet is Script {
         address val2 = vm.envAddress("VALIDATOR_2_ADDRESS");
         address val3 = vm.envAddress("VALIDATOR_3_ADDRESS");
 
-        // Optional: if live $NTI CA is already known at deploy time, attach immediately.
+        // Empty means: deploy the prelaunch token. Set means: the real token already exists.
         address ntiToken = vm.envOr("NTI_TOKEN_ADDRESS", address(0));
         uint64 genesisTs = uint64(vm.envOr("ORACLE_GENESIS_TIMESTAMP", uint256(0)));
-        // Must equal the canonical hash of config/nti.v1.json (see infra/scripts/mainnet-preflight.py),
-        // otherwise OracleCommit.commit reverts with ConfigHashMismatch. No default on purpose.
+        // Must equal the canonical hash of config/nti.v1.json (printed by mainnet_preflight.py), otherwise
+        // OracleCommit.commit reverts with ConfigHashMismatch. No default on purpose.
         bytes32 initConfigHash = vm.envBytes32("INITIAL_CONFIG_HASH");
         require(initConfigHash != bytes32(0), "INITIAL_CONFIG_HASH required");
 
@@ -89,60 +97,38 @@ contract DeployMainnet is Script {
 
         // Step 1: NTIRegistry -> Staking -> ConfigRegistry -> OracleCommit -> Dispute
         NTIRegistry registry = new NTIRegistry(deployer, MAINNET_WETH);
+        if (ntiToken == address(0)) {
+            ntiToken = address(new NTIPrelaunchToken(deployer));
+        }
         Staking staking = new Staking(address(registry), deployer, pauser);
         ConfigRegistry configRegistry = new ConfigRegistry(deployer);
         OracleCommit oracleCommit =
             new OracleCommit(address(staking), address(configRegistry), genesisTs, deployer, pauser);
-        Dispute dispute = new Dispute(
-            address(registry), address(oracleCommit), address(staking), deployer, pauser
-        );
+        Dispute dispute = new Dispute(address(registry), address(oracleCommit), address(staking), deployer, pauser);
 
         // Step 2: InsuranceFund -> Grants -> FeeRouter -> BuybackAdapters -> NarrativeMarket -> BasketFactory -> KOLRegistry
         InsuranceFund insuranceFund = new InsuranceFund(deployer);
         Grants grants = new Grants(address(staking), deployer, keeper, pauser);
         FeeRouter feeRouter = new FeeRouter(
-            address(registry),
-            address(staking),
-            address(grants),
-            address(insuranceFund),
-            deployer,
-            keeper,
-            pauser
+            address(registry), address(staking), address(grants), address(insuranceFund), deployer, keeper, pauser
         );
 
-        BuybackAdapterV3 adapterV3 = new BuybackAdapterV3(
-            MAINNET_WETH, MAINNET_V3_SWAP_ROUTER02, MAINNET_V3_FACTORY, 3000
-        );
+        BuybackAdapterV3 adapterV3 =
+            new BuybackAdapterV3(MAINNET_WETH, MAINNET_V3_SWAP_ROUTER02, MAINNET_V3_FACTORY, 3000);
         BuybackAdapterV4 adapterV4 = new BuybackAdapterV4(
-            MAINNET_WETH,
-            MAINNET_UNIVERSAL_ROUTER,
-            MAINNET_PERMIT2,
-            MAINNET_STATE_VIEW,
-            MAINNET_PONS_V2_MEME_HOOK
+            MAINNET_WETH, MAINNET_UNIVERSAL_ROUTER, MAINNET_PERMIT2, MAINNET_STATE_VIEW, MAINNET_PONS_V2_MEME_HOOK
         );
 
-        NarrativeMarket narrativeMarket = new NarrativeMarket(
-            address(oracleCommit), address(staking), address(feeRouter), deployer, pauser
-        );
-        BasketFactory basketFactory = new BasketFactory(
-            address(registry), MAINNET_V3_SWAP_ROUTER02, address(feeRouter), deployer
-        );
+        NarrativeMarket narrativeMarket =
+            new NarrativeMarket(address(oracleCommit), address(staking), address(feeRouter), deployer, pauser);
+        BasketFactory basketFactory =
+            new BasketFactory(address(registry), MAINNET_V3_SWAP_ROUTER02, address(feeRouter), deployer);
         KOLRegistry kolRegistry = new KOLRegistry(deployer, attester);
 
-        // Step 3: NTITimelock -> NTIGovernor
-        address[] memory proposers = new address[](0);
-        address[] memory executors = new address[](1);
-        executors[0] = address(0);
-        NTITimelock timelock = new NTITimelock(proposers, executors, deployer);
-        NTIGovernor governor = new NTIGovernor(
-            staking, timelock, DEFAULT_VOTING_DELAY, DEFAULT_VOTING_PERIOD, 50_000e18
-        );
-
-        // Step 4: Wire dependencies, roles, and initial config (buybackAdapter stays address(0) until $NTI graduates)
+        // Step 3: wire dependencies and roles (buybackAdapter stays address(0) until the real token's pool is live).
+        // The registry is NOT frozen: the prelaunch token is swapped out by SwapTokenMainnet at launch.
         registry.setStaking(address(staking));
-        if (ntiToken != address(0)) {
-            registry.setNti(ntiToken);
-        }
+        registry.setNti(ntiToken);
 
         staking.grantRole(staking.SLASHER_ROLE(), address(oracleCommit));
         staking.grantRole(staking.SLASHER_ROLE(), address(dispute));
@@ -153,35 +139,16 @@ contract DeployMainnet is Script {
         oracleCommit.grantRole(oracleCommit.VALIDATOR_ROLE(), val2);
         oracleCommit.grantRole(oracleCommit.VALIDATOR_ROLE(), val3);
 
-        timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
-        timelock.grantRole(timelock.CANCELLER_ROLE(), address(governor));
-
         configRegistry.setConfig(initConfigHash, INITIAL_NARRATIVE_COUNT, 1);
 
-        // Production timings are the contract defaults (2h dispute window, 6h resolution, 7d cooldown, 48h
-        // settle timeout). Freeze them so no key or vote can shorten the safety windows later.
-        oracleCommit.lockTimings();
-        dispute.lockTimings();
-        staking.lockTimings();
-        narrativeMarket.lockTimings();
+        // Short windows, left unlocked so the admin can still adjust them.
+        oracleCommit.setTimings(COMMIT_DELAY, DISPUTE_WINDOW, INCOMPLETE_DELAY);
+        dispute.setResolutionWindow(DISPUTE_RESOLUTION_WINDOW);
+        staking.setCooldownDuration(UNSTAKE_COOLDOWN);
 
         vm.stopBroadcast();
 
-        _selfCheck(
-            registry,
-            staking,
-            oracleCommit,
-            dispute,
-            narrativeMarket,
-            timelock,
-            governor,
-            deployer,
-            pauser,
-            operator,
-            val1,
-            val2,
-            val3
-        );
+        _selfCheck(registry, staking, oracleCommit, dispute, deployer, pauser, operator, val1, val2, val3, ntiToken);
 
         d.registry = address(registry);
         d.ntiToken = ntiToken;
@@ -197,8 +164,6 @@ contract DeployMainnet is Script {
         d.narrativeMarket = address(narrativeMarket);
         d.basketFactory = address(basketFactory);
         d.kolRegistry = address(kolRegistry);
-        d.timelock = address(timelock);
-        d.governor = address(governor);
 
         _writeManifest(d);
     }
@@ -210,17 +175,17 @@ contract DeployMainnet is Script {
         Staking staking,
         OracleCommit oracleCommit,
         Dispute dispute,
-        NarrativeMarket narrativeMarket,
-        NTITimelock timelock,
-        NTIGovernor governor,
         address deployer,
         address pauser,
         address operator,
         address val1,
         address val2,
-        address val3
+        address val3,
+        address ntiToken
     ) internal view {
         require(registry.staking() == address(staking), "check: registry.staking");
+        require(registry.nti() == ntiToken, "check: registry.nti");
+        require(!registry.frozen(), "check: registry frozen");
         require(registry.owner() == deployer, "check: registry owner");
         require(staking.hasRole(staking.SLASHER_ROLE(), address(oracleCommit)), "check: slasher oracle");
         require(staking.hasRole(staking.SLASHER_ROLE(), address(dispute)), "check: slasher dispute");
@@ -232,15 +197,10 @@ contract DeployMainnet is Script {
         require(oracleCommit.hasRole(oracleCommit.VALIDATOR_ROLE(), val3), "check: validator 3");
         require(oracleCommit.hasRole(oracleCommit.PAUSER_ROLE(), pauser), "check: oracle pauser");
         require(!oracleCommit.hasRole(oracleCommit.OPERATOR_ROLE(), deployer), "check: deployer is operator");
-        require(oracleCommit.timingsLocked(), "check: oracle timings unlocked");
-        require(dispute.timingsLocked(), "check: dispute timings unlocked");
-        require(staking.timingsLocked(), "check: staking timings unlocked");
-        require(narrativeMarket.timingsLocked(), "check: market timings unlocked");
-        require(oracleCommit.DISPUTE_WINDOW() == 2 hours, "check: dispute window");
-        require(staking.COOLDOWN_DURATION() == 7 days, "check: cooldown");
-        require(timelock.hasRole(timelock.PROPOSER_ROLE(), address(governor)), "check: governor proposer");
-        require(timelock.hasRole(timelock.CANCELLER_ROLE(), address(governor)), "check: governor canceller");
-        require(timelock.getMinDelay() == 48 hours, "check: timelock delay");
+        require(oracleCommit.DISPUTE_WINDOW() == DISPUTE_WINDOW, "check: dispute window");
+        require(oracleCommit.COMMIT_DELAY() == COMMIT_DELAY, "check: commit delay");
+        require(staking.COOLDOWN_DURATION() == UNSTAKE_COOLDOWN, "check: cooldown");
+        require(!oracleCommit.timingsLocked(), "check: oracle timings locked");
     }
 
     /// @dev Test seam: under `forge script` the broadcaster is msg.sender; harnesses override it.
@@ -268,8 +228,9 @@ contract DeployMainnet is Script {
         vm.serializeAddress(key, "narrativeMarket", d.narrativeMarket);
         vm.serializeAddress(key, "basketFactory", d.basketFactory);
         vm.serializeAddress(key, "kolRegistry", d.kolRegistry);
-        vm.serializeAddress(key, "timelock", d.timelock);
-        vm.serializeAddress(key, "governor", d.governor);
+        // No governance on this deployment: the fields stay so readers keep one manifest shape.
+        vm.serializeAddress(key, "governor", address(0));
+        vm.serializeAddress(key, "timelock", address(0));
         vm.serializeAddress(key, "deployer", _broadcaster());
         vm.serializeUint(key, "chainId", block.chainid);
         vm.serializeUint(key, "deployedAtTimestamp", block.timestamp);

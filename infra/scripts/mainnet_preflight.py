@@ -4,9 +4,9 @@ Usage (from the repo root):
     uv run --directory services python ../infra/scripts/mainnet_preflight.py --env-file ../.env.mainnet [--stage deploy|services]
 
 Stages
-  deploy    before DeployMainnet: network, external dependencies, role wallets, Safe, config hash, token.
-  services  before starting the data plane on the VPS: log-capable RPC, Supabase (fresh and migrated),
-            X accounts including the validator pool, alerting and secrets. Run on the VPS checkout.
+  deploy    before DeployMainnet: network, external dependencies, role wallets, config hash, token.
+  services  on the VPS before the services run against mainnet: log-capable RPC, Supabase, X accounts,
+            secrets. (deploy-vps.sh runs it automatically when the host .env says CHAIN_ID=4663.)
   (default) both.
 
 Exit code 0 only when every blocking check passes. Warnings never block.
@@ -135,9 +135,6 @@ def stage_deploy(r: Report, rpc_url: str) -> None:
             "deployer, operator, keeper, attester and validators are pairwise distinct",
             "two role wallets share an address; every hot wallet must be its own key",
         )
-        pauser = addrs["PAUSER_ADDRESS"]
-        if pauser in signers:
-            r.fail("PAUSER_ADDRESS equals a hot wallet; it must be the Safe")
         for name, addr in addrs.items():
             if name == "PAUSER_ADDRESS":
                 continue
@@ -159,22 +156,14 @@ def stage_deploy(r: Report, rpc_url: str) -> None:
                 f"{key_env} derives to {derived}, not {addrs[role]}",
             )
 
-    print("4. Safe (PAUSER_ADDRESS)")
+    print("4. Pauser (PAUSER_ADDRESS)")
     pauser_raw = os.environ.get("PAUSER_ADDRESS", "")
-    if is_address(pauser_raw):
-        if not has_code(rpc_url, pauser_raw):
-            r.fail("PAUSER_ADDRESS is an EOA; deploy a Safe and use its address")
-        else:
-            try:
-                threshold = int(eth_call(rpc_url, pauser_raw, "0xe75235b8"), 16)  # getThreshold()
-                owners_raw = eth_call(rpc_url, pauser_raw, "0xa0e67e2b")  # getOwners()
-                owners = int(owners_raw[2 + 64 + 64 : 2 + 64 + 64 + 64], 16)
-                r.check(threshold >= 2, f"Safe threshold {threshold}/{owners}", f"Safe threshold {threshold} < 2")
-                r.check(owners >= 3, f"Safe has {owners} owners", f"Safe has {owners} owners, need at least 3")
-            except (RuntimeError, ValueError):
-                r.fail("PAUSER_ADDRESS has code but does not answer getThreshold()/getOwners(): not a Safe")
-    else:
+    if not is_address(pauser_raw):
         r.fail("PAUSER_ADDRESS missing or invalid")
+    elif pauser_raw.lower() == os.environ.get("DEPLOYER_ADDRESS", "").lower():
+        r.warn("PAUSER_ADDRESS is the deployer wallet; fine for launch, but a separate wallet limits the damage of one key")
+    else:
+        r.ok(f"PAUSER_ADDRESS {pauser_raw} (any wallet works; it can pause and unpause)")
 
     print("5. Config hash")
     cfg = load_config(CONFIG_FILE)
@@ -195,7 +184,7 @@ def stage_deploy(r: Report, rpc_url: str) -> None:
     print("6. $NTI token (optional before launch)")
     token = os.environ.get("NTI_TOKEN_ADDRESS", "")
     if not token:
-        r.warn("NTI_TOKEN_ADDRESS not set: deploy without it and run AttachTokenMainnet after launch")
+        r.ok("NTI_TOKEN_ADDRESS empty: the deploy creates the prelaunch token (pNTI); SwapTokenMainnet swaps in the real one")
     elif not is_address(token):
         r.fail("NTI_TOKEN_ADDRESS invalid")
     elif not has_code(rpc_url, token):
@@ -207,9 +196,9 @@ def stage_deploy(r: Report, rpc_url: str) -> None:
         r.check(
             supply == 10**9 * 10**18,
             "totalSupply 1,000,000,000",
-            f"totalSupply {supply / 10**18:,.0f} differs from 1,000,000,000: AttachTokenMainnet will refuse it",
+            f"totalSupply {supply / 10**18:,.0f} differs from 1,000,000,000: SwapTokenMainnet will refuse it",
         )
-        r.warn("transfer or creator tax cannot be read here: do the small-transfer test after attaching")
+        r.warn("transfer or creator tax cannot be read here: do a small transfer test")
 
 
 # -------------------------------------------------------------------------------------------- services
@@ -234,36 +223,27 @@ def stage_services(r: Report, rpc_url: str) -> None:
         r.fail("eth_getLogs failed even for 10 blocks; use a provider that serves logs")
     elif best < wanted:
         r.fail(
-            f"eth_getLogs works up to about {best} blocks but INDEXER_BATCH_BLOCKS={wanted}; "
-            f"lower it or change provider (blocks are ~0.1s on 4663, so tiny ranges cover seconds)"
+            f"eth_getLogs works up to about {best} blocks but INDEXER_BATCH_BLOCKS={wanted}. Blocks are ~0.1s, "
+            f"so a 10 block limit (Alchemy free tier, PublicNode) covers one second and the indexer cannot "
+            f"keep up. Upgrade the Alchemy key to pay-as-you-go (same key) or use a provider with a larger range"
         )
     else:
         r.ok(f"eth_getLogs served {best} blocks (INDEXER_BATCH_BLOCKS={wanted})")
     indexer_rpc = os.environ.get("INDEXER_RPC_URL", "")
     r.check(bool(indexer_rpc), "INDEXER_RPC_URL set", "INDEXER_RPC_URL not set (indexer would use the default RPC)")
 
-    print("8. Supabase (separate project, migrated, empty)")
+    print("8. Supabase (migrated)")
     url = os.environ.get("SUPABASE_URL", "").rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_KEY", "")
     if not url.startswith("https://") or not key:
         r.fail("SUPABASE_URL / SUPABASE_SERVICE_KEY missing")
     else:
-        headers = {"apikey": key, "Authorization": f"Bearer {key}", "Prefer": "count=exact"}
+        headers = {"apikey": key, "Authorization": f"Bearer {key}"}
         for table in REQUIRED_TABLES:
             resp = httpx.get(f"{url}/rest/v1/{table}?select=*&limit=1", headers=headers, timeout=30)
-            if resp.status_code != 200:
-                r.fail(f"table {table}: HTTP {resp.status_code} (run infra/scripts/apply_migrations.py)")
-                continue
-            total = int(resp.headers.get("content-range", "*/0").split("/")[-1] or 0)
-            if table == "epochs":
-                r.check(total == 0, "epochs is empty (fresh mainnet data plane)", f"epochs has {total} rows: this looks like the testnet database")
-            else:
-                r.ok(f"table {table} present")
-        testnet_env = os.environ.get("TESTNET_SUPABASE_URL", "")
-        if testnet_env and testnet_env.rstrip("/") == url:
-            r.fail("SUPABASE_URL equals TESTNET_SUPABASE_URL: mainnet must not share the testnet project")
+            r.check(resp.status_code == 200, f"table {table} present", f"table {table}: HTTP {resp.status_code}")
 
-    print("9. X accounts and omission check")
+    print("9. X accounts")
     accounts_path = Path(os.environ.get("X_ACCOUNTS_FILE", "secrets/x_accounts.json"))
     if not accounts_path.is_absolute():
         accounts_path = REPO_ROOT / accounts_path
@@ -271,23 +251,17 @@ def stage_services(r: Report, rpc_url: str) -> None:
         r.fail(f"{accounts_path} not found")
     else:
         data = json.loads(accounts_path.read_text(encoding="utf-8"))
-        lanes = data.get("primary_lanes", {})
-        lane_count = sum(len(lane.get("accounts", [])) for lane in lanes)
+        lane_count = sum(len(lane.get("accounts", [])) for lane in data.get("primary_lanes", []))
         pool = data.get("validator_pool", [])
-        r.check(lane_count >= 6, f"{lane_count} primary lane accounts", f"{lane_count} primary lane accounts, need at least 6")
-        r.check(len(pool) >= 3, f"{len(pool)} dedicated validator accounts", f"{len(pool)} validator accounts, need at least 3")
-    r.check(
-        os.environ.get("VALIDATOR_OMISSION_CHECK") == "1",
-        "VALIDATOR_OMISSION_CHECK=1",
-        "VALIDATOR_OMISSION_CHECK must be 1 on mainnet (the operator refuses to commit without it)",
-    )
+        r.check(lane_count >= 3, f"{lane_count} primary lane accounts", f"{lane_count} primary lane accounts, need at least 3")
+        if len(pool) < 3 or os.environ.get("VALIDATOR_OMISSION_CHECK") != "1":
+            r.warn("independent omission verification is off (needs 3 dedicated validator accounts and VALIDATOR_OMISSION_CHECK=1)")
 
     print("10. Alerting, classifier and web secrets")
-    r.check(
-        bool(os.environ.get("TELEGRAM_BOT_TOKEN")) and bool(os.environ.get("TELEGRAM_CHAT_ID")),
-        "Telegram alerts configured",
-        "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID missing: nobody would hear about an incident",
-    )
+    if not (os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")):
+        r.warn("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID missing: nobody would hear about an incident")
+    else:
+        r.ok("Telegram alerts configured")
     r.check(bool(os.environ.get("MIMO_API_KEY")), "MIMO_API_KEY set", "MIMO_API_KEY missing (classifier)")
     r.check(
         len(os.environ.get("SIWE_SESSION_SECRET", "")) >= 32,

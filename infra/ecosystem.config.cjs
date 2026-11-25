@@ -1,20 +1,12 @@
 /**
- * PM2 ecosystem for NTI. One file serves both networks:
+ * PM2 ecosystem for NTI on the VPS (one stack: the same apps serve testnet or mainnet depending on the host .env).
  *
- *   testnet (default)   apps named nti-*          checkout /home/ubuntu/apps/nti
- *   NTI_NETWORK=mainnet apps named nti-*-mainnet  checkout /home/ubuntu/apps/nti-mainnet
- *
- * APP_DIR overrides the checkout path. Mainnet must run from its own checkout with its own .env, Supabase
- * project and X accounts (see docs/MAINNET_DECISIONS.md); a dedicated VPS is recommended, but the suffix and
- * directory keep two stacks apart if they ever share a host.
+ * APP_DIR overrides the checkout path (default /home/ubuntu/apps/nti).
  *
  * Cron times are written for UTC epoch boundaries (00, 04, 08, 12, 16, 20 UTC) and shifted by the server's own
  * timezone, because PM2 evaluates cron expressions in local time. A WIB (UTC+7) host gets 3,7,11,15,19,23.
  */
-const NETWORK = process.env.NTI_NETWORK === "mainnet" ? "mainnet" : "testnet";
-const SUFFIX = NETWORK === "mainnet" ? "-mainnet" : "";
-const APP_DIR =
-  process.env.APP_DIR || (NETWORK === "mainnet" ? "/home/ubuntu/apps/nti-mainnet" : "/home/ubuntu/apps/nti");
+const APP_DIR = process.env.APP_DIR || "/home/ubuntu/apps/nti";
 const UTC_OFFSET_HOURS = -new Date().getTimezoneOffset() / 60;
 const EPOCH_HOURS = [0, 4, 8, 12, 16, 20]
   .map((h) => (((h + UTC_OFFSET_HOURS) % 24) + 24) % 24)
@@ -25,7 +17,7 @@ const RUN = `${APP_DIR}/infra/scripts/run-with-env.sh`;
 
 function app(name, dir, args, extra = {}) {
   return {
-    name: `${name}${SUFFIX}`,
+    name,
     cwd: `${APP_DIR}/${dir}`,
     script: RUN,
     args,

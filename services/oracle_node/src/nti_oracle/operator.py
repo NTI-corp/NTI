@@ -30,25 +30,6 @@ from nti_oracle.inputs import calculation_provenance, next_series_id, previous_e
 from nti_oracle.live_inputs import prepare_engine_posts
 from nti_oracle.node import CommitPayload, OperatorNode, ValidatorNode
 
-MAINNET_CHAIN_ID = 4663
-
-
-class OmissionCheckRequiredError(RuntimeError):
-    """Mainnet commits need independent omission verification."""
-
-
-def require_omission_check_on_mainnet(chain_id: int, omission_enabled: bool) -> None:
-    """Fail closed: on mainnet the validators must re-fetch a sample with their own X accounts.
-
-    Without it the operator alone decides which accounts were scraped, so a thin or biased scrape
-    could be published as the official index with nobody able to notice.
-    """
-    if chain_id == MAINNET_CHAIN_ID and not omission_enabled:
-        raise OmissionCheckRequiredError(
-            "VALIDATOR_OMISSION_CHECK=1 and three dedicated validator X accounts "
-            "are required on mainnet"
-        )
-
 
 class FetchEvidenceError(RuntimeError):
     """The target epoch has no usable, complete fetch-cycle evidence."""
@@ -197,7 +178,6 @@ async def prepare_commit(
         ENGINE_VERSION,
     )
     omission_enabled = os.environ.get("VALIDATOR_OMISSION_CHECK", "0") == "1"
-    require_omission_check_on_mainnet(chain_id, omission_enabled)
     provenance["omission_mode"] = "independent_pool" if omission_enabled else "disabled"
     mirror = SupabaseStorageMirror(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
     prior = await storage.select(

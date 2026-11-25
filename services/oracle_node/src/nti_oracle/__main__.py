@@ -88,6 +88,16 @@ def _parse_dt_unix(iso_str: str) -> int:
     return int(datetime.fromisoformat(cleaned).timestamp())
 
 
+def _epochs_to_scan(last_processed_epoch: int, mature_epoch: int) -> range:
+    """Epochs that may hold fetch evidence.
+
+    A chain that has never committed starts at the newest mature epoch: scanning from epoch 1 would
+    walk more than a hundred thousand epochs.
+    """
+    start = mature_epoch if last_processed_epoch == 0 else last_processed_epoch + 1
+    return range(start, mature_epoch + 1)
+
+
 def _due_operator_epoch(
     block_timestamp: int,
     genesis_timestamp: int,
@@ -180,7 +190,7 @@ async def _run_operator(args: argparse.Namespace, cfg: NTIConfig) -> dict[str, A
         else:
             ready_epochs: set[int] = set()
             min_success_ratio = float(os.environ.get("FETCHER_MIN_SUCCESS_RATIO", "0.95"))
-            for epoch_id in range(state.last_processed_epoch + 1, mature_epoch + 1):
+            for epoch_id in _epochs_to_scan(state.last_processed_epoch, mature_epoch):
                 epoch_start = state.genesis_timestamp + epoch_id * cfg.epoch_seconds
                 try:
                     await require_complete_fetch_evidence(

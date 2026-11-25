@@ -1,26 +1,15 @@
 #!/usr/bin/env bash
-# Sync the checkout and (re)register the PM2 apps for one network.
-#
-#   testnet (default):  bash infra/scripts/deploy-vps.sh
-#   mainnet:            NTI_NETWORK=mainnet bash infra/scripts/deploy-vps.sh
-#
-# Mainnet differs in three ways: it lives in its own checkout and .env, its PM2 apps carry a "-mainnet"
-# suffix, and it refuses to start anything until the services preflight passes.
+# Sync the checkout and (re)register the PM2 apps. One stack: after the cutover the same host, database and
+# project simply run against mainnet (CHAIN_ID=4663 in the host .env); see MAINNET.md.
 set -euo pipefail
 
 export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-NETWORK="${NTI_NETWORK:-testnet}"
-case "$NETWORK" in
-  testnet) SUFFIX=""; DEFAULT_DIR="/home/ubuntu/apps/nti"; ENV_EXAMPLE="infra/.env.example" ;;
-  mainnet) SUFFIX="-mainnet"; DEFAULT_DIR="/home/ubuntu/apps/nti-mainnet"; ENV_EXAMPLE="infra/mainnet.env.example" ;;
-  *) echo "NTI_NETWORK must be testnet or mainnet (got '$NETWORK')" >&2; exit 2 ;;
-esac
-
-APP_DIR="${APP_DIR:-$DEFAULT_DIR}"
+APP_DIR="${APP_DIR:-/home/ubuntu/apps/nti}"
 REPO_URL="${REPO_URL:-https://github.com/NTI-corp/NTI.git}"
 BRANCH="${BRANCH:-main}"
-export NTI_NETWORK="$NETWORK" APP_DIR
+ENV_EXAMPLE="infra/.env.example"
+export APP_DIR
 
 mkdir -p "$(dirname "$APP_DIR")"
 
@@ -52,32 +41,27 @@ if command -v uv >/dev/null 2>&1; then
   (cd "$APP_DIR/services" && uv sync --all-packages)
 fi
 
-if [ "$NETWORK" = "mainnet" ]; then
-  # Fail closed: nothing mainnet starts on an environment that has not passed the preflight.
-  if ! (cd "$APP_DIR/services" && uv run python ../infra/scripts/mainnet_preflight.py \
-        --env-file ../.env --stage services); then
+# On mainnet, check the host before starting anything: a log-capable RPC, Supabase, secrets.
+if grep -qE '^CHAIN_ID=4663$' "$APP_DIR/.env" 2>/dev/null; then
+  if ! (cd "$APP_DIR/services" && uv run python ../infra/scripts/mainnet_preflight.py         --env-file ../.env --stage services); then
     echo "Mainnet services preflight failed; PM2 apps were not started or reloaded." >&2
-    exit 1
-  fi
-  if [ ! -f "$APP_DIR/contracts/deployments/4663.json" ]; then
-    echo "contracts/deployments/4663.json is missing: deploy the contracts and commit the manifest first." >&2
     exit 1
   fi
 fi
 
 APP_FILE="$APP_DIR/infra/ecosystem.config.cjs"
-OP="nti-oracle-operator${SUFFIX}"
+OP="nti-oracle-operator"
 
 if command -v pm2 >/dev/null 2>&1 && grep -qE '^SUPABASE_URL=https://' "$APP_DIR/.env"; then
   # Indexer daemon: restart gracefully if present.
-  if pm2 describe "nti-indexer${SUFFIX}" >/dev/null 2>&1; then
-    pm2 restart "nti-indexer${SUFFIX}" --update-env
+  if pm2 describe "nti-indexer" >/dev/null 2>&1; then
+    pm2 restart "nti-indexer" --update-env
   else
-    pm2 start "$APP_FILE" --only "nti-indexer${SUFFIX}" --update-env
+    pm2 start "$APP_FILE" --only "nti-indexer" --update-env
   fi
   # Ensure the fetcher cron is registered without interrupting an in-flight 4h scrape.
-  if ! pm2 describe "nti-fetcher${SUFFIX}" >/dev/null 2>&1; then
-    pm2 start "$APP_FILE" --only "nti-fetcher${SUFFIX}" --update-env
+  if ! pm2 describe "nti-fetcher" >/dev/null 2>&1; then
+    pm2 start "$APP_FILE" --only "nti-fetcher" --update-env
   fi
   # The operator is a daemon that restarts itself between runs when the checkout moves to a new commit,
   # so a deploy must not kill it while it is committing an epoch. Start it only when it is not running.
@@ -88,11 +72,11 @@ if command -v pm2 >/dev/null 2>&1 && grep -qE '^SUPABASE_URL=https://' "$APP_DIR
   # Cron-driven jobs: re-register so schedule changes in the ecosystem file take effect. They are
   # idempotent (they exit early when there is nothing to do), so the immediate first run is harmless.
   for base in nti-oracle-validators nti-keeper nti-monitor nti-discovery nti-kol-harvest nti-purge; do
-    app="${base}${SUFFIX}"
+    app="$base"
     pm2 delete "$app" >/dev/null 2>&1 || true
     pm2 start "$APP_FILE" --only "$app" --update-env
   done
   pm2 save
 fi
 
-echo "NTI $NETWORK sync complete at $APP_DIR"
+echo "NTI sync complete at $APP_DIR"

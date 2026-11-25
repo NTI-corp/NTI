@@ -1,4 +1,4 @@
-"""Mainnet tooling that ships as scripts: SDK wiring from the manifest and the migration planner."""
+"""Mainnet tooling that ships as scripts: SDK wiring from the manifest and the cutover helpers."""
 
 from __future__ import annotations
 
@@ -59,24 +59,30 @@ def test_wire_rejects_a_manifest_with_a_malformed_address() -> None:
         wire.rewrite(source, bad)
 
 
-def test_migration_plan_orders_pending_and_flags_changed_files(tmp_path: Path) -> None:
-    mig = load("apply_migrations")
-    (tmp_path / "20260101_a.sql").write_text("select 1;")
-    (tmp_path / "20260102_b.sql").write_text("select 2;")
-    (tmp_path / "20260103_c.sql").write_text("select 3;")
-    files = mig.migration_files(tmp_path)
-    assert [f.name for f in files] == ["20260101_a.sql", "20260102_b.sql", "20260103_c.sql"]
-
-    applied = {"20260101_a.sql": mig.digest(files[0]), "20260102_b.sql": "stale-hash"}
-    pending, changed = mig.plan(files, applied)
-    assert [p.name for p in pending] == ["20260103_c.sql"]
-    assert changed == ["20260102_b.sql"]
+def test_cutover_clears_chain_tables_and_keeps_the_reusable_ones() -> None:
+    cutover = load("cutover_to_mainnet")
+    tables = ["epochs", "kols", "posts", "classifications", "chain_events"]
+    tables += ["narrative_epoch", "tokens"]
+    tables += ["fetch_cycle_runs", "kol_contribution", "markets", "nti_schema_migrations"]
+    assert cutover.tables_to_clear(tables) == sorted(
+        ["epochs", "chain_events", "narrative_epoch", "tokens", "kol_contribution", "markets"]
+    )
 
 
-def test_repository_migrations_have_unique_sortable_names() -> None:
-    mig = load("apply_migrations")
-    names = [p.name for p in mig.migration_files()]
-    assert names == sorted(names) and len(names) == len(set(names)) and names
+def test_cutover_replaces_only_the_wanted_env_keys() -> None:
+    cutover = load("cutover_to_mainnet")
+    before = "\n".join(["CHAIN_ID=46630", "SUPABASE_URL=https://x.supabase.co", "OPERATOR_PRIVATE_KEY=old"])
+    mainnet = {
+        "CHAIN_ID": "4663",
+        "OPERATOR_PRIVATE_KEY": "new",
+        "RPC_URL_MAINNET": "https://rpc",
+        "SUPABASE_URL": "ignored",
+    }
+    after = cutover.parse_env(cutover.apply_env_updates(before, mainnet))
+    assert after["CHAIN_ID"] == "4663"
+    assert after["OPERATOR_PRIVATE_KEY"] == "new"
+    assert after["RPC_URL_MAINNET"] == "https://rpc"
+    assert after["SUPABASE_URL"] == "https://x.supabase.co"  # not in the allowlist: untouched
 
 
 def test_mainnet_env_example_lists_every_variable_the_preflight_requires() -> None:
@@ -87,6 +93,6 @@ def test_mainnet_env_example_lists_every_variable_the_preflight_requires() -> No
     required = set(preflight.ROLE_ENVS) | set(preflight.KEY_FOR_ROLE.values())
     required |= {"RPC_URL_MAINNET", "SUPABASE_URL", "SUPABASE_SERVICE_KEY"}
     required |= {"VALIDATOR_OMISSION_CHECK"}
-    required |= {"SIWE_SESSION_SECRET", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "MIMO_API_KEY"}
+    required |= {"SIWE_SESSION_SECRET", "MIMO_API_KEY"}
     assert required <= keys, sorted(required - keys)
     assert json.dumps(sorted(keys))  # parses
