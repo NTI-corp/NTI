@@ -1,6 +1,6 @@
 # NTI Mainnet Runbook (Robinhood Chain 4663)
 
-Status: **code complete, not deployed.** Nothing here has been broadcast to mainnet. Why each choice was made:
+Status: **deployed on mainnet (chain 4663) on 2026-11-25**; addresses in `contracts/deployments/4663.json`. The indexer and discovery wait for a log-capable RPC plan (see "What you prepare"); finish with `mainnet_launch.py --go --from cutover` once the Alchemy plan is upgraded. Why each choice was made:
 `docs/MAINNET_DECISIONS.md`. Evidence list: `docs/MAINNET_LAUNCH_CHECKLIST.md`. How the pipeline behaves and how
 to recover it: `docs/TESTNET_OPERATIONS.md`.
 

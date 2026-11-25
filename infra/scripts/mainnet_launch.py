@@ -186,9 +186,9 @@ def main() -> int:
         vps(script, vps_key, vps_host)
 
     if "web" in todo:
-        web = REPO / "apps" / "web"
-        sh(f'echo 4663 | npx vercel env add NEXT_PUBLIC_CHAIN_ID production --force', cwd=web)
-        sh("npx vercel --prod --yes", cwd=web)
+        # The repository root is the linked Vercel project (its Root Directory setting points at apps/web).
+        sh("echo 4663 | npx vercel env add NEXT_PUBLIC_CHAIN_ID production --force", cwd=REPO)
+        sh("npx vercel --prod --yes", cwd=REPO)
 
     if "final" in todo:
         time.sleep(5)
