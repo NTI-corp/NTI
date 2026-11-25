@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from statistics import median
@@ -127,10 +128,15 @@ async def retier(
     storage: Storage,
     now: datetime,
     *,
-    max_tier1: int = 250,
-    max_tier2: int = 400,
+    max_tier1: int | None = None,
+    max_tier2: int | None = None,
 ) -> int:
     """Move KOLs between poll tiers from 7d post counts while capping Tier 1/2 X budget."""
+    # Defaults keep the daily X load inside 8 accounts x 800 requests with room for retries.
+    if max_tier1 is None:
+        max_tier1 = int(os.environ.get("KOL_MAX_TIER1", "200"))
+    if max_tier2 is None:
+        max_tier2 = int(os.environ.get("KOL_MAX_TIER2", "300"))
     since = (now - timedelta(days=7)).isoformat()
     posts = await storage.select("posts", columns="user_id", filters={"created_at": f"gte.{since}"})
     counts: dict[int, int] = {}
