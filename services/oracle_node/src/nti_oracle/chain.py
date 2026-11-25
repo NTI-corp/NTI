@@ -52,17 +52,31 @@ class OracleCommitClient:
         chain_id: int,
         timeout: float = 30.0,
     ) -> None:
-        self._rpc_url = rpc_url
+        # A comma-separated list is an ordered fallback chain: the first URL is the primary.
+        self._rpc_urls = [u.strip() for u in rpc_url.split(",") if u.strip()]
+        self._rpc_url = self._rpc_urls[0]
         self._contract = to_checksum_address(contract_address)
         self._chain_id = int(chain_id)
         self._timeout = timeout
 
     async def _rpc(self, method: str, params: list[Any]) -> Any:
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.post(self._rpc_url, json=payload)
-            resp.raise_for_status()
-            body = resp.json()
+        body: dict[str, Any] | None = None
+        last_error: Exception | None = None
+        for url in self._rpc_urls:
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    resp = await client.post(url, json=payload)
+                    resp.raise_for_status()
+                    body = resp.json()
+                break
+            except (httpx.HTTPError, ValueError) as exc:  # transport, 4xx/5xx, rate limit, bad body
+                last_error = exc
+        if body is None:
+            raise ChainRpcError(
+                f"RPC {method} failed on every endpoint: {last_error}"
+            ) from last_error
+        # A JSON-RPC error is a verdict from a working node, not an outage: never retried elsewhere.
         if "error" in body and body["error"] is not None:
             raise ChainRpcError(f"RPC {method} error: {body['error']}")
         return body.get("result")

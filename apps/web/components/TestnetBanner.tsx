@@ -28,7 +28,9 @@ export function TestnetBanner() {
           <FlaskConical className="h-3 w-3" aria-hidden="true" />
           {isMainnet ? "Pre-freeze registry" : "Testnet · test token"}
           <span className="hidden text-[#71717A] normal-case tracking-normal sm:inline">
-            Staking, markets and disputes use tNTI until the live $NTI address is locked.
+            {isMainnet
+              ? "Staking, markets and disputes open once the $NTI contract is attached and the registry is frozen."
+              : "Staking, markets and disputes use tNTI until the live $NTI address is locked."}
           </span>
         </span>
         <span className="text-[#71717A] tabular-nums">Chain {chainId}</span>
