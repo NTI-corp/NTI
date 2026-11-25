@@ -57,3 +57,6 @@ Thumbs.db
 
 # forge test scratch manifest
 contracts/deployments/*.test.json
+
+# per-deployment Standard JSON inputs written by verify_contracts.py
+contracts/verify/

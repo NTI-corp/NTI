@@ -48,6 +48,27 @@ Put `INDEXER_START_BLOCK` in `.env.mainnet`. Commit `contracts/deployments/4663.
 (CI runs `mainnet_wire.py --check`, so the SDK cannot drift from the manifest). `mainnet_verify.py` must show no
 FAIL: roles, config hash, the launch windows and that the admin wallet administers every contract.
 
+## 2b. Verify the source (Sourcify exact match, Blockscout)
+
+Right after the deploy, from the same commit that deployed:
+
+```powershell
+python infra/scripts/verify_contracts.py --chain 4663 --broadcast contracts/broadcast/DeployMainnet.s.sol/4663/run-latest.json --blockscout https://robinhoodchain.blockscout.com
+```
+
+It verifies every contract of the deploy (each implementation, each proxy, the basket implementation, the token and
+both buyback adapters) on **Sourcify** and only passes when Sourcify reports `exact_match` for both the creation and
+the runtime bytecode. For **Blockscout** it tries the API; Blockscout instances sit behind a bot challenge that
+refuses scripts, so it also writes a Standard JSON input per contract to `contracts/verify/4663/` for the explorer's
+"Verify & Publish > Standard JSON input" form (compiler 0.8.26, EVM cancun, optimizer on, 200 runs). Blockscout also
+recognises ERC-1967 proxies by itself, so once the implementation is verified the proxy shows the real ABI.
+
+Exact matches rest on a reproducible build, which is set in `contracts/foundry.toml`: solc 0.8.26, optimizer 200 runs,
+`via_ir`, EVM cancun, the metadata hash kept in the bytecode (`bytecode_hash = "ipfs"`), and OpenZeppelin 5.4.0
+vendored under `contracts/lib` so source paths are clean. Do not change any of it between the deploy and the
+verification, and verify upgrades the same way (the script reads any broadcast file). The upgrade flow was proven
+this way on testnet: implementation, proxy and the upgraded implementation all reported `exact_match` on Sourcify.
+
 ## 3. Cutover (VPS, Supabase, Vercel)
 
 On the VPS, once the manifest is pulled (the normal deploy does it):

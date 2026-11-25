@@ -16,6 +16,10 @@ mainnet. **yours** needs a wallet, an account or a decision. Procedure: `MAINNET
 - [x] **built** `mainnet_wire.py` writes the addresses into the SDK; CI fails if they drift.
 - [ ] **yours** `mainnet_verify.py` reports no FAIL.
 
+## Source verification
+- [x] **built** Reproducible build (metadata hash in bytecode, vendored OpenZeppelin 5.4.0) and `verify_contracts.py`, which requires `exact_match` on Sourcify and writes Standard JSON inputs for Blockscout. Proven on testnet for an implementation, a proxy and an upgraded implementation.
+- [ ] **yours** Run it right after the mainnet deploy; upload the Standard JSON files on Blockscout if its API refuses scripts.
+
 ## Upgrades
 - [x] **built** All contracts are UUPS proxies, baskets are beacon proxies; `UpgradeMainnet.s.sol` upgrades one contract (or all baskets); the manifest lists proxies and implementations; `mainnet_verify.py` flags an implementation that changed. Covered by `Upgradeability.t.sol`.
 - [ ] **yours** Treat the deployer key as the key to every contract: hardware wallet if possible.
