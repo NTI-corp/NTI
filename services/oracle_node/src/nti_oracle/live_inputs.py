@@ -38,7 +38,7 @@ async def prepare_engine_posts(
     observation_cutoff_unix: int,
     repo_root: Path,
 ) -> tuple[list[EnginePost], str]:
-    model = os.environ.get("MIMO_MODEL", "mimo-v2.6-pro")
+    model = os.environ.get("MIMO_MODEL", "mimo-v2.6-flash")
     prompt = os.environ.get("CLASSIFIER_PROMPT_VERSION", "v2")
     lower = iso(boundary_unix - cfg.lookback_hours * 3600)
     kol_by_id = {k.user_id: k for k in kols}

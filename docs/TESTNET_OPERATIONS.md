@@ -100,4 +100,4 @@ uv run --directory services python ../infra/scripts/testnet_healthcheck.py --env
 * Only 8 X accounts and no validator pool, so independent omission checks stay disabled
   (`VALIDATOR_OMISSION_CHECK=0`). Mainnet needs at least 3 dedicated validator accounts.
 * An epoch whose fetch stays below 95% after all recovery rounds is still published as `incomplete`.
-* The classifier in production is MiMo (`MIMO_MODEL`); the Gemini adapter exists but is not on the live path.
+* The classifier in production is MiMo `mimo-v2.6-flash` (`MIMO_MODEL`); the Gemini adapter exists but is not on the live path.

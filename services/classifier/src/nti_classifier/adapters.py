@@ -182,7 +182,7 @@ class MiMoAdapter:
             or os.environ.get("MIMO_API_BASE_URL")
             or "https://token-plan-sgp.xiaomimimo.com/v1"
         ).rstrip("/")
-        self._model = model or os.environ.get("MIMO_MODEL", "mimo-v2.6-pro")
+        self._model = model or os.environ.get("MIMO_MODEL", "mimo-v2.6-flash")
         self.version = self._model
         self._client = client
         self._timeout = timeout

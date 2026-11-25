@@ -33,7 +33,7 @@ jobs:
               printf 'TELEGRAM_BOT_TOKEN=%s\nTELEGRAM_CHAT_ID=%s\n' "$TELEGRAM_BOT_TOKEN" "$TELEGRAM_CHAT_ID"
             fi
             if [ -n "$MIMO_API_KEY" ]; then
-              printf 'MIMO_API_KEY=%s\nMIMO_API_BASE_URL=https://token-plan-sgp.xiaomimimo.com/v1\nMIMO_MODEL=mimo-v2.6-pro\n' "$MIMO_API_KEY"
+              printf 'MIMO_API_KEY=%s\nMIMO_API_BASE_URL=https://token-plan-sgp.xiaomimimo.com/v1\nMIMO_MODEL=mimo-v2.6-flash\n' "$MIMO_API_KEY"
             fi
           } | ssh -i ~/.ssh/deploy_key -o BatchMode=yes "${VPS_USER}@${VPS_HOST}" \
             'f=/home/ubuntu/apps/nti/.env; touch "$f"; while IFS= read -r line; do [ -z "$line" ] && continue; k=${line%%=*}; { grep -v "^$k=" "$f" || true; } > "$f.tmp"; printf "%s\n" "$line" >> "$f.tmp"; mv "$f.tmp" "$f"; done; chmod 600 "$f"'
