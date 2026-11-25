@@ -169,8 +169,8 @@ export const NAV_ITEMS: NavItem[] = [
             lottieSrc: "/assets/lottie/defi.json",
           },
           {
-            label: "AI Agents Vault",
-            href: "/baskets/ai-agents",
+            label: "RWA Basket",
+            href: "/baskets/3",
             icon: "ai",
             lottieSrc: "/assets/lottie/ai.json",
           },

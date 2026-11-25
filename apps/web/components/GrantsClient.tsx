@@ -112,7 +112,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
           kicker="Ecosystem grants"
           title={awaitingDeployment ? "Grant data unavailable" : "No grant rounds yet"}
           text={awaitingDeployment ? "The grants contract did not return current round data." : "Awaiting a funded round on Robinhood Chain."}
-          steps={["Governance opens a funded round", "Builders submit proposals", "Stakers vote, winners get paid"]}
+          steps={["The keeper opens a round once fees fund it", "Builders submit proposals", "Stakers vote, winners get paid"]}
         />
       </div>
     );

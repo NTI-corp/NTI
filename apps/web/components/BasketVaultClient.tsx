@@ -322,7 +322,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                 Whitelisted Constituents (Uniswap V3 TWAP Priced)
               </h2>
               <p className="mt-0.5 text-xs text-[#71717A]">
-                Every token requires governance whitelist approval, ≥20 ETH V3 liquidity, and 30-minute TWAP cardinality.
+                Every token requires admin whitelist approval, ≥20 ETH V3 liquidity, and 30-minute TWAP cardinality.
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -342,7 +342,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                         colSpan={4}
                         className="px-4 py-8 text-center font-sans text-xs text-[#71717A]"
                       >
-                        Allocation pending on-chain setup. Governance must configure whitelisted V3 tokens via{" "}
+                        Allocation pending on-chain setup. The admin must configure whitelisted V3 tokens via{" "}
                         <span className="font-mono text-[#F5F5F7]">setAllocation()</span> before deposits open.
                       </td>
                     </tr>

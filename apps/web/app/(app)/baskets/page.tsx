@@ -33,7 +33,7 @@ async function BasketsContent() {
           Baskets
         </h1>
         <p className="mt-0.5 max-w-2xl text-xs text-[#71717A]">
-          Each basket holds governance-whitelisted tokens with Uniswap V3 pools (≥20 ETH depth, 30-minute TWAP cardinality verified). Max 40% single-token weight, 20% daily turnover cap, 0.50% annual fee routed to FeeRouter.
+          Each basket holds admin-whitelisted tokens with Uniswap V3 pools (≥20 ETH depth, 30-minute TWAP cardinality verified). Max 40% single-token weight, 20% daily turnover cap, 0.50% annual fee routed to FeeRouter.
         </p>
       </div>
 
@@ -43,7 +43,7 @@ async function BasketsContent() {
           kicker="Narrative baskets"
           title={awaitingDeployment ? "Vault data unavailable" : "No baskets deployed"}
           text="Baskets hold whitelisted tokens with deep Uniswap V3 pools and rebalance on the keeper schedule."
-          steps={["Governance whitelists tokens", "Factory deploys the vault", "Deposit ETH, receive basket shares"]}
+          steps={["Admin whitelists tokens", "Factory deploys the vault", "Deposit ETH, receive basket shares"]}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -120,7 +120,7 @@ async function BasketsContent() {
                       </div>
                     ) : (
                       <div className="mt-3 border border-[#1F1F23] bg-[#0D0D0E] px-3 py-2 text-[11px] text-[#71717A]">
-                        Constituent allocation pending governance setup
+                        Constituent allocation pending admin setup
                       </div>
                     )}
                   </div>
