@@ -607,7 +607,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
       </div>
 
       {addresses.governor && <GovernorPanel proposals={proposals} />}
-      <KolRegistryPanel />
+      {isTestnet && <KolRegistryPanel />}
     </div>
   );
 }

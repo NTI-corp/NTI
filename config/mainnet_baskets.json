@@ -1,0 +1,18 @@
+{
+  "uniswapV3Factory": "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
+  "fees": [500, 3000, 10000],
+  "baskets": [
+    {
+      "narrativeId": 3,
+      "name": "NTI RWA Basket",
+      "symbol": "nRWA",
+      "tokens": [
+        "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C",
+        "0x6330D8C3178a418788dF01a47479c0ce7CCF450b",
+        "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+        "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3"
+      ]
+    }
+  ]
+}

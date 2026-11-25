@@ -9,6 +9,28 @@ testnet to mainnet in one cutover. Only the wallets are new. There is no Timeloc
 timing; the admin wallet adjusts everything directly. The token is a prelaunch stand-in (`pNTI`) until the real
 $NTI launches on Pons.
 
+## Launch in one command
+
+Once the wallets are funded and `.env.mainnet` is filled, nothing else is manual:
+
+```powershell
+uv run --directory services python ../infra/scripts/mainnet_launch.py        # rehearsal: preflight + deploy simulation
+uv run --directory services python ../infra/scripts/mainnet_launch.py --go   # the launch
+```
+
+`--go` runs preflight, deploy, SDK wiring (plus `INDEXER_START_BLOCK`), the on-chain audit, basket setup, Sourcify
+and Blockscout verification, commit and push of the manifest, the VPS cutover (database switch, `.env` switch, PM2
+restart, token discovery seeded over the last 2 million blocks) and the Vercel switch, then audits again. Every step
+is idempotent: after a failure fix the cause and resume with `--go --from <step>`. Sections 1 to 3 below describe
+what each step does and how to run it alone.
+
+What goes live with it: the oracle, staking, the Heatmap and Radar (token discovery runs by itself), narrative
+markets (anyone can open one once an epoch is final), grants (the keeper opens rounds when fees fund them) and the
+**RWA basket** (`SetupBasketsMainnet`, config in `config/mainnet_baskets.json`: it keeps only tokens whose Uniswap V3
+WETH pool passes the basket's own liquidity and TWAP checks, and is not created with fewer than three). Baskets for
+other narratives are added by listing tokens in that file and rerunning `--from baskets`. KOL wallet registration is
+hidden on mainnet: it needs a verified X handle and no automated proof exists yet, so it stays a testnet feature.
+
 ## What you prepare
 
 | Item | Notes |
