@@ -62,7 +62,7 @@ KEY_FOR_ROLE = {
 MIN_DEPLOYER_ETH = 0.0015
 MIN_OPERATIONAL_ETH = 0.001
 REQUIRED_TABLES = ("epochs", "kols", "posts", "fetch_cycle_runs", "classifications", "tokens")
-LOG_PROBE_RANGES = (10, 100, 500, 2000)
+LOG_PROBE_RANGES = (10, 90, 500, 2000)
 
 
 class Report:
@@ -210,12 +210,15 @@ def stage_deploy(r: Report, rpc_url: str) -> None:
 
 def stage_services(r: Report, rpc_url: str) -> None:
     print("7. Log-capable RPC (indexer and discovery read historical logs)")
-    head = int(str(rpc(rpc_url, "eth_blockNumber", [])), 16)
+    # The indexer and discovery read logs through INDEXER_RPC_URL, which may be a different (free) provider
+    # than the one the operator uses for plain reads.
+    logs_url = os.environ.get("INDEXER_RPC_URL") or rpc_url
+    head = int(str(rpc(logs_url, "eth_blockNumber", [])), 16)
     best = 0
     for span in LOG_PROBE_RANGES:
         try:
             rpc(
-                rpc_url,
+                logs_url,
                 "eth_getLogs",
                 [{"fromBlock": hex(max(0, head - span)), "toBlock": hex(head), "address": EXTERNALS["WETH"]}],
             )
@@ -229,7 +232,8 @@ def stage_services(r: Report, rpc_url: str) -> None:
         r.fail(
             f"eth_getLogs works up to about {best} blocks but INDEXER_BATCH_BLOCKS={wanted}. Blocks are ~0.1s, "
             f"so a 10 block limit (Alchemy free tier, PublicNode) covers one second and the indexer cannot "
-            f"keep up. Upgrade the Alchemy key to pay-as-you-go (same key) or use a provider with a larger range"
+            f"keep up. Point INDEXER_RPC_URL at https://robinhood.drpc.org (free, 100 blocks) and set "
+            f"INDEXER_BATCH_BLOCKS=90, or use a paid provider with a larger range"
         )
     else:
         r.ok(f"eth_getLogs served {best} blocks (INDEXER_BATCH_BLOCKS={wanted})")

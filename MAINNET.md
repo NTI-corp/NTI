@@ -1,6 +1,6 @@
 # NTI Mainnet Runbook (Robinhood Chain 4663)
 
-Status: **deployed on mainnet (chain 4663) on 2026-11-25**; addresses in `contracts/deployments/4663.json`. The indexer and discovery wait for a log-capable RPC plan (see "What you prepare"); finish with `mainnet_launch.py --go --from cutover` once the Alchemy plan is upgraded. Why each choice was made:
+Status: **deployed on mainnet (chain 4663) on 2026-11-25**; addresses in `contracts/deployments/4663.json`. The indexer and discovery run on the free dRPC endpoint (see "What you prepare"). Why each choice was made:
 `docs/MAINNET_DECISIONS.md`. Evidence list: `docs/MAINNET_LAUNCH_CHECKLIST.md`. How the pipeline behaves and how
 to recover it: `docs/TESTNET_OPERATIONS.md`.
 
@@ -33,7 +33,7 @@ markets (anyone can open one once an epoch is final), grants (the keeper opens r
 | Item | Notes |
 | --- | --- |
 | 6 new wallets | **deployer** (also admin and pauser), **operator**, **keeper** (also attester), **validators 1 to 3**. Only the first three send transactions and need gas: about 0.002 ETH on the deployer (the whole suite costs roughly 0.0006 ETH to deploy at today's 0.02 gwei, from `eth_estimateGas` on mainnet), 0.003 ETH on the operator (normal use is about 0.0002 ETH a day, so a couple of weeks) and 0.001 ETH on the keeper. About 0.006 ETH in total; Telegram alerts at 0.001 ETH, refill then. A spike in Ethereum data fees would drain the operator faster. Keep operator and keeper separate: they send transactions at the same time and would collide on nonces |
-| Alchemy plan | The existing key already serves mainnet, but the free tier allows `eth_getLogs` over only 10 blocks (about 1 second). The indexer cannot keep up on that. Upgrade the same key to pay-as-you-go before the cutover |
+| RPC for logs | Free is enough. The Alchemy free tier allows `eth_getLogs` over only 10 blocks, so the indexer and discovery read logs through `https://robinhood.drpc.org` (public, no key, 100 blocks per call, about 1.3 calls per second): `INDEXER_RPC_URL`, `DISCOVERY_RPC_URL`, `INDEXER_BATCH_BLOCKS=90`, `DISCOVERY_LOG_RANGE=90`. Plain reads stay on the Alchemy key. At 10 blocks per second the indexer needs one call every 10 seconds, so a free tier is not the limit. A paid plan only makes the first catch-up faster |
 | `.env.mainnet` | Copy `infra/mainnet.env.example`, fill the wallets and the Alchemy URL |
 
 ## 1. Check, simulate, deploy

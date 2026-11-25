@@ -40,7 +40,7 @@ MANIFEST = CONTRACTS / "deployments" / "4663.json"
 APP_DIR = "/home/ubuntu/apps/nti"
 STEPS = ("preflight", "deploy", "wire", "audit", "baskets", "sources", "publish", "cutover", "web", "final")
 EXPLORER = "https://robinhoodchain.blockscout.com"
-SEED_LOOKBACK_BLOCKS = 2_000_000  # about two days at 0.1 s blocks; Pons launches older than that are not tradable seeds
+SEED_LOOKBACK_BLOCKS = 432_000  # 12 hours at 0.1 s blocks; with a free RPC (100 blocks per call) this takes about an hour
 
 
 def parse_env(path: Path) -> dict[str, str]:
@@ -180,7 +180,7 @@ def main() -> int:
             f"uv run --directory services --with 'psycopg[binary]' python ../infra/scripts/cutover_to_mainnet.py "
             f"--mainnet-env {remote_env} --yes; fi; "
             f"bash infra/scripts/deploy-vps.sh; "
-            f"uv run --directory services python -m nti_discovery --lookback {SEED_LOOKBACK_BLOCKS} || true; "
+            f"set -a; . ./.env; set +a; (nohup uv run --directory services python -m nti_discovery --lookback {SEED_LOOKBACK_BLOCKS} > data/state/discovery-seed.log 2>&1 &); "
             f"shred -u {remote_env} 2>/dev/null || rm -f {remote_env}"
         )
         vps(script, vps_key, vps_host)
