@@ -60,6 +60,19 @@ export function MindshareTerminalWorkspace({
     const map = new Map<number, number | null>();
     for (const n of narratives) {
       if (windowChip === "4H") {
+        if (n.vBps === null) {
+          // Official 24h velocity needs 6 clean epochs of one series. Until then show the change since the
+          // first epoch of the current series (at most 6 epochs back), marked provisional with a "~".
+          const pts = (recentSeries?.[n.narrativeId] ?? []).filter((p) => !p.incomplete);
+          const latest = pts[pts.length - 1];
+          const base = latest
+            ? pts.find((p) => p.seriesId === latest.seriesId && p.epochId >= latest.epochId - 5)
+            : undefined;
+          if (latest && base && base.epochId !== latest.epochId) {
+            map.set(n.narrativeId, latest.iBps - base.iBps);
+            continue;
+          }
+        }
         map.set(n.narrativeId, n.vBps);
         continue;
       }
@@ -257,7 +270,7 @@ export function MindshareTerminalWorkspace({
                 {windowDeltaById.get(hoveredSector.narrativeId) !== null
                   ? formatSignedBps(
                       windowDeltaById.get(hoveredSector.narrativeId) ?? null,
-                      windowChip === "4H" ? hoveredSector.vFlag : null,
+                      windowChip === "4H" && hoveredSector.vBps !== null ? hoveredSector.vFlag : null,
                     )
                   : "—"}
               </span>
@@ -340,7 +353,9 @@ export function MindshareTerminalWorkspace({
                       delta === null ? "text-[#71717A]" : rising ? "text-[#4ADE80]" : "text-[#EF4444]"
                     }`}
                   >
-                    {delta !== null ? formatSignedBps(delta, windowChip === "4H" ? n.vFlag : null) : "—"}
+                    {delta !== null
+                      ? `${windowChip === "4H" && n.vBps === null ? "~" : ""}${formatSignedBps(delta, windowChip === "4H" && n.vBps !== null ? n.vFlag : null)}`
+                      : "—"}
                   </span>
                 </div>
 
@@ -463,7 +478,8 @@ export function MindshareTerminalWorkspace({
                       <td className="py-3 text-right font-mono tabular-nums">
                         {delta !== null ? (
                           <span className={isPos ? "text-[#4ADE80]" : "text-[#EF4444]"}>
-                            {formatSignedBps(delta, windowChip === "4H" ? n.vFlag : null)}
+                            {windowChip === "4H" && n.vBps === null ? "~" : ""}
+                            {formatSignedBps(delta, windowChip === "4H" && n.vBps !== null ? n.vFlag : null)}
                           </span>
                         ) : (
                           <span className="text-[#71717A]">—</span>
