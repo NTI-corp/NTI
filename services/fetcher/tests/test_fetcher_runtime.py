@@ -321,3 +321,36 @@ async def test_recovery_stops_at_the_deadline(tmp_path: Path) -> None:
     )
     result = await asyncio.wait_for(runner.run_cycle(1, boundary, kols), timeout=10)
     assert result.total_failed == 1
+
+
+def test_oracle_genesis_read_tries_each_comma_separated_endpoint(monkeypatch) -> None:
+    import asyncio
+
+    import httpx
+    from nti_fetcher import __main__ as fetcher_main
+
+    seen: list[str] = []
+    genesis = "0x" + (0).to_bytes(32, "big").hex()
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            return None
+
+        async def post(self, url, json=None):
+            seen.append(url)
+            if "bad" in url:
+                raise httpx.ConnectError("Name or service not known")
+            request = httpx.Request("POST", url)
+            return httpx.Response(200, json={"result": genesis}, request=request)
+
+    monkeypatch.setattr(fetcher_main.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setenv("RPC_URL_MAINNET", "https://bad.example,https://good.example")
+    value = asyncio.run(fetcher_main._read_oracle_genesis(4663))
+    assert value == 0
+    assert seen == ["https://bad.example", "https://good.example"]

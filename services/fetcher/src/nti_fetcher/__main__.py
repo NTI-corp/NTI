@@ -10,6 +10,7 @@ import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import httpx
@@ -86,10 +87,22 @@ async def _read_oracle_genesis(chain_id: int) -> int:
         "method": "eth_call",
         "params": [{"to": oracle, "data": "0xcacf66ab"}, "latest"],
     }
+    # RPC_URL_* may hold several endpoints separated by commas (primary first); try them in order.
+    endpoints = [u.strip() for u in rpc_url.split(",") if u.strip()]
+    body: dict[str, Any] = {}
+    last_error: Exception | None = None
     async with httpx.AsyncClient(timeout=20) as client:
-        response = await client.post(rpc_url, json=payload)
-        response.raise_for_status()
-        body = response.json()
+        for endpoint in endpoints:
+            try:
+                response = await client.post(endpoint, json=payload)
+                response.raise_for_status()
+                body = response.json()
+                last_error = None
+                break
+            except (httpx.HTTPError, ValueError) as exc:
+                last_error = exc
+    if last_error is not None:
+        raise RuntimeError(f"Could not read genesisTimestamp() from any RPC endpoint: {last_error}")
     result = body.get("result")
     if body.get("error") or not isinstance(result, str) or len(result) < 66:
         raise RuntimeError("Could not read genesisTimestamp() from deployed OracleCommit")
