@@ -7,6 +7,7 @@ import { formatBpsPercent, formatRelativeTime, formatSignedBps } from "@/lib/for
 import { sectorColor } from "@/lib/sectors";
 import { IndexChart } from "@/components/IndexChart";
 import { ContributorsTable } from "@/components/ContributorsTable";
+import { TokenLogo } from "@/components/ui/TokenLogo";
 import { AwaitingEpochBanner } from "@/components/AwaitingEpochBanner";
 
 export const dynamic = "force-dynamic";
@@ -202,32 +203,35 @@ export default async function NarrativeDetailPage({
                     key={tok.symbol}
                     className="flex items-center justify-between gap-3 px-4 py-3 font-mono text-xs tabular-nums"
                   >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#F5F5F7]">${tok.symbol}</span>
-                        {tok.name && (
-                          <span className="truncate font-sans text-xs text-[#8A8A93]">
-                            {tok.name}
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <TokenLogo symbol={tok.symbol} imageUrl={tok.imageUrl} size={26} />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-[#F5F5F7]">${tok.symbol}</span>
+                          {tok.name && (
+                            <span className="truncate font-sans text-xs text-[#8A8A93]">
+                              {tok.name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[#71717A]">
+                          <span className="text-[#CCFF00]">
+                            {tok.mentions} {tok.mentions === 1 ? "mention" : "mentions"}
                           </span>
-                        )}
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[#71717A]">
-                        <span className="text-[#CCFF00]">
-                          {tok.mentions} {tok.mentions === 1 ? "mention" : "mentions"}
-                        </span>
-                        <span>{tok.kolCount} KOL{tok.kolCount === 1 ? "" : "s"}</span>
-                        {tok.chainId && <span className="uppercase">{tok.chainId}</span>}
-                        {tok.dexUrl && (
-                          <a
-                            href={tok.dexUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-0.5 text-[#A1A1AA] transition-colors hover:text-[#CCFF00]"
-                          >
-                            <span>DEX</span>
-                            <ArrowUpRight className="h-2.5 w-2.5" />
-                          </a>
-                        )}
+                          <span>{tok.kolCount} KOL{tok.kolCount === 1 ? "" : "s"}</span>
+                          {tok.chainId && <span className="uppercase">{tok.chainId}</span>}
+                          {tok.dexUrl && (
+                            <a
+                              href={tok.dexUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-0.5 text-[#A1A1AA] transition-colors hover:text-[#CCFF00]"
+                            >
+                              <span>DEX</span>
+                              <ArrowUpRight className="h-2.5 w-2.5" />
+                            </a>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="shrink-0 text-right">

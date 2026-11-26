@@ -7,6 +7,7 @@ import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
 import type { KolLeaderboardResponse } from "@/lib/types";
 import { formatCompactNumber } from "@/lib/format";
 import { sectorColor } from "@/lib/sectors";
+import { XIcon } from "@/components/ui/Icons";
 
 type SortKey = "authority" | "rK" | "followers" | "pollTier";
 type StatusFilter = "all" | "human" | "flagged";
@@ -73,7 +74,10 @@ export function KolLeaderboardClient({ initial }: { initial: KolLeaderboardRespo
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-4">
         <div>
-          <p className="kicker">Analytics · Dynamic reputation &amp; bot filter</p>
+          <p className="kicker inline-flex items-center gap-1.5">
+            <XIcon className="h-2.5 w-2.5 text-[#F5F5F7]" />
+            <span>Analytics · Dynamic reputation &amp; bot filter</span>
+          </p>
           <h1 className="mt-1.5">KOL Universe</h1>
           <p className="mt-1 text-xs text-[#8A8A93]">
             Live reputation r_k (0.25–1.50) calibrated from median engagement-to-follower ratio and AI signal-to-noise.

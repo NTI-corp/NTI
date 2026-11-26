@@ -22,6 +22,8 @@ import { GovernorPanel } from "./GovernorPanel";
 import { KolRegistryPanel } from "./KolRegistryPanel";
 import { TierLadder } from "@/components/ui/Visuals";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { NtiBrandMark } from "@/components/landing/NtiLogos";
+import { EthMark } from "@/components/ui/Icons";
 
 const TIERS = [
   { name: "Tier 1", minNti: 100_000, discount: "10%", radar: "Real-time Radar" },
@@ -215,7 +217,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
           abi: erc20Abi,
           functionName: "faucet",
         },
-        "Minted 10,000 test $NTI.",
+        isTestnet ? "Minted 10,000 test tNTI." : "Minted 10,000 prelaunch pNTI.",
       );
       return;
     }
@@ -341,8 +343,9 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
               </span>
             )}
           </div>
-          <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#F5F5F7]">
-            Stake $NTI
+          <h1 className="mt-1 inline-flex items-center gap-2 text-lg font-semibold tracking-tight text-[#F5F5F7]">
+            <NtiBrandMark className="h-5 w-5 shrink-0" />
+            <span>Stake $NTI</span>
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#71717A]">
             Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and participate in stake-weighted NTIGovernor votes.
@@ -366,8 +369,9 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
       {/* Position Summary Strip */}
       <div className="grid grid-cols-2 gap-3 font-mono tabular-nums lg:grid-cols-5">
         <div className="border border-[#26262A] bg-[#161618] p-3.5">
-          <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
-            Wallet $NTI
+          <div className="inline-flex items-center gap-1.5 font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
+            <NtiBrandMark className="h-3.5 w-3.5 shrink-0" />
+            <span>Wallet $NTI</span>
           </div>
           <div className="mt-1 text-lg font-semibold text-[#F5F5F7]">
             {isConnected ? `${Math.floor(walletBalanceNum).toLocaleString("en-US")}` : "—"}
@@ -376,8 +380,9 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
         </div>
 
         <div className="border border-[#26262A] bg-[#161618] p-3.5">
-          <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
-            Your Active Stake
+          <div className="inline-flex items-center gap-1.5 font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
+            <NtiBrandMark className="h-3.5 w-3.5 shrink-0" />
+            <span>Your Active Stake</span>
           </div>
           <div className="mt-1 text-lg font-semibold text-[#F5F5F7]">
             {Math.floor(activeStakeNum).toLocaleString("en-US")} $NTI
@@ -402,8 +407,9 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
         </div>
 
         <div className="border border-[#26262A] bg-[#161618] p-3.5">
-          <div className="font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
-            Claimable ETH Rewards
+          <div className="inline-flex items-center gap-1.5 font-sans text-[11px] font-medium uppercase tracking-wider text-[#71717A]">
+            <EthMark className="h-3 w-3 text-[#4ADE80]" />
+            <span>Claimable ETH Rewards</span>
           </div>
           <div className="mt-1 text-lg font-semibold text-[#4ADE80]">
             {pendingEth.toFixed(5)} ETH

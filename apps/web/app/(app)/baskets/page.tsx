@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Layers } from "lucide-react";
 import { Donut } from "@/components/ui/Donut";
 import { EmptyState } from "@/components/ui/Visuals";
+import { EthMark } from "@/components/ui/Icons";
+import { TokenLogo, UniswapMark } from "@/components/ui/TokenLogo";
 import { fetchBasketsData } from "@/lib/supabase";
 import { formatBpsPercent, formatEth, formatRelativeTime } from "@/lib/format";
 import { InstantRouteShell } from "@/components/InstantRouteShell";
@@ -33,7 +35,12 @@ async function BasketsContent() {
           Baskets
         </h1>
         <p className="mt-0.5 max-w-2xl text-xs text-[#71717A]">
-          Each basket holds admin-whitelisted tokens with Uniswap V3 pools against WETH (30-minute TWAP history verified, pool depth shown per token). Max 40% single-token weight, 20% daily turnover cap, 0.50% annual fee routed to FeeRouter.
+          Each basket holds admin-whitelisted tokens with{" "}
+          <span className="inline-flex items-center gap-1 align-middle text-[#A1A1AA]">
+            <UniswapMark className="h-3.5 w-3.5" />
+            <span>Uniswap V3</span>
+          </span>{" "}
+          pools against WETH (30-minute TWAP history verified, pool depth shown per token). Max 40% single-token weight, 20% daily turnover cap, 0.50% annual fee routed to FeeRouter.
         </p>
       </div>
 
@@ -71,16 +78,18 @@ async function BasketsContent() {
 
                     <div className="mt-3 grid grid-cols-2 border border-[#1F1F23] bg-[#0D0D0E] font-mono text-xs tabular-nums">
                       <div className="border-r border-[#1F1F23] p-2.5">
-                        <div className="text-[9.5px] uppercase tracking-[0.1em] text-[#71717A]">
-                          TWAP NAV / TVL
+                        <div className="inline-flex items-center gap-1 text-[9.5px] uppercase tracking-[0.1em] text-[#71717A]">
+                          <EthMark className="h-2.5 w-2.5 text-[#8A92B2]" />
+                          <span>TWAP NAV / TVL</span>
                         </div>
                         <div className="mt-0.5 font-medium text-[#F5F5F7]">
                           {formatEth(b.navEth, 4)}
                         </div>
                       </div>
                       <div className="p-2.5 text-right">
-                        <div className="text-[9.5px] uppercase tracking-[0.1em] text-[#71717A]">
-                          Share Price
+                        <div className="inline-flex items-center justify-end gap-1 text-[9.5px] uppercase tracking-[0.1em] text-[#71717A]">
+                          <EthMark className="h-2.5 w-2.5 text-[#4ADE80]" />
+                          <span>Share Price</span>
                         </div>
                         <div className="mt-0.5 font-medium text-[#4ADE80]">
                           {b.sharePriceEth === null ? "Unavailable" : `${b.sharePriceEth.toFixed(5)} ETH`}
@@ -111,6 +120,7 @@ async function BasketsContent() {
                                   className="h-2.5 w-1 shrink-0"
                                   style={{ background: HOLDING_COLORS[i % HOLDING_COLORS.length] }}
                                 />
+                                <TokenLogo symbol={h.symbol} size={18} />
                                 <span className="truncate">${h.symbol}</span>
                               </span>
                               <span className="text-[#71717A]">{formatBpsPercent(h.weightBps, 1)}</span>

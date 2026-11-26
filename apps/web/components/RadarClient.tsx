@@ -10,6 +10,7 @@ import { useSiweSession } from "./Providers";
 import { AwaitingEpochBanner } from "./AwaitingEpochBanner";
 import { VelocityBars } from "./VelocityBars";
 import { SegmentedTabs } from "./ui/SegmentedTabs";
+import { TokenLogo, UniswapMark } from "./ui/TokenLogo";
 import type { NarrativeIndexItem, RadarResponse } from "@/lib/types";
 
 export function RadarClient({
@@ -66,7 +67,17 @@ export function RadarClient({
             Emerging Radar
           </h1>
           <p className="mt-0.5 max-w-2xl text-xs text-[#71717A]">
-            Velocity spikes trigger when finalized V_n exceeds +5,000 bps. New-token signals fire on Pons V1/V2 &amp; Uniswap launches with ≥1 ETH liquidity inside rising narratives.
+            Velocity spikes trigger when finalized V_n exceeds +5,000 bps. New-token signals fire on{" "}
+            <span className="inline-flex items-center gap-1 align-middle text-[#A1A1AA]">
+              <TokenLogo symbol="PONS" size={14} />
+              <span>Pons V2</span>
+            </span>{" "}
+            &amp;{" "}
+            <span className="inline-flex items-center gap-1 align-middle text-[#A1A1AA]">
+              <UniswapMark className="h-3.5 w-3.5" />
+              <span>Uniswap</span>
+            </span>{" "}
+            launches with ≥1 ETH liquidity inside rising narratives.
           </p>
         </div>
 

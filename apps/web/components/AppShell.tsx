@@ -71,7 +71,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
     title: "Protocol",
     items: [
       { href: "/grants", label: "Grants", hint: "Ecosystem funding", group: "Protocol", icon: Sprout },
-      { href: "/stake", label: "Stake", hint: "Tiers and governance", group: "Protocol", icon: Landmark },
+      { href: "/stake", label: "Stake", hint: "ETH yield & Radar tiers", group: "Protocol", icon: Landmark },
       { href: "/oracle", label: "Oracle", hint: "Epochs and attestations", group: "Protocol", icon: ShieldCheck },
     ],
   },
@@ -542,13 +542,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <footer className="border-t border-[#26262A] bg-[#0D0D0E]">
           <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-4 font-mono text-[10px] uppercase tracking-[0.1em] text-[#71717A] sm:px-7">
-            <span>Robinhood Chain · {chainId}</span>
+            <span className="inline-flex items-center gap-2">
+              <RobinhoodMark className="h-3 w-auto opacity-85" />
+              <span>Chain · {chainId}</span>
+            </span>
             <span className="flex items-center gap-5">
               <a href={explorerUrl} target="_blank" rel="noreferrer noopener" className="hover:text-[#F5F5F7]">
                 Explorer ↗
               </a>
-              <a href="https://x.com/NTI_Index" target="_blank" rel="noreferrer noopener" className="hover:text-[#F5F5F7]">
-                @NTI_Index ↗
+              <a
+                href="https://x.com/NTI_Index"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1.5 hover:text-[#F5F5F7]"
+              >
+                <XIcon className="h-2.5 w-2.5" />
+                <span>@NTI_Index ↗</span>
               </a>
               <Link href="/" className="hover:text-[#F5F5F7]">
                 Landing

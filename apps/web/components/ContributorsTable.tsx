@@ -2,6 +2,7 @@
 
 import React from "react";
 import { formatBpsPercent, formatCompactNumber } from "@/lib/format";
+import { XIcon } from "@/components/ui/Icons";
 import type { ContributorRow } from "@/lib/types";
 
 interface ContributorsTableProps {
@@ -95,8 +96,9 @@ export function ContributorsTable({
                           <span className="block truncate font-sans text-xs font-medium text-[#F5F5F7] transition-colors group-hover:text-[#CCFF00]">
                             {c.displayName || cleanHandle}
                           </span>
-                          <span className="block truncate text-[10.5px] text-[#71717A]">
-                            @{cleanHandle} ↗
+                          <span className="inline-flex items-center gap-1 truncate text-[10.5px] text-[#71717A]">
+                            <XIcon className="h-2.5 w-2.5 shrink-0 opacity-75" />
+                            <span className="truncate">@{cleanHandle} ↗</span>
                           </span>
                         </span>
                       </a>

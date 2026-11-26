@@ -9,22 +9,12 @@ import { PixelOwlMascot } from "@/components/ui/PixelOwlMascot";
 
 function NTILogoMarkSvg({ className = "w-full h-full" }: { className?: string }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 32 32"
-      fill="none"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        d="M5 23L12.5 13.5L18 18.5L27 8.5"
-        stroke="currentColor"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="27" cy="8.5" r="2.75" fill="currentColor" />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/nti-logo.png"
+      alt="NTI"
+      className={`object-contain brightness-0 ${className}`}
+    />
   );
 }
 

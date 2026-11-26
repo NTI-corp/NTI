@@ -110,6 +110,7 @@ export interface MentionedTokenItem {
   volume24hUsd: number | null;
   change24hPct: number | null;
   dexUrl: string | null;
+  imageUrl?: string | null;
 }
 
 export interface NarrativeHistoryResponse {

@@ -567,3 +567,17 @@ export function SectorIcon({
       return <NtiEngineIcon className={className} />;
   }
 }
+
+export function EthMark({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M11.944 17.97L4.58 13.62 11.943 24l7.37-10.38-7.372 4.35h.003zM12.056 0L4.69 12.223l7.365 4.354 7.365-4.35L12.056 0z" />
+    </svg>
+  );
+}

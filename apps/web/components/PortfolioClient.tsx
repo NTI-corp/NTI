@@ -12,6 +12,8 @@ import {
 } from "@/lib/contracts";
 import { formatCompactNumber, formatEth, truncateHex } from "@/lib/format";
 import { useSiweSession } from "./Providers";
+import { NtiBrandMark } from "@/components/landing/NtiLogos";
+import { EthMark } from "@/components/ui/Icons";
 import type { BasketItem, MarketItem } from "@/lib/types";
 
 export function PortfolioClient({
@@ -110,21 +112,30 @@ export function PortfolioClient({
       {/* Live Balances KPI Strip */}
       <div className="stat-strip stat-strip-compact">
         <div>
-          <div className="stat-label">Native ETH</div>
+          <div className="stat-label inline-flex items-center gap-1.5">
+            <EthMark className="h-3 w-3 text-[#8A92B2]" />
+            <span>Native ETH</span>
+          </div>
           <div className="stat-value tabular-nums">
             {isConnected ? formatEth(ethNum, 4) : "—"}
           </div>
           <div className="stat-caption">Gas &amp; parimutuel collateral</div>
         </div>
         <div>
-          <div className="stat-label">Wallet $NTI</div>
+          <div className="stat-label inline-flex items-center gap-1.5">
+            <NtiBrandMark className="h-3.5 w-3.5" />
+            <span>Wallet $NTI</span>
+          </div>
           <div className="stat-value tabular-nums">
             {isConnected ? formatCompactNumber(Math.floor(ntiNum)) : "—"}
           </div>
           <div className="stat-caption">Liquid ERC-20 balance</div>
         </div>
         <div>
-          <div className="stat-label">Staked $NTI</div>
+          <div className="stat-label inline-flex items-center gap-1.5">
+            <NtiBrandMark className="h-3.5 w-3.5" />
+            <span>Staked $NTI</span>
+          </div>
           <div className="stat-value tabular-nums text-[#CCFF00]">
             {isConnected ? formatCompactNumber(Math.floor(stakedNum)) : "—"}
           </div>
@@ -135,7 +146,10 @@ export function PortfolioClient({
           </div>
         </div>
         <div>
-          <div className="stat-label">Claimable Rewards</div>
+          <div className="stat-label inline-flex items-center gap-1.5">
+            <EthMark className="h-3 w-3 text-[#4ADE80]" />
+            <span>Claimable Rewards</span>
+          </div>
           <div className="stat-value tabular-nums text-[#4ADE80]">
             {isConnected ? formatEth(rewardEth, 5) : "—"}
           </div>
