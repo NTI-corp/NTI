@@ -841,12 +841,15 @@ export async function fetchHeatmapData(): Promise<HeatmapResponse> {
     };
   });
 
+  // Medians come only from narratives that have project data: a count of zero means "unknown", and letting it
+  // pull the median down would label every narrative with a project as crowded.
+  const ranked = rawPoints.filter((p) => p.activeProjects > 0);
+  const basis = ranked.length > 0 ? ranked : rawPoints;
   const medianM =
-    [...rawPoints].sort((a, b) => a.mBps - b.mBps)[Math.floor(rawPoints.length / 2)]?.mBps ?? 1000;
+    [...basis].sort((a, b) => a.mBps - b.mBps)[Math.floor(basis.length / 2)]?.mBps ?? 1000;
   const medianP =
-    [...rawPoints].sort((a, b) => a.activeProjects - b.activeProjects)[
-      Math.floor(rawPoints.length / 2)
-    ]?.activeProjects ?? 10;
+    [...basis].sort((a, b) => a.activeProjects - b.activeProjects)[Math.floor(basis.length / 2)]
+      ?.activeProjects ?? 10;
 
   const points: HeatmapPoint[] = rawPoints
     .map((p) => {
