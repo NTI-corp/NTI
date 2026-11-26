@@ -9,6 +9,12 @@ interface HeatmapGridProps {
   points: HeatmapPoint[];
 }
 
+const NO_DATA_BADGE = {
+  label: "NO PROJECT DATA",
+  color: "#71717A",
+  bg: "border-[#3A3A40] bg-[#1A1A1D] text-[#8A8A93]",
+};
+
 const QUADRANT_BADGE: Record<
   HeatmapPoint["quadrant"],
   { label: string; color: string; bg: string }
@@ -90,7 +96,12 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
           </div>
           {selected && (
             <span className="border border-[#26262A] bg-[#0D0D0E] px-2.5 py-1 font-mono text-[10.5px] text-[#F5F5F7] tabular-nums">
-              {selected.label}: <span className="text-[#CCFF00]">{selected.opportunityScore.toFixed(2)}</span>
+              {selected.label}:{" "}
+              {selected.noProjectData ? (
+                <span className="text-[#71717A]">no project data</span>
+              ) : (
+                <span className="text-[#CCFF00]">{selected.opportunityScore.toFixed(2)}</span>
+              )}
             </span>
           )}
         </div>
@@ -210,7 +221,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
             {points.map((pt) => {
               const cx = xOf(pt.mBps);
               const cy = yOf(pt.activeProjects);
-              const q = QUADRANT_BADGE[pt.quadrant];
+              const q = pt.noProjectData ? NO_DATA_BADGE : QUADRANT_BADGE[pt.quadrant];
               const isSelected = selected?.narrativeId === pt.narrativeId;
               const r = isSelected ? 7.5 : 5.5;
               return (
@@ -309,7 +320,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
             </thead>
             <tbody className="divide-y divide-[#1F1F23] font-mono tabular-nums">
               {points.map((pt, i) => {
-                const badge = QUADRANT_BADGE[pt.quadrant];
+                const badge = pt.noProjectData ? NO_DATA_BADGE : QUADRANT_BADGE[pt.quadrant];
                 const isSel = selected?.narrativeId === pt.narrativeId;
                 return (
                   <tr
@@ -354,8 +365,12 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
                         {pt.activeTokens}T + {pt.curatedProjects}C
                       </div>
                     </td>
-                    <td className="px-3.5 py-2.5 text-right font-medium text-[#4ADE80]">
-                      {pt.opportunityScore.toFixed(2)}
+                    <td
+                      className={`px-3.5 py-2.5 text-right font-medium ${
+                        pt.noProjectData ? "text-[#52525B]" : "text-[#4ADE80]"
+                      }`}
+                    >
+                      {pt.noProjectData ? "—" : pt.opportunityScore.toFixed(2)}
                     </td>
                   </tr>
                 );

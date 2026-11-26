@@ -122,3 +122,25 @@ pauser is the deployer.
 * [Dwellir: Robinhood Chain RPC](https://www.dwellir.com/docs/robinhood.md)
 * [Chainstack: Robinhood eth_getLogs](https://docs.chainstack.com/reference/robinhood-eth-getlogs)
 * [Bitquery: Robinhood Chain RPC, chain id 4663](https://docs.bitquery.io/docs/blockchain/robinhood/robinhood-chain-rpc-chain-id/)
+
+## Heatmap: curated projects (2026-11-26)
+
+The Builder Heatmap counts indexed tokens (at least 1 ETH liquidity and 10 transactions in 7 days) plus rows of the
+`projects` table marked `curated` and `active`. Nothing writes that table automatically, so it was empty.
+
+Only projects that can be proven live on Robinhood Chain 4663 are listed, by bytecode and a read of the contract:
+
+| Narrative | Project | Proof |
+|---|---|---|
+| 8 DeFi | Uniswap V3 | factory `0x1f7d7550b1b028f7571e69a784071f0205fd2efa` has code (24.5 KB) and creates the basket pools |
+| 4 Stablecoins | USDG (Global Dollar) | `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` has code, symbol USDG, 6 decimals, 640M supply |
+
+Named by The Block's launch article (2026-07-01) but not listed, because it gives no addresses and does not say they
+run on this chain: Lighter (perps), Rialto, 1inch, Arcus, Pleiades (AMMs and stock-token venues), Morpho and Robinhood
+Earn (USDG lending), Chainlink (oracle). Add one only after its contract address on 4663 is known and checked.
+
+Narratives with no known project (AI Agents, Perp DEX, Prediction Markets, Privacy / ZK, DePIN, Gaming) show NO PROJECT
+DATA and no score, and are left out of "Highest Opportunity", instead of ranking first on a count of zero.
+
+Add a row with the service key, for example `POST /rest/v1/projects` with `{"name": ..., "narrative_id": ..., "curated":
+true, "active": true}`.

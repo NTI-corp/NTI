@@ -205,6 +205,8 @@ export interface HeatmapPoint {
   curatedProjects: number;
   activeProjects: number;
   opportunityScore: number;
+  /** No indexed token and no curated project is known for this narrative, so there is no meaningful score. */
+  noProjectData: boolean;
   quadrant: "opportunity" | "crowded" | "emerging" | "quiet";
 }
 

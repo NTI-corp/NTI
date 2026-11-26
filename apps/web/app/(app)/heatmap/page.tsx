@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic";
 
 async function HeatmapContent() {
   const data = await fetchHeatmapData();
-  const topOpportunity = data.points[0];
+  // Only narratives with at least one known project can rank; the rest have no score to compare.
+  const topOpportunity = data.points.find((p) => !p.noProjectData);
+  const unranked = data.points.filter((p) => p.noProjectData).length;
 
   return (
     <div className="tab-panel-enter space-y-4">
@@ -41,6 +43,12 @@ async function HeatmapContent() {
         )}
       </div>
 
+      {unranked > 0 && (
+        <p className="border border-[#26262A] bg-[#161618] px-3 py-2 text-xs text-[#A1A1AA]">
+          {unranked} of {data.points.length} narratives show NO PROJECT DATA: no indexed token or curated project on
+          Robinhood Chain meets the criteria yet, so they carry no opportunity score instead of a misleading one.
+        </p>
+      )}
       {getActiveChainId() === ROBINHOOD_TESTNET_ID && (
         <p className="text-xs text-[#A1A1AA]">Asset counts reflect Robinhood Testnet activity and may include test market fixtures.</p>
       )}

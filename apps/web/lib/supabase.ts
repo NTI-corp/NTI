@@ -859,9 +859,16 @@ export async function fetchHeatmapData(): Promise<HeatmapResponse> {
         : lowCompetition
           ? "emerging"
           : "quiet";
-      return { ...p, quadrant };
+      return { ...p, noProjectData: p.activeProjects === 0, quadrant };
     })
-    .sort((a, b) => b.opportunityScore - a.opportunityScore);
+    // Ranked narratives first; those without any known project follow, ordered by attention.
+    .sort((a, b) =>
+      a.noProjectData !== b.noProjectData
+        ? Number(a.noProjectData) - Number(b.noProjectData)
+        : a.noProjectData
+          ? b.mBps - a.mBps
+          : b.opportunityScore - a.opportunityScore,
+    );
 
   return {
     awaitingFirstEpoch: snapshot.awaitingFirstEpoch,
