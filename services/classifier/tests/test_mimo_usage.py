@@ -69,3 +69,36 @@ def test_rate_limit_is_retried_with_backoff(monkeypatch) -> None:
     asyncio.run(run())
     assert state["n"] == 4
     assert sleeps[:3] == [2.0, 2.0, 2.0]
+
+
+def test_gemini_rate_limit_is_retried_with_backoff(monkeypatch) -> None:
+    from nti_classifier.adapters import GeminiAdapter
+
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr("nti_classifier.adapters.asyncio.sleep", fake_sleep)
+    state = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        state["n"] += 1
+        if state["n"] <= 2:
+            return httpx.Response(429, headers={"retry-after": "3"}, json={"error": "limit"})
+        text = json.dumps({"results": []})
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": text}]}}]})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    adapter = GeminiAdapter(api_key="k", model="gemini-test", client=client)
+    spec = PromptSpec(version="v2", system_prompt="classify", narratives=(1,))
+
+    async def run() -> None:
+        try:
+            await adapter.classify([PostIn(1, "alice", "hello")], spec)
+        except Exception:  # empty answer is invalid; only the retry behaviour matters
+            pass
+
+    asyncio.run(run())
+    assert state["n"] == 3
+    assert sleeps[:2] == [3.0, 3.0]

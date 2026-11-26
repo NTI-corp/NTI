@@ -10,7 +10,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from nti_classifier.adapters import MiMoAdapter
+from nti_classifier.adapters import GeminiAdapter, MiMoAdapter
 from nti_classifier.pipeline import ClassifierPipeline, load_prompt_spec
 from nti_classifier.protocol import PostIn
 from nti_core.config import NTIConfig
@@ -38,7 +38,12 @@ async def prepare_engine_posts(
     observation_cutoff_unix: int,
     repo_root: Path,
 ) -> tuple[list[EnginePost], str]:
-    model = os.environ.get("MIMO_MODEL", "mimo-v2.6-flash")
+    provider = os.environ.get("CLASSIFIER_PROVIDER", "mimo").strip().lower()
+    if provider == "gemini":
+        model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
+    else:
+        provider = "mimo"
+        model = os.environ.get("MIMO_MODEL", "mimo-v2.6-flash")
     prompt = os.environ.get("CLASSIFIER_PROMPT_VERSION", "v2")
     lower = iso(boundary_unix - cfg.lookback_hours * 3600)
     kol_by_id = {k.user_id: k for k in kols}
@@ -138,7 +143,11 @@ async def prepare_engine_posts(
             # One pipeline per worker: a pipeline keeps per-run failure state and is not shareable.
             # Each finished chunk is persisted at once, so a restart never discards provider work
             # and a failed response is never recorded as "unrelated".
-            adapter = MiMoAdapter(api_key=os.environ.get("MIMO_API_KEY", ""), model=model)
+            adapter: Any = (
+                GeminiAdapter(api_key=os.environ.get("GEMINI_API_KEY", ""), model=model)
+                if provider == "gemini"
+                else MiMoAdapter(api_key=os.environ.get("MIMO_API_KEY", ""), model=model)
+            )
             pipeline = ClassifierPipeline(
                 primary=adapter,
                 batch_size=batch_size,
@@ -150,7 +159,8 @@ async def prepare_engine_posts(
                     chunk = queue.get_nowait()
                 except asyncio.QueueEmpty:
                     return
-                tokens_in0, tokens_out0 = adapter.input_tokens, adapter.output_tokens
+                tokens_in0 = getattr(adapter, "input_tokens", 0)
+                tokens_out0 = getattr(adapter, "output_tokens", 0)
                 output = await pipeline.run(chunk, spec)
                 failed.update(output.failed_tweet_ids)
                 good = [r for r in output.results if r.tweet_id not in output.failed_tweet_ids]
@@ -170,12 +180,12 @@ async def prepare_engine_posts(
                     [
                         {
                             "epoch_id": epoch_id,
-                            "provider": "mimo",
+                            "provider": provider,
                             "model_version": model,
                             "prompt_version": prompt,
                             "batch_size": batch_size,
-                            "input_tokens": adapter.input_tokens - tokens_in0,
-                            "output_tokens": adapter.output_tokens - tokens_out0,
+                            "input_tokens": getattr(adapter, "input_tokens", 0) - tokens_in0,
+                            "output_tokens": getattr(adapter, "output_tokens", 0) - tokens_out0,
                             "valid_count": len(good),
                             "failed_count": len(output.failed_tweet_ids),
                         }
