@@ -145,6 +145,11 @@ Checked and rejected: a token named "Lighter" (LIT, `0xeeca2E7Dc194a320d349122d8
 Narratives with no known project (AI Agents, Perp DEX, Prediction Markets, Privacy / ZK, DePIN, Gaming) show NO PROJECT
 DATA and no score, and are left out of "Highest Opportunity", instead of ranking first on a count of zero.
 
+Thresholds stay at 1 ETH and 10 transactions (decided 2026-11-26). Loosening to 0.2 ETH and 3 transactions was measured
+against the 736 indexed tokens and adds no token to any narrative (strict and loose counts are identical), so it would
+only lower the bar without filling a single empty narrative. Narratives with no data stay empty until a real project
+or a token with real liquidity appears.
+
 Add a row with the service key, for example `POST /rest/v1/projects` with `{"name": ..., "narrative_id": ..., "curated":
 true, "active": true}`.
 
