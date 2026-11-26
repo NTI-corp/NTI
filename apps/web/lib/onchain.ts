@@ -112,7 +112,7 @@ export async function readGovernorStates(ids: bigint[]): Promise<Array<GovernorC
   }
 }
 
-export async function readLiveMarketsFromChain(
+async function readLiveMarketsUncached(
   currentIndexByNarrative: Map<number, number>,
 ): Promise<MarketItem[] | null> {
   const { addresses, client } = getServerPublicClient();
@@ -132,7 +132,8 @@ export async function readLiveMarketsFromChain(
     ]);
     const ids = Array.from({ length: Math.min(30, count) }, (_, offset) => count - offset);
 
-    return await Promise.all(ids.map(async (marketId): Promise<MarketItem> => {
+    // A few markets at a time: reading all of them at once is a burst of RPC calls that a free node answers with 429.
+    const readMarket = async (marketId: number): Promise<MarketItem> => {
       const [narrativeA, narrativeB, baseEpoch, settleEpoch, seriesId,
         pool0Net, pool1Net, pool0Gross, pool1Gross, , outcomeNum, settled] = await client.readContract({
         ...market, functionName: "markets", args: [BigInt(marketId)],
@@ -187,10 +188,39 @@ export async function readLiveMarketsFromChain(
         feeBps: Number(feeBps),
         settleTimeoutHours: Number(settleTimeout) / 3600,
       };
-    }));
+    };
+    const items: MarketItem[] = [];
+    for (let i = 0; i < ids.length; i += MARKET_READ_CONCURRENCY) {
+      items.push(...(await Promise.all(ids.slice(i, i + MARKET_READ_CONCURRENCY).map(readMarket))));
+    }
+    return items;
   } catch {
     return null;
   }
+}
+
+const MARKET_READ_CONCURRENCY = 3;
+const MARKET_STALE_MAX_AGE_MS = 10 * 60_000;
+let lastGoodMarkets: { at: number; items: MarketItem[] } | null = null;
+
+/**
+ * Markets are read straight from the chain on every request (a market created a moment ago must show up).
+ * One failed RPC call must not blank the page, so a failed read is retried once and, if it still fails,
+ * the last successful list from this server instance is served for up to ten minutes.
+ */
+export async function readLiveMarketsFromChain(
+  currentIndexByNarrative: Map<number, number>,
+): Promise<MarketItem[] | null> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const items = await readLiveMarketsUncached(currentIndexByNarrative);
+    if (items !== null) {
+      lastGoodMarkets = { at: Date.now(), items };
+      return items;
+    }
+    if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  if (lastGoodMarkets && Date.now() - lastGoodMarkets.at < MARKET_STALE_MAX_AGE_MS) return lastGoodMarkets.items;
+  return null;
 }
 
 
