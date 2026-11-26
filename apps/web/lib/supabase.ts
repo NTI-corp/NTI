@@ -77,15 +77,23 @@ async function fetchSupabaseRows(pathWithQuery: string, mode: "anon" | "service"
 const cachedSupabaseRows = unstable_cache(fetchSupabaseRows, ["supabase-select"], {
   revalidate: PUBLIC_DATA_REVALIDATE_SECONDS,
 });
+// Heavy joins (posts with classifications and engagement) and data that only moves every few minutes at most
+// (epoch history, token list) keep a longer cache, so a click on a narrative is rarely a cold query.
+const SLOW_DATA_REVALIDATE_SECONDS = 120;
+const cachedSlowSupabaseRows = unstable_cache(fetchSupabaseRows, ["supabase-select-slow"], {
+  revalidate: SLOW_DATA_REVALIDATE_SECONDS,
+});
 
 export async function supabaseSelect<T>(
   pathWithQuery: string,
   mode: "anon" | "service" = "anon",
+  freshness: "live" | "slow" = "live",
 ): Promise<T[] | null> {
   const cfg = getSupabaseConfig();
   if (!cfg.url || !(mode === "service" ? cfg.serviceKey ?? cfg.anonKey : cfg.anonKey)) return null;
   try {
-    return (await cachedSupabaseRows(pathWithQuery, mode)) as T[];
+    const read = freshness === "slow" ? cachedSlowSupabaseRows : cachedSupabaseRows;
+    return (await read(pathWithQuery, mode)) as T[];
   } catch {
     return null;
   }
@@ -331,55 +339,29 @@ export async function fetchNarrativeHistory(
   if (Number.isSafeInteger(fromEpoch)) filters.push(`epoch_id=gte.${fromEpoch}`);
   if (Number.isSafeInteger(toEpoch)) filters.push(`epoch_id=lte.${toEpoch}`);
 
-  const [epochs, finals] = await Promise.all([
-    supabaseSelect<DbEpochRow>([
-      "epochs?select=*", "status=in.(final,incomplete)", ...filters, "order=epoch_id.desc", "limit=120",
-    ].join("&")),
-    supabaseSelect<DbEpochRow>("epochs?select=*&status=eq.final&order=epoch_id.desc&limit=1"),
-  ]);
-  const latestFinalRow = finals?.[0];
-  const latestFinalEpoch = latestFinalRow ? mapEpoch(latestFinalRow) : null;
-  const epochIds = (epochs ?? []).map((epoch) => epoch.epoch_id);
-  const [neRows, contribRows, tokenRows] = await Promise.all([
-    epochIds.length > 0
-      ? supabaseSelect<DbNarrativeEpochRow>(
-          `narrative_epoch?select=*&narrative_id=eq.${meta.id}&epoch_id=in.(${epochIds.join(",")})&order=epoch_id.asc`,
-        )
-      : Promise.resolve([]),
-    latestFinalRow ?
-    supabaseSelect<{
-      user_id: number;
-      share_bps: number;
-      capped: boolean;
-      kols?: {
-        handle?: string;
-        followers?: number;
-        display_name?: string | null;
-        avatar_url?: string | null;
-      } | null;
-    }>(
-      `kol_contribution?select=user_id,share_bps,capped,kols(handle,followers,display_name,avatar_url)&epoch_id=eq.${latestFinalRow.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
-      "service",
-    ) : Promise.resolve([]),
-    supabaseSelect<{
-      address: string;
-      symbol: string | null;
-      name: string | null;
-      source: "pons_v1" | "pons_v2" | "uniswap" | "testnet_mock" | null;
-      graduated: boolean;
-      liquidity_eth: number | string | null;
-      narrative_id: number | null;
-      txs_7d: number;
-      created_at: string | null;
-    }>(
-      `tokens?select=*&narrative_id=eq.${meta.id}&order=liquidity_eth.desc.nullslast&limit=25`,
-      "anon",
-    ),
-  ]);
-
-  const contributorIds = (contribRows ?? []).map((c) => String(c.user_id));
-  const postsFilter = contributorIds.length > 0 ? `&user_id=in.(${contributorIds.join(",")})` : "";
-  const postRows = await supabaseSelect<{
+  type ContribRow = {
+    user_id: number;
+    share_bps: number;
+    capped: boolean;
+    kols?: {
+      handle?: string;
+      followers?: number;
+      display_name?: string | null;
+      avatar_url?: string | null;
+    } | null;
+  };
+  type TokenRow = {
+    address: string;
+    symbol: string | null;
+    name: string | null;
+    source: "pons_v1" | "pons_v2" | "uniswap" | "testnet_mock" | null;
+    graduated: boolean;
+    liquidity_eth: number | string | null;
+    narrative_id: number | null;
+    txs_7d: number;
+    created_at: string | null;
+  };
+  type PostRow = {
     tweet_id: number | string;
     user_id: number | string;
     created_at: string;
@@ -400,10 +382,61 @@ export async function fetchNarrativeHistory(
     classifications?: Array<{
       q?: Record<string, number> | null;
     }> | null;
-  }>(
-    `posts?select=tweet_id,user_id,created_at,body,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications!inner(q)${postsFilter}&order=created_at.desc&limit=400`,
-    "service",
-  );
+  };
+
+  // Two independent chains run side by side instead of one four-step waterfall:
+  //   A: latest final epoch -> its top contributors -> their recent posts
+  //   B: epoch history -> this narrative's rows for those epochs
+  const chainA = async () => {
+    const finals = await supabaseSelect<DbEpochRow>(
+      "epochs?select=*&status=eq.final&order=epoch_id.desc&limit=1",
+      "anon",
+      "slow",
+    );
+    const latestFinalRow = finals?.[0];
+    const contribRows = latestFinalRow
+      ? await supabaseSelect<ContribRow>(
+          `kol_contribution?select=user_id,share_bps,capped,kols(handle,followers,display_name,avatar_url)&epoch_id=eq.${latestFinalRow.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
+          "service",
+          "slow",
+        )
+      : [];
+    const contributorIds = (contribRows ?? []).map((c) => String(c.user_id));
+    const postsFilter = contributorIds.length > 0 ? `&user_id=in.(${contributorIds.join(",")})` : "";
+    const postRows = await supabaseSelect<PostRow>(
+      `posts?select=tweet_id,user_id,created_at,body,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications!inner(q)${postsFilter}&order=created_at.desc&limit=400`,
+      "service",
+      "slow",
+    );
+    return { finals, latestFinalRow, contribRows, postRows };
+  };
+  const chainB = async () => {
+    const epochs = await supabaseSelect<DbEpochRow>(
+      ["epochs?select=*", "status=in.(final,incomplete)", ...filters, "order=epoch_id.desc", "limit=120"].join("&"),
+      "anon",
+      "slow",
+    );
+    const epochIds = (epochs ?? []).map((epoch) => epoch.epoch_id);
+    const neRows =
+      epochIds.length > 0
+        ? await supabaseSelect<DbNarrativeEpochRow>(
+            `narrative_epoch?select=*&narrative_id=eq.${meta.id}&epoch_id=in.(${epochIds.join(",")})&order=epoch_id.asc`,
+            "anon",
+            "slow",
+          )
+        : [];
+    return { epochs, neRows };
+  };
+  const [{ finals, latestFinalRow, contribRows, postRows }, { epochs, neRows }, tokenRows] = await Promise.all([
+    chainA(),
+    chainB(),
+    supabaseSelect<TokenRow>(
+      `tokens?select=*&narrative_id=eq.${meta.id}&order=liquidity_eth.desc.nullslast&limit=25`,
+      "anon",
+      "slow",
+    ),
+  ]);
+  const latestFinalEpoch = latestFinalRow ? mapEpoch(latestFinalRow) : null;
 
   const series = mapHistory([...(epochs ?? [])].reverse(), neRows ?? []);
 

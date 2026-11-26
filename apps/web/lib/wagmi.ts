@@ -20,7 +20,7 @@ const connectors = wcProjectId
   : [injected()];
 
 export const wagmiConfig = createConfig({
-  chains: [robinhoodTestnet, robinhoodMainnet],
+  chains: [robinhoodMainnet, robinhoodTestnet],
   multiInjectedProviderDiscovery: true,
   connectors,
   transports: {

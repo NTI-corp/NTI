@@ -144,7 +144,7 @@ export function WalletButton() {
   }, [availableConnectors]);
 
   const wrongChain = isConnected && chainId !== undefined && chainId !== targetChainId;
-  const explorerBase = targetChain.blockExplorers?.default.url ?? "https://explorer.testnet.chain.robinhood.com";
+  const explorerBase = targetChain.blockExplorers?.default.url ?? "https://robinhoodchain.blockscout.com";
 
   const handleSelectConnector = async (connector: Connector) => {
     setPendingConnectorId(connector.uid);

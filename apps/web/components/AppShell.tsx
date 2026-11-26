@@ -217,7 +217,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const chainId = getActiveChainId();
   const chain = getChain(chainId);
   const explorerUrl =
-    chain.blockExplorers?.default.url ?? "https://explorer.testnet.chain.robinhood.com";
+    chain.blockExplorers?.default.url ?? "https://robinhoodchain.blockscout.com";
 
   const isMatchHref = useCallback((targetPath: string, href: string) => {
     if (href === "/terminal") return targetPath === "/terminal" || targetPath.startsWith("/narratives");

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
 import { Swords } from "lucide-react";
@@ -67,7 +68,13 @@ export function MarketsListClient({
   });
   const horizonEpochs = longHorizon ? longEpochs : shortEpochs;
 
-  const { txState, isBusy, explorerBase, execute, resetTx } = useChainAction();
+  const router = useRouter();
+  // A new market only shows up once the page is read again; reload the server data after the transaction
+  // confirms (twice, because the RPC node can lag a block behind the receipt).
+  const { txState, isBusy, explorerBase, execute, resetTx } = useChainAction(() => {
+    router.refresh();
+    setTimeout(() => router.refresh(), 4_000);
+  });
 
   const liveFinalEpoch =
     onChainFinalEpoch !== undefined ? Number(onChainFinalEpoch) : (latestFinalEpoch ?? 0);
@@ -309,8 +316,12 @@ export function MarketsListClient({
         <EmptyState
           icon={Swords}
           kicker="Narrative markets"
-          title="No markets match"
-          text="Try clearing the status or sector filter, or launch a new permissionless pair market above."
+          title={markets.length === 0 ? "No markets yet" : "No markets match"}
+          text={
+            markets.length === 0
+              ? "Launch the first permissionless pair market above; it appears here as soon as the transaction confirms."
+              : "Try clearing the status or sector filter, or launch a new permissionless pair market above."
+          }
           steps={["Pick two sectors to pair", "Both sides stake ETH into pools", "Oracle epoch settles the winner"]}
         >
           <button

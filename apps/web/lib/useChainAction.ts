@@ -74,7 +74,7 @@ export function useChainAction(onConfirmed?: () => Promise<void> | void) {
   const targetChainId = getActiveChainId();
   const targetChain = getChain(targetChainId);
   const explorerBase =
-    targetChain.blockExplorers?.default.url ?? "https://explorer.testnet.chain.robinhood.com";
+    targetChain.blockExplorers?.default.url ?? "https://robinhoodchain.blockscout.com";
 
   const publicClient = usePublicClient({ chainId: targetChainId });
   const { switchChainAsync } = useSwitchChain();

@@ -166,8 +166,9 @@ export const governorAbi = parseAbi([
 ]);
 
 export function getActiveChainId(): SupportedChainId {
-  const raw = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? ROBINHOOD_TESTNET_ID);
-  return raw === ROBINHOOD_MAINNET_ID ? ROBINHOOD_MAINNET_ID : ROBINHOOD_TESTNET_ID;
+  // Mainnet unless the deployment explicitly asks for the testnet; an unset variable must never show testnet.
+  const raw = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? ROBINHOOD_MAINNET_ID);
+  return raw === ROBINHOOD_TESTNET_ID ? ROBINHOOD_TESTNET_ID : ROBINHOOD_MAINNET_ID;
 }
 
 function asAddress(val: string | undefined): Address | null {
