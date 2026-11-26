@@ -133,11 +133,14 @@ Only projects that can be proven live on Robinhood Chain 4663 are listed, by byt
 | Narrative | Project | Proof |
 |---|---|---|
 | 8 DeFi | Uniswap V3 | factory `0x1f7d7550b1b028f7571e69a784071f0205fd2efa` has code (24.5 KB) and creates the basket pools |
+| 8 DeFi | PancakeSwap V3 | factory `0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865` has code; `feeAmountTickSpacing(2500)` is 50 (Pancake's fee tier; Uniswap's 3000 tier is 60) and it has a `poolDeployer` |
 | 4 Stablecoins | USDG (Global Dollar) | `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168` has code, symbol USDG, 6 decimals, 640M supply |
 
 Named by The Block's launch article (2026-07-01) but not listed, because it gives no addresses and does not say they
 run on this chain: Lighter (perps), Rialto, 1inch, Arcus, Pleiades (AMMs and stock-token venues), Morpho and Robinhood
 Earn (USDG lending), Chainlink (oracle). Add one only after its contract address on 4663 is known and checked.
+
+Checked and rejected: a token named "Lighter" (LIT, `0xeeca2E7Dc194a320d349122d88259bB9595a4cB0`) trades against USDG on Uniswap, but anyone can pick a token name, its supply is 526,276 (not the project's published supply) and nothing ties it to the Lighter team, so it does not count as Lighter being on the chain. Morpho Blue's canonical address (`0xBBBB...EFFCb`) has no code on 4663.
 
 Narratives with no known project (AI Agents, Perp DEX, Prediction Markets, Privacy / ZK, DePIN, Gaming) show NO PROJECT
 DATA and no score, and are left out of "Highest Opportunity", instead of ranking first on a count of zero.

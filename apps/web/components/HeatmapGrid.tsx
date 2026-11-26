@@ -42,8 +42,11 @@ const QUADRANT_BADGE: Record<
 };
 
 export function HeatmapGrid({ points }: HeatmapGridProps) {
+  // Only narratives with a known project can sit on the chart (a count of zero is "unknown", not a position).
+  const plotPoints = useMemo(() => points.filter((p) => !p.noProjectData), [points]);
+  const unranked = useMemo(() => points.filter((p) => p.noProjectData), [points]);
   const [selectedId, setSelectedId] = useState<number | null>(
-    points[0]?.narrativeId ?? null,
+    plotPoints[0]?.narrativeId ?? points[0]?.narrativeId ?? null,
   );
 
   const width = 820;
@@ -56,17 +59,17 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
   const plotH = height - padT - padB;
 
   const { maxM, maxP, medM, medP } = useMemo(() => {
-    const ms = points.map((p) => p.mBps);
-    const ps = points.map((p) => p.activeProjects);
+    const ms = plotPoints.map((p) => p.mBps);
+    const ps = plotPoints.map((p) => p.activeProjects);
     const sortedM = [...ms].sort((a, b) => a - b);
     const sortedP = [...ps].sort((a, b) => a - b);
     return {
-      maxM: Math.max(2200, ...(ms.length ? ms : [2000])) * 1.12,
-      maxP: Math.max(20, ...(ps.length ? ps : [20])) * 1.15,
+      maxM: Math.max(1000, ...(ms.length ? ms : [2000])) * 1.15,
+      maxP: Math.max(4, ...(ps.length ? ps : [4])) * 1.2,
       medM: sortedM[Math.floor(sortedM.length / 2)] ?? 1000,
       medP: sortedP[Math.floor(sortedP.length / 2)] ?? 10,
     };
-  }, [points]);
+  }, [plotPoints]);
 
   if (points.length === 0) {
     return (
@@ -218,7 +221,7 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
               ACTIVE PROJECTS →
             </text>
 
-            {points.map((pt) => {
+            {plotPoints.map((pt) => {
               const cx = xOf(pt.mBps);
               const cy = yOf(pt.activeProjects);
               const q = pt.noProjectData ? NO_DATA_BADGE : QUADRANT_BADGE[pt.quadrant];
@@ -295,6 +298,25 @@ export function HeatmapGrid({ points }: HeatmapGridProps) {
             })}
           </svg>
         </div>
+        {unranked.length > 0 && (
+          <div className="border-t border-[#1F1F23] bg-[#111113] px-4 py-3">
+            <div className="font-mono text-[9.5px] uppercase tracking-[0.1em] text-[#71717A]">
+              No project data yet · not placed on the chart
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {unranked.map((pt) => (
+                <button
+                  key={pt.narrativeId}
+                  type="button"
+                  onClick={() => setSelectedId(pt.narrativeId)}
+                  className="border border-[#3A3A40] bg-[#1A1A1D] px-2.5 py-1 font-mono text-[10.5px] text-[#A1A1AA] transition-colors hover:border-[#CCFF00]/50 hover:text-[#F5F5F7]"
+                >
+                  {pt.label} · {formatBpsPercent(pt.mBps, 1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Ranked Opportunity Table */}
