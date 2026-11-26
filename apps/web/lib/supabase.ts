@@ -79,7 +79,7 @@ const cachedSupabaseRows = unstable_cache(fetchSupabaseRows, ["supabase-select"]
 });
 // Heavy joins (posts with classifications and engagement) and data that only moves every few minutes at most
 // (epoch history, token list) keep a longer cache, so a click on a narrative is rarely a cold query.
-const SLOW_DATA_REVALIDATE_SECONDS = 120;
+const SLOW_DATA_REVALIDATE_SECONDS = 300;
 const cachedSlowSupabaseRows = unstable_cache(fetchSupabaseRows, ["supabase-select-slow"], {
   revalidate: SLOW_DATA_REVALIDATE_SECONDS,
 });
@@ -271,6 +271,7 @@ interface DexMarketInfo {
   volume24hUsd: number | null;
   change24hPct: number | null;
   dexUrl: string | null;
+  imageUrl: string | null;
 }
 
 const dexCache = new Map<string, { expiresAt: number; data: DexMarketInfo | null }>();
@@ -301,6 +302,7 @@ async function fetchDexMarketInfo(symbol: string): Promise<DexMarketInfo | null>
         volume?: { h24?: number };
         priceChange?: { h24?: number };
         txns?: { h24?: { buys?: number; sells?: number } };
+        info?: { imageUrl?: string };
       }>;
     };
     const pairs = (json.pairs ?? []).filter((pair) => {
@@ -319,6 +321,7 @@ async function fetchDexMarketInfo(symbol: string): Promise<DexMarketInfo | null>
           volume24hUsd: best.volume?.h24 != null && Number.isFinite(Number(best.volume.h24)) ? Number(best.volume.h24) : null,
           change24hPct: best.priceChange?.h24 != null && Number.isFinite(Number(best.priceChange.h24)) ? Number(best.priceChange.h24) : null,
           dexUrl: best.url ?? null,
+          imageUrl: best.info?.imageUrl ?? null,
         }
       : null;
     dexCache.set(key, { expiresAt: Date.now() + DEX_CACHE_TTL_MS, data });
@@ -562,6 +565,7 @@ export async function fetchNarrativeHistory(
       volume24hUsd: market?.volume24hUsd ?? null,
       change24hPct: market?.change24hPct ?? null,
       dexUrl: market?.dexUrl ?? null,
+      imageUrl: market?.imageUrl ?? null,
     };
   });
 

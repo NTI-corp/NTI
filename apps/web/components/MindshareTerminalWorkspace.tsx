@@ -482,7 +482,7 @@ export function MindshareTerminalWorkspace({
                             {formatSignedBps(delta, windowChip === "4H" && n.vBps !== null ? n.vFlag : null)}
                           </span>
                         ) : (
-                          <span className="text-[#71717A]">—</span>
+                          <span className="text-[#71717A]">NEW</span>
                         )}
                       </td>
                       <td className="hidden py-3 text-right font-mono tabular-nums text-[#A1A1AA] sm:table-cell">
