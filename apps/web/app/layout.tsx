@@ -33,10 +33,39 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://nti-nine.vercel.app";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "NTI | Narrative Token Index",
   description:
     "Narrative Token Index (NTI) uses autonomous AI to score 1,500+ crypto KOLs across X every 4 hours, powering verifiable onchain narrative indexes, pair markets, and self-rebalancing vaults on Robinhood Chain.",
+  openGraph: {
+    type: "website",
+    siteName: "Narrative Token Index (NTI)",
+    title: "NTI | AI-priced crypto mindshare",
+    description:
+      "Autonomous AI scoring across 1,500+ X KOLs every 4 hours. Verifiable onchain indexes, pair markets & TWAP baskets on Robinhood Chain (4663).",
+    url: "/",
+    images: [
+      {
+        url: "/og-banner.jpg",
+        width: 1200,
+        height: 630,
+        alt: "NTI — AI-priced crypto mindshare on Robinhood Chain",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@NTI_Index",
+    creator: "@NTI_Index",
+    title: "NTI | AI-priced crypto mindshare",
+    description:
+      "Autonomous AI scoring across 1,500+ X KOLs every 4 hours. Verifiable onchain indexes, pair markets & TWAP baskets on Robinhood Chain (4663).",
+    images: ["/og-banner.jpg"],
+  },
 };
 
 export default function RootLayout({
