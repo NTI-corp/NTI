@@ -186,3 +186,42 @@ def test_gemini_overload_is_retried_longer(monkeypatch) -> None:
     asyncio.run(run())
     assert state["n"] == 6
     assert sleeps[:5] == [5.0, 10.0, 15.0, 20.0, 25.0]
+
+
+def test_gemini_daily_quota_parks_the_key_and_the_other_key_takes_over(monkeypatch) -> None:
+    import nti_classifier.adapters as adapters
+    from nti_classifier.adapters import GeminiAdapter
+
+    async def fake_sleep(delay: float) -> None:
+        return None
+
+    monkeypatch.setattr(adapters.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(adapters, "_gemini_blocked_until", {})
+    monkeypatch.setattr(adapters, "_gemini_next_slot", {})
+    monkeypatch.setenv("GEMINI_API_KEY_2", "second")
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        key = request.url.params["key"]
+        seen.append(key)
+        if key == "first":
+            body = {"error": {"message": "GenerateRequestsPerDayPerProjectPerModel-FreeTier"}}
+            return httpx.Response(429, json=body)
+        text = json.dumps({"results": []})
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": text}]}}]})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    adapter = GeminiAdapter(api_key="first", model="gemini-test", client=client)
+    spec = PromptSpec(version="v2", system_prompt="classify", narratives=(1,))
+
+    async def run() -> None:
+        for _ in range(3):
+            try:
+                await adapter.classify([PostIn(1, "alice", "hello")], spec)
+            except Exception:  # empty answer is invalid; only the key choice matters
+                pass
+
+    asyncio.run(run())
+    assert seen.count("first") == 1
+    assert seen.count("second") >= 3
+    assert adapters._gemini_blocked_until["first"] > 1000

@@ -175,8 +175,13 @@ class GeminiAdapter:
                 wait = resp.headers.get("retry-after", "")
                 fallback_delay = 20.0 if len(self._keys) > 1 else 4.0 * (attempt + 1)
                 delay = float(wait) if wait.replace(".", "", 1).isdigit() else fallback_delay
+                if "PerDay" in resp.text:
+                    # Daily quota used up: this key is done for hours, do not keep knocking on it.
+                    delay = 3600.0
+                else:
+                    delay = min(delay, 60.0)
                 # The key rests for that long; the pacer picks another key meanwhile, or waits.
-                _gemini_blocked_until[key] = time.monotonic() + min(delay, 60.0)
+                _gemini_blocked_until[key] = time.monotonic() + delay
                 continue
             if resp.status_code not in (500, 502, 503, 504) or attempt >= 7:
                 break
