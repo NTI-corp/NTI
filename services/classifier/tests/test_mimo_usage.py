@@ -151,3 +151,38 @@ def test_gemini_spreads_calls_over_keys_and_skips_a_blocked_key(monkeypatch) -> 
     adapters._gemini_blocked_until["first"] = time.monotonic() + 60
     adapters._gemini_next_slot.clear()
     assert asyncio.run(run())[0] == "second"
+
+
+def test_gemini_overload_is_retried_longer(monkeypatch) -> None:
+    from nti_classifier.adapters import GeminiAdapter
+
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr("nti_classifier.adapters.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr("nti_classifier.adapters._gemini_blocked_until", {})
+    monkeypatch.setattr("nti_classifier.adapters._gemini_next_slot", {})
+    state = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        state["n"] += 1
+        if state["n"] <= 5:
+            return httpx.Response(503, json={"error": "high demand"})
+        text = json.dumps({"results": []})
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": text}]}}]})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    adapter = GeminiAdapter(api_key="k", model="gemini-test", client=client)
+    spec = PromptSpec(version="v2", system_prompt="classify", narratives=(1,))
+
+    async def run() -> None:
+        try:
+            await adapter.classify([PostIn(1, "alice", "hello")], spec)
+        except Exception:  # empty answer is invalid; only the retry behaviour matters
+            pass
+
+    asyncio.run(run())
+    assert state["n"] == 6
+    assert sleeps[:5] == [5.0, 10.0, 15.0, 20.0, 25.0]

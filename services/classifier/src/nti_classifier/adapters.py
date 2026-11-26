@@ -178,9 +178,10 @@ class GeminiAdapter:
                 # The key rests for that long; the pacer picks another key meanwhile, or waits.
                 _gemini_blocked_until[key] = time.monotonic() + min(delay, 60.0)
                 continue
-            if resp.status_code not in (500, 502, 503, 504) or attempt == 2:
+            if resp.status_code not in (500, 502, 503, 504) or attempt >= 7:
                 break
-            await asyncio.sleep(1.0 * (attempt + 1))
+            # Gemini sheds load with 503 in short spikes: wait it out instead of failing the run.
+            await asyncio.sleep(min(5.0 * (attempt + 1), 30.0))
 
         if resp is None:
             raise RateLimitError(f"Gemini transport/timeout after retries: {last_exc}")
