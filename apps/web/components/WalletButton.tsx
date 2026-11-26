@@ -13,6 +13,7 @@ import {
 } from "wagmi";
 import { getActiveChainId, getChain } from "@/lib/contracts";
 import { truncateHex } from "@/lib/format";
+import { RobinhoodMark } from "@/components/ui/Icons";
 import { useSiweSession } from "./Providers";
 
 type KnownWallet = {
@@ -379,23 +380,24 @@ export function WalletButton() {
         </div>
       )}
 
-      {/* EIP-6963 Multi-Wallet Picker Modal */}
+      {/* EIP-6963 Multi-Wallet Picker Modal (compact 2-column grid, fits cleanly without scroll) */}
       <ModalShell
         open={mounted && modalOpen}
         onClose={() => setModalOpen(false)}
         canClose={!pendingConnectorId}
         labelledBy="nti-wallet-modal-title"
+        maxWidthClass="max-w-[540px]"
       >
-        <header className="flex items-start justify-between gap-3 border-b border-[#26262A] bg-[#111113] px-5 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-[#26262A] bg-[#111113] px-5 py-3.5">
           <div>
             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#CCFF00]">
               CONNECT TO NTI TERMINAL
             </span>
             <h2
               id="nti-wallet-modal-title"
-              className="mt-1 text-base font-semibold text-[#F5F5F7]"
+              className="mt-0.5 text-base font-semibold text-[#F5F5F7]"
             >
-              Select an EVM Wallet
+              Choose a Wallet
             </h2>
           </div>
           <button
@@ -409,11 +411,11 @@ export function WalletButton() {
           </button>
         </header>
 
-        <p className="border-b border-[#26262A] bg-[#0D0D0E] px-5 py-2.5 font-mono text-[11px] text-[#8A8A93]">
-          Connect via EIP-6963 or WalletConnect. Target network: {targetChain.name} ({targetChainId}).
+        <p className="border-b border-[#26262A] bg-[#0D0D0E] px-5 py-2 font-mono text-[11px] text-[#8A8A93]">
+          Connect an EVM wallet to {targetChain.name} ({targetChainId}). Your wallet stays in control of every transaction.
         </p>
 
-        <div className="max-h-[55vh] divide-y divide-[#26262A] overflow-y-auto">
+        <div className="grid grid-cols-1 gap-2 p-4 sm:grid-cols-2">
           {availableConnectors.map((connector) => {
             const logo = iconForConnector(connector);
             const isBusy = pendingConnectorId === connector.uid;
@@ -423,28 +425,27 @@ export function WalletButton() {
                 type="button"
                 disabled={Boolean(pendingConnectorId)}
                 onClick={() => void handleSelectConnector(connector)}
-                className="flex w-full cursor-pointer items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-[#1E1E21] disabled:opacity-60"
+                className="group flex cursor-pointer items-center gap-3 border border-[#26262A] bg-[#111113] px-3.5 py-3 text-left transition-colors hover:border-[#CCFF00]/60 hover:bg-[#1B1B1F] disabled:opacity-60"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#26262A] bg-[#0D0D0E]">
-                    {logo ? (
-                      <img src={logo} alt="" className="h-5 w-5 object-contain" />
-                    ) : (
-                      <span className="font-mono text-xs text-[#CCFF00]">W</span>
-                    )}
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#26262A] bg-[#0D0D0E]">
+                  {logo ? (
+                    <img src={logo} alt="" className="h-5 w-5 object-contain" />
+                  ) : (
+                    <span className="font-mono text-xs text-[#CCFF00]">W</span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-semibold text-[#F5F5F7] transition-colors group-hover:text-[#CCFF00]">
+                    {connector.name}
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-[#F5F5F7]">
-                      {connector.name}
-                    </div>
-                    <div className="font-mono text-[10px] uppercase text-[#71717A]">
-                      {connector.type === "walletConnect" ? "QR / MOBILE RELAY" : "EIP-6963 DETECTED"}
-                    </div>
+                  <div className="mt-0.5 font-mono text-[9.5px] uppercase tracking-wider text-[#4ADE80]">
+                    {isBusy
+                      ? "CHECK WALLET..."
+                      : connector.type === "walletConnect"
+                        ? "QR / MOBILE"
+                        : "AVAILABLE"}
                   </div>
                 </div>
-                <span className="border border-[#4ADE80]/40 bg-[#4ADE80]/10 px-2 py-0.5 font-mono text-[10px] uppercase text-[#4ADE80]">
-                  {isBusy ? "CHECK WALLET..." : "AVAILABLE"}
-                </span>
               </button>
             );
           })}
@@ -455,17 +456,19 @@ export function WalletButton() {
               href={kw.installUrl}
               target="_blank"
               rel="noreferrer noopener"
-              className="flex items-center justify-between px-5 py-3 opacity-75 transition-colors hover:bg-[#1E1E21] hover:opacity-100"
+              className="group flex items-center gap-3 border border-[#26262A]/80 bg-[#0D0D0E] px-3.5 py-3 opacity-75 transition-colors hover:border-[#3A3A40] hover:bg-[#161618] hover:opacity-100"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#26262A] bg-[#0D0D0E]">
-                  <img src={kw.logo} alt="" className="h-5 w-5 object-contain grayscale" />
-                </div>
-                <span className="text-sm text-[#A1A1AA]">{kw.name}</span>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#26262A] bg-[#111113]">
+                <img src={kw.logo} alt="" className="h-5 w-5 object-contain grayscale group-hover:grayscale-0 transition-all" />
               </div>
-              <span className="font-mono text-[10px] uppercase text-[#71717A]">
-                INSTALL ↗
-              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-medium text-[#A1A1AA] group-hover:text-[#F5F5F7]">
+                  {kw.name}
+                </div>
+                <div className="mt-0.5 font-mono text-[9.5px] uppercase tracking-wider text-[#71717A]">
+                  INSTALL ↗
+                </div>
+              </div>
             </a>
           ))}
         </div>
@@ -480,7 +483,10 @@ export function WalletButton() {
         )}
 
         <footer className="flex items-center justify-between border-t border-[#26262A] bg-[#0D0D0E] px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-[#71717A]">
-          <span>{targetChain.name}</span>
+          <span className="inline-flex items-center gap-1.5">
+            <RobinhoodMark className="h-3 w-auto opacity-85" />
+            <span>Chain</span>
+          </span>
           <span className="tabular-nums">CHAIN ID {targetChainId}</span>
         </footer>
       </ModalShell>
