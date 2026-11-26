@@ -19,6 +19,7 @@ import { useChainAction } from "@/lib/useChainAction";
 import { useSiweSession } from "./Providers";
 import type { GovernorProposalItem } from "@/lib/types";
 import { GovernorPanel } from "./GovernorPanel";
+import { PollsPanel } from "./PollsPanel";
 import { KolRegistryPanel } from "./KolRegistryPanel";
 import { TierLadder } from "@/components/ui/Visuals";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
@@ -348,7 +349,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
             <span>Stake $NTI</span>
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#71717A]">
-            Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and, where a governor is deployed, vote with checkpointed stake.
+            Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and vote in stake-weighted community polls.
           </p>
         </div>
 
@@ -612,6 +613,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
         </div>
       </div>
 
+      <PollsPanel />
       {addresses.governor && <GovernorPanel proposals={proposals} />}
       {isTestnet && <KolRegistryPanel />}
     </div>

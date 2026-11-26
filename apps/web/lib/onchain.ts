@@ -531,3 +531,56 @@ export async function readPonsLogos(addresses: Address[]): Promise<Record<string
     return {};
   }
 }
+
+const stakingVotesAbi = parseAbi([
+  "function getPastVotes(address account, uint256 timepoint) view returns (uint256)",
+  "function hasRole(bytes32 role, address account) view returns (bool)",
+  "function clock() view returns (uint48)",
+]);
+const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000" as const;
+
+/**
+ * The Staking contract's own clock, used as the snapshot when a poll opens. It is `block.number`, which on this
+ * Arbitrum-based chain is the L1 block number, not the L2 block height, so the L2 height cannot be used here.
+ */
+export async function readStakingClock(): Promise<bigint | null> {
+  const { addresses, client } = getServerPublicClient();
+  if (!addresses.staking) return null;
+  try {
+    return BigInt(await client.readContract({ address: addresses.staking, abi: stakingVotesAbi, functionName: "clock" }));
+  } catch {
+    return null;
+  }
+}
+
+/** Stake of `account` at `block` (Staking checkpoints). Null when the chain cannot be read. */
+export async function readStakeAtBlock(account: Address, block: bigint): Promise<bigint | null> {
+  const { addresses, client } = getServerPublicClient();
+  if (!addresses.staking) return null;
+  try {
+    return await client.readContract({
+      address: addresses.staking,
+      abi: stakingVotesAbi,
+      functionName: "getPastVotes",
+      args: [account, block],
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Whether `account` holds the Staking default admin role, the same wallet that administers the protocol. */
+export async function readIsProtocolAdmin(account: Address): Promise<boolean> {
+  const { addresses, client } = getServerPublicClient();
+  if (!addresses.staking) return false;
+  try {
+    return await client.readContract({
+      address: addresses.staking,
+      abi: stakingVotesAbi,
+      functionName: "hasRole",
+      args: [DEFAULT_ADMIN_ROLE, account],
+    });
+  } catch {
+    return false;
+  }
+}
