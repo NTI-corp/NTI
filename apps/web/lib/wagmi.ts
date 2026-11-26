@@ -12,7 +12,7 @@ const connectors = wcProjectId
         metadata: {
           name: "NTI — Narrative Mindshare Index",
           description: "Institutional crypto narrative intelligence terminal on Robinhood Chain.",
-          url: "https://nti-nine.vercel.app",
+          url: "https://narrativeindex.tech",
           icons: [],
         },
       }),
