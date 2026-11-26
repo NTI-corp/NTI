@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from typing import Any
 
 import httpx
@@ -85,6 +86,22 @@ def parse_classification_json(
     return [by_id[tid] for tid in sorted(by_id.keys())]
 
 
+_gemini_next_slot = 0.0
+
+
+async def _gemini_pace() -> None:
+    """Spread Gemini calls over time: the free tier allows 15 requests a minute per model."""
+    global _gemini_next_slot
+    interval = float(os.environ.get("GEMINI_MIN_INTERVAL_SECONDS", "0") or 0)
+    if interval <= 0:
+        return
+    now = time.monotonic()
+    slot = max(now, _gemini_next_slot)
+    _gemini_next_slot = slot + interval
+    if slot > now:
+        await asyncio.sleep(slot - now)
+
+
 class GeminiAdapter:
     """Primary classifier adapter using Google Generative Language REST API."""
 
@@ -120,6 +137,7 @@ class GeminiAdapter:
         resp: httpx.Response | None = None
         last_exc: Exception | None = None
         for attempt in range(8):
+            await _gemini_pace()
             try:
                 if self._client is not None:
                     resp = await self._client.post(url, params=params, json=payload)

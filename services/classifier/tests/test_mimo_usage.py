@@ -102,3 +102,25 @@ def test_gemini_rate_limit_is_retried_with_backoff(monkeypatch) -> None:
     asyncio.run(run())
     assert state["n"] == 3
     assert sleeps[:2] == [3.0, 3.0]
+
+
+def test_gemini_calls_are_paced(monkeypatch) -> None:
+    import nti_classifier.adapters as adapters
+
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(adapters.asyncio, "sleep", fake_sleep)
+    monkeypatch.setenv("GEMINI_MIN_INTERVAL_SECONDS", "4")
+    monkeypatch.setattr(adapters, "_gemini_next_slot", 0.0)
+
+    async def run() -> None:
+        for _ in range(3):
+            await adapters._gemini_pace()
+
+    asyncio.run(run())
+    assert len(sleeps) == 2
+    assert 3.0 < sleeps[0] <= 4.0
+    assert 7.0 < sleeps[1] <= 8.0

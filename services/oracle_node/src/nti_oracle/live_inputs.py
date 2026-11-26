@@ -132,9 +132,17 @@ async def prepare_engine_posts(
     failed: set[int] = set()
     if unclassified:
         spec = load_prompt_spec(prompt, repo_root / "services/classifier/prompts", cfg.narratives)
-        batch_size = min(cfg.classifier.batch_size, 30)
+        # MiMo answers best in small batches; Gemini's free tier limits requests a minute, so it
+        # takes larger batches.
+        if provider == "gemini":
+            batch_size = int(os.environ.get("GEMINI_BATCH_SIZE", "100"))
+        else:
+            batch_size = min(cfg.classifier.batch_size, 30)
+        chunk_size = 2 * batch_size if provider == "gemini" else 150
         workers = max(1, int(os.environ.get("CLASSIFIER_CONCURRENCY", "4")))
-        chunks = [unclassified[i : i + 150] for i in range(0, len(unclassified), 150)]
+        chunks = [
+            unclassified[i : i + chunk_size] for i in range(0, len(unclassified), chunk_size)
+        ]
         queue: asyncio.Queue[list[PostIn]] = asyncio.Queue()
         for chunk in chunks:
             queue.put_nowait(chunk)
