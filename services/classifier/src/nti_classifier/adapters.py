@@ -86,20 +86,38 @@ def parse_classification_json(
     return [by_id[tid] for tid in sorted(by_id.keys())]
 
 
-_gemini_next_slot = 0.0
+_gemini_next_slot: dict[str, float] = {}
+_gemini_blocked_until: dict[str, float] = {}
 
 
-async def _gemini_pace() -> None:
-    """Spread Gemini calls over time: the free tier allows 15 requests a minute per model."""
-    global _gemini_next_slot
+def _gemini_keys(primary: str) -> list[str]:
+    """The primary key plus any extra keys (GEMINI_API_KEY_2, comma separated) for failover."""
+    extra = [k.strip() for k in os.environ.get("GEMINI_API_KEY_2", "").split(",") if k.strip()]
+    keys: list[str] = []
+    for key in [primary, *extra]:
+        if key and key not in keys:
+            keys.append(key)
+    return keys
+
+
+async def _gemini_pace(keys: list[str]) -> str:
+    """Pick the key that can send soonest and wait for its slot.
+
+    The free tier allows 15 requests a minute per model and project; spreading calls over several
+    keys multiplies that, and a key that just hit its limit is skipped until it recovers.
+    """
     interval = float(os.environ.get("GEMINI_MIN_INTERVAL_SECONDS", "0") or 0)
-    if interval <= 0:
-        return
     now = time.monotonic()
-    slot = max(now, _gemini_next_slot)
-    _gemini_next_slot = slot + interval
+
+    def ready_at(key: str) -> float:
+        return max(now, _gemini_next_slot.get(key, 0.0), _gemini_blocked_until.get(key, 0.0))
+
+    key = min(keys, key=ready_at)
+    slot = ready_at(key)
+    _gemini_next_slot[key] = slot + interval
     if slot > now:
         await asyncio.sleep(slot - now)
+    return key
 
 
 class GeminiAdapter:
@@ -114,6 +132,7 @@ class GeminiAdapter:
         timeout: float = 120.0,
     ) -> None:
         self._api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
+        self._keys = _gemini_keys(self._api_key)
         self._model = model or os.environ.get("GEMINI_MODEL", "gemini-4-hydrogen")
         self.version = self._model
         self._base_url = base_url.rstrip("/")
@@ -133,11 +152,11 @@ class GeminiAdapter:
                 "responseMimeType": "application/json",
             },
         }
-        params = {"key": self._api_key} if self._api_key else None
         resp: httpx.Response | None = None
         last_exc: Exception | None = None
         for attempt in range(8):
-            await _gemini_pace()
+            key = await _gemini_pace(self._keys or [""])
+            params = {"key": key} if key else None
             try:
                 if self._client is not None:
                     resp = await self._client.post(url, params=params, json=payload)
@@ -154,8 +173,10 @@ class GeminiAdapter:
                 continue
             if resp.status_code == 429 and attempt < 7:
                 wait = resp.headers.get("retry-after", "")
-                delay = float(wait) if wait.replace(".", "", 1).isdigit() else 4.0 * (attempt + 1)
-                await asyncio.sleep(min(delay, 60.0))
+                fallback_delay = 20.0 if len(self._keys) > 1 else 4.0 * (attempt + 1)
+                delay = float(wait) if wait.replace(".", "", 1).isdigit() else fallback_delay
+                # The key rests for that long; the pacer picks another key meanwhile, or waits.
+                _gemini_blocked_until[key] = time.monotonic() + min(delay, 60.0)
                 continue
             if resp.status_code not in (500, 502, 503, 504) or attempt == 2:
                 break

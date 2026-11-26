@@ -101,7 +101,8 @@ def test_gemini_rate_limit_is_retried_with_backoff(monkeypatch) -> None:
 
     asyncio.run(run())
     assert state["n"] == 3
-    assert sleeps[:2] == [3.0, 3.0]
+    assert len(sleeps) >= 2
+    assert all(2.5 < d <= 3.0 for d in sleeps[:2])
 
 
 def test_gemini_calls_are_paced(monkeypatch) -> None:
@@ -114,13 +115,39 @@ def test_gemini_calls_are_paced(monkeypatch) -> None:
 
     monkeypatch.setattr(adapters.asyncio, "sleep", fake_sleep)
     monkeypatch.setenv("GEMINI_MIN_INTERVAL_SECONDS", "4")
-    monkeypatch.setattr(adapters, "_gemini_next_slot", 0.0)
+    monkeypatch.setattr(adapters, "_gemini_next_slot", {})
+    monkeypatch.setattr(adapters, "_gemini_blocked_until", {})
 
     async def run() -> None:
         for _ in range(3):
-            await adapters._gemini_pace()
+            await adapters._gemini_pace(["a"])
 
     asyncio.run(run())
     assert len(sleeps) == 2
     assert 3.0 < sleeps[0] <= 4.0
     assert 7.0 < sleeps[1] <= 8.0
+
+
+def test_gemini_spreads_calls_over_keys_and_skips_a_blocked_key(monkeypatch) -> None:
+    import time
+
+    import nti_classifier.adapters as adapters
+
+    async def fake_sleep(delay: float) -> None:
+        return None
+
+    monkeypatch.setattr(adapters.asyncio, "sleep", fake_sleep)
+    monkeypatch.setenv("GEMINI_MIN_INTERVAL_SECONDS", "4")
+    monkeypatch.setenv("GEMINI_API_KEY_2", "second")
+    monkeypatch.setattr(adapters, "_gemini_next_slot", {})
+    monkeypatch.setattr(adapters, "_gemini_blocked_until", {})
+    keys = adapters._gemini_keys("first")
+    assert keys == ["first", "second"]
+
+    async def run() -> list[str]:
+        return [await adapters._gemini_pace(keys) for _ in range(4)]
+
+    assert asyncio.run(run()) == ["first", "second", "first", "second"]
+    adapters._gemini_blocked_until["first"] = time.monotonic() + 60
+    adapters._gemini_next_slot.clear()
+    assert asyncio.run(run())[0] == "second"
