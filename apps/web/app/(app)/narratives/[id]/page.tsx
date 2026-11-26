@@ -152,7 +152,7 @@ export default async function NarrativeDetailPage({
           },
         ]}
         title={`${meta.label} · Historical I_n & Signed Velocity V_n`}
-        subtitle="Vertical dashed lines mark governance/model re-baselines (NEW SERIES); hatched bands mark incomplete epochs"
+        subtitle="Vertical dashed lines mark model re-baselines (NEW SERIES); hatched bands mark incomplete epochs"
         showVelocityBars
         height={320}
       />

@@ -60,7 +60,7 @@ function getRouteMeta(path: string): RouteShellMeta {
       return {
         eyebrow: "TRADE · ERC-20 SPOT VAULTS",
         title: "Narrative Baskets",
-        subtitle: "Governance-whitelisted Uniswap V3 vaults priced by 30-minute TWAP.",
+        subtitle: "Admin-whitelisted Uniswap V3 vaults priced by 30-minute TWAP.",
         layout: "grid3",
       };
     case "/grants":
@@ -74,7 +74,7 @@ function getRouteMeta(path: string): RouteShellMeta {
       return {
         eyebrow: "PROTOCOL · IVOTES STAKING",
         title: "Stake $NTI",
-        subtitle: "Protocol fee share, fee discounts, Radar access tiers, and governance.",
+        subtitle: "Protocol fee share, fee discounts, and Radar access tiers.",
         layout: "stake",
       };
     case "/oracle":

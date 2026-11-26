@@ -267,7 +267,7 @@ export const HOME_CONTENT = {
         bullets: [
           "Self-rebalancing Uniswap V3 narrative baskets",
           "Native ETH fee yield streamed to $NTI stakers",
-          "Onchain governance over caps, weights, and grants",
+          "Basket caps, weights, and grants managed by the protocol admin and keeper",
         ],
         iconKind: "lottie",
         lottieSrc: "/assets/lottie/defi.json",

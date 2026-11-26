@@ -335,7 +335,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
-              Staking &amp; Governance · IVotes Checkpointed
+              Staking · Fee share &amp; Radar access
             </span>
             {wrongChain && (
               <span className="border border-[#F59E0B]/40 bg-[#F59E0B]/10 px-2 py-0.5 font-mono text-[10px] text-[#F59E0B]">
@@ -348,7 +348,7 @@ export function StakeClient({ proposals }: { proposals: GovernorProposalItem[] |
             <span>Stake $NTI</span>
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#71717A]">
-            Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and participate in stake-weighted NTIGovernor votes.
+            Stakers earn 30% of protocol fees paid in ETH, unlock zero-delay Radar at 100,000 $NTI, receive up to 50% NarrativeMarket fee discounts, and, where a governor is deployed, vote with checkpointed stake.
           </p>
         </div>
 
