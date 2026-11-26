@@ -15,7 +15,6 @@ import { formatBpsPercent, formatEth, formatRelativeTime, truncateHex } from "@/
 import { useChainAction } from "@/lib/useChainAction";
 import type { BasketItem } from "@/lib/types";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
-import { TokenLogo, UniswapMark } from "@/components/ui/TokenLogo";
 
 interface BasketVaultClientProps {
   basket: BasketItem;
@@ -331,9 +330,8 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
         <div className="space-y-4 lg:col-span-7">
           <div className="border border-[#26262A] bg-[#161618]">
             <div className="border-b border-[#26262A] px-4 py-3">
-              <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-[#F5F5F7]">
-                <UniswapMark className="h-4 w-4" />
-                <span>Whitelisted Constituents (Uniswap V3 TWAP Priced)</span>
+              <h2 className="text-sm font-semibold text-[#F5F5F7]">
+                Whitelisted Constituents (Uniswap V3 TWAP Priced)
               </h2>
               <p className="mt-0.5 text-xs text-[#71717A]">
                 Every token requires admin whitelist approval, a Uniswap V3 pool against WETH and 30-minute TWAP history. The pool depth shown is the WETH held by that pool; thin pools mean more slippage.
@@ -364,14 +362,9 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                     basket.holdings.map((h) => (
                       <tr key={h.address} className="transition-colors hover:bg-[#111113]/60">
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <TokenLogo symbol={h.symbol} size={28} />
-                            <div>
-                              <div className="font-semibold text-[#F5F5F7]">${h.symbol}</div>
-                              <div className="text-[10px] text-[#71717A]">
-                                {h.name} · {truncateHex(h.address, 6, 4)}
-                              </div>
-                            </div>
+                          <div className="font-semibold text-[#F5F5F7]">${h.symbol}</div>
+                          <div className="text-[10px] text-[#71717A]">
+                            {h.name} · {truncateHex(h.address, 6, 4)}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right text-[#CCFF00]">
