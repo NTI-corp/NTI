@@ -120,7 +120,7 @@ V_n = NULL if:
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1F1F23] bg-[#111113] px-4 py-2.5">
           <div>
             <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-[#F5F5F7]">
-              Active Governance Parameters (`config/nti.v1.json`)
+              Active Protocol Parameters (`config/nti.v1.json`)
             </h2>
             <p className="font-mono text-[10.5px] text-[#71717A]">Hash: {config.configHash}</p>
           </div>

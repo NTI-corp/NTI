@@ -147,3 +147,9 @@ DATA and no score, and are left out of "Highest Opportunity", instead of ranking
 
 Add a row with the service key, for example `POST /rest/v1/projects` with `{"name": ..., "narrative_id": ..., "curated":
 true, "active": true}`.
+
+## Governor stays out (owner confirmed 2026-11-26)
+
+The owner confirmed there is no Governor and no Timelock on mainnet, also after the real $NTI launches: admin and keeper
+manage caps, weights and grants. The app copy says so (no "governance" promises), and the voting panel on the Stake page
+only appears if a governor address is ever configured. Revisit only if the owner decides to hand control to token holders.
