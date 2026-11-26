@@ -154,6 +154,24 @@ forge script contracts/script/HardenStakingMainnet.s.sol:HardenStakingMainnet --
 The script refuses to run while the registry is not frozen (set `ALLOW_BEFORE_SWAP=1` only to skip that on purpose),
 a cooldown outside 1 to 30 days, timings that are already locked, and a broadcaster without the staking admin role.
 
+## Adding a token to an existing basket
+
+The keeper only trades toward a basket's weights; it never picks tokens, because tokens come from changing data (what
+KOLs mention) and a thin or fake pool would cost depositors money. A token is added by hand, with checks:
+
+```powershell
+$env:NARRATIVE_ID = "9"                       # the basket's narrative
+$env:TOKEN = "0x..."
+$env:WEIGHTS_BPS = "3000,2500,2500,2000"      # every current token in the basket's order, then TOKEN; sum 10000, each <= 4000
+# $env:MIN_POOL_WETH = "..."                  # optional; default is 10 x the basket's maxTVL
+forge script contracts/script/AddBasketTokenMainnet.s.sol:AddBasketTokenMainnet --root contracts --rpc-url $env:RPC_URL_MAINNET --private-key $env:DEPLOYER_PRIVATE_KEY --broadcast
+```
+
+Drop `--broadcast` first to simulate. It refuses a token already in the basket, a missing WETH pool, a pool whose WETH
+depth is below the floor, weights that are out of range or do not sum to 10000, and fewer than three tokens. The basket
+adds its own checks (liquidity floor, TWAP history). Afterwards the keeper moves the holdings toward the new weights,
+at most 20% of the basket per day. With no deposits yet, nothing trades at all.
+
 ## Upgrades (fix or change a contract without redeploying it)
 
 Every protocol contract is an ERC-1967 proxy with UUPS upgrade logic: the address, the storage (stakes, markets,
