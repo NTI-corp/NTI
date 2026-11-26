@@ -373,6 +373,11 @@ export function MarketsListClient({
                       {m.status}
                     </span>
                   </div>
+                  {m.refundBound && (
+                    <div className="mt-2 border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#F59E0B]">
+                      Series changed since this market opened: it will refund at settlement
+                    </div>
+                  )}
 
                   <Link
                     href={`/markets/${m.marketId}`}
@@ -447,7 +452,7 @@ export function MarketsListClient({
                         : `Settled · Outcome: ${m.outcome ?? "refund"}`}
                   </span>
                   <div className="flex items-center gap-2">
-                    {m.status === "open" && (
+                    {m.status === "open" && !m.refundBound && (
                       <button
                         type="button"
                         onClick={() => setActiveBetMarket({ market: m, side: 0 })}

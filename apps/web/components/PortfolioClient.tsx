@@ -3,17 +3,19 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { formatEther, type Address } from "viem";
-import { useAccount, useBalance, useReadContract } from "wagmi";
+import { useAccount, useBalance, useReadContract, useReadContracts } from "wagmi";
 import {
   erc20Abi,
   getActiveChainId,
   getProtocolAddresses,
+  narrativeMarketAbi,
   stakingAbi,
 } from "@/lib/contracts";
 import { formatCompactNumber, formatEth, truncateHex } from "@/lib/format";
 import { useSiweSession } from "./Providers";
 import { NtiBrandMark } from "@/components/landing/NtiLogos";
 import { EthMark } from "@/components/ui/Icons";
+import { TokenLogo } from "@/components/ui/TokenLogo";
 import type { BasketItem, MarketItem } from "@/lib/types";
 
 export function PortfolioClient({
@@ -61,25 +63,48 @@ export function PortfolioClient({
     query: { enabled: Boolean(isConnected && address && addresses.staking) },
   });
 
-  const primaryBasket = baskets[0] ?? null;
-  const { data: basketShares } = useReadContract({
-    address: (primaryBasket?.basketAddress as Address | undefined) ?? undefined,
-    abi: erc20Abi,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    chainId,
-    query: { enabled: Boolean(isConnected && address && primaryBasket?.basketAddress) },
+  // Shares in every vault, not just the first one.
+  const { data: basketShareReads } = useReadContracts({
+    contracts: baskets.map((b) => ({
+      address: b.basketAddress as Address,
+      abi: erc20Abi,
+      functionName: "balanceOf" as const,
+      args: [address as Address] as const,
+      chainId,
+    })),
+    query: { enabled: Boolean(isConnected && address && baskets.length > 0) },
+  });
+  const sharesByBasket = baskets.map((b, i) => {
+    const raw = basketShareReads?.[i];
+    const shares = raw?.status === "success" && typeof raw.result === "bigint" ? Number(formatEther(raw.result)) : 0;
+    return { shares, valueEth: b.sharePriceEth !== null ? shares * b.sharePriceEth : 0 };
+  });
+
+  // The wallet's stake in each listed pair market (gross ETH on both sides).
+  const listedMarkets = markets.slice(0, 6);
+  const { data: positionReads } = useReadContracts({
+    contracts: listedMarkets.map((m) => ({
+      address: addresses.narrativeMarket as Address,
+      abi: narrativeMarketAbi,
+      functionName: "positions" as const,
+      args: [BigInt(m.marketId), address as Address] as const,
+      chainId,
+    })),
+    query: { enabled: Boolean(isConnected && address && addresses.narrativeMarket && listedMarkets.length > 0) },
+  });
+  const stakeByMarket = new Map<number, number>();
+  listedMarkets.forEach((m, i) => {
+    const raw = positionReads?.[i];
+    if (raw?.status === "success" && Array.isArray(raw.result)) {
+      const [gross0, , gross1] = raw.result as readonly [bigint, bigint, bigint, bigint, boolean];
+      stakeByMarket.set(m.marketId, Number(formatEther(gross0 + gross1)));
+    }
   });
 
   const ethNum = ethBal ? Number(formatEther(ethBal.value)) : 0;
   const ntiNum = typeof ntiBal === "bigint" ? Number(formatEther(ntiBal)) : 0;
   const stakedNum = typeof stakedBal === "bigint" ? Number(formatEther(stakedBal)) : 0;
   const rewardEth = typeof earnedEth === "bigint" ? Number(formatEther(earnedEth)) : 0;
-  const sharesNum = typeof basketShares === "bigint" ? Number(formatEther(basketShares)) : 0;
-  const sharesValueEth =
-    primaryBasket && primaryBasket.sharePriceEth !== null
-      ? sharesNum * primaryBasket.sharePriceEth
-      : 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -178,20 +203,27 @@ export function PortfolioClient({
                   href={`/baskets/${b.id}`}
                   className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-[#1E1E21]"
                 >
-                  <div>
-                    <div className="font-mono text-xs font-semibold text-[#F5F5F7]">
-                      {b.symbol} · {b.name}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex shrink-0 -space-x-1.5">
+                      {b.holdings.slice(0, 3).map((h) => (
+                        <TokenLogo key={h.address} symbol={h.symbol} size={22} className="bg-[#0D0D0E]" />
+                      ))}
                     </div>
-                    <div className="mt-0.5 font-mono text-[10px] text-[#71717A] tabular-nums">
-                      TVL {formatEth(b.tvlEth, 4)} · {b.holdings.length} holdings
+                    <div className="min-w-0">
+                      <div className="truncate font-mono text-xs font-semibold text-[#F5F5F7]">
+                        {b.symbol} · {b.name}
+                      </div>
+                      <div className="mt-0.5 font-mono text-[10px] text-[#71717A] tabular-nums">
+                        TVL {formatEth(b.tvlEth, 4)} · {b.holdings.length} holdings
+                      </div>
                     </div>
                   </div>
                   <div className="text-right font-mono tabular-nums">
                     <div className="text-xs font-semibold text-[#CCFF00]">
-                      {isConnected && i === 0 ? `${sharesNum.toFixed(4)} sh` : "Inspect"}
+                      {isConnected ? `${sharesByBasket[i]?.shares.toFixed(4) ?? "0.0000"} sh` : "Inspect"}
                     </div>
                     <div className="text-[10px] text-[#8A8A93]">
-                      {isConnected && i === 0 ? `≈ ${formatEth(sharesValueEth, 5)}` : "Open vault →"}
+                      {isConnected ? `≈ ${formatEth(sharesByBasket[i]?.valueEth ?? 0, 5)}` : "Open vault →"}
                     </div>
                   </div>
                 </Link>
@@ -213,7 +245,7 @@ export function PortfolioClient({
             </div>
           ) : (
             <div className="divide-y divide-[#1F1F23]">
-              {markets.slice(0, 6).map((m) => (
+              {listedMarkets.map((m) => (
                 <Link
                   key={m.marketId}
                   href={`/markets/${m.marketId}`}
@@ -228,8 +260,13 @@ export function PortfolioClient({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 font-mono text-xs tabular-nums">
-                    <span className="text-[#F5F5F7]">
-                      {formatEth(m.poolAEth + m.poolBEth, 4)}
+                    <span className="text-right">
+                      <span className="block text-[#F5F5F7]">{formatEth(m.poolAEth + m.poolBEth, 4)} pool</span>
+                      {isConnected && (
+                        <span className="block text-[10px] text-[#8A8A93]">
+                          your stake {formatEth(stakeByMarket.get(m.marketId) ?? 0, 4)}
+                        </span>
+                      )}
                     </span>
                     <ArrowUpRight className="h-3.5 w-3.5 text-[#71717A]" />
                   </div>

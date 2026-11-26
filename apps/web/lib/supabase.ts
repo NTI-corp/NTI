@@ -875,7 +875,15 @@ export async function fetchMarketsData(): Promise<{ awaitingDeployment: boolean;
   const snapshot = await fetchIndexesSnapshot();
   const indexes = new Map(snapshot.narratives.map((item) => [item.narrativeId, item.iBps]));
   const markets = await readLiveMarketsFromChain(indexes);
-  return { awaitingDeployment: markets === null, markets: markets ?? [] };
+  // A market compares two epochs of one series. Series only ever increase, so once the newest final epoch is in a
+  // later series than the market's base, the settlement epoch cannot be in the base series and the contract refunds.
+  const latestSeries = snapshot.latestFinalEpoch?.seriesId ?? null;
+  const flagged = (markets ?? []).map((m) => ({
+    ...m,
+    refundBound:
+      latestSeries !== null && (m.status === "open" || m.status === "locked") && latestSeries > m.seriesId,
+  }));
+  return { awaitingDeployment: markets === null, markets: flagged };
 }
 
 export async function fetchBasketsData(): Promise<{ awaitingDeployment: boolean; baskets: BasketItem[] }> {

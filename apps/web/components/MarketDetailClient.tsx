@@ -129,6 +129,12 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
           </p>
         </div>
 
+        {market.refundBound && (
+          <div className="w-full border border-[#F59E0B]/35 bg-[#F59E0B]/10 px-3 py-2 font-mono text-[11px] text-[#F59E0B]">
+            The oracle series changed after this market opened (base series S{market.seriesId}). The settlement epoch
+            will be in a later series, so the contract refunds every stake in full. Pick a newer market to trade.
+          </div>
+        )}
         <span
           className={`border px-3 py-1 font-mono text-xs font-semibold uppercase ${
             liveMarket.status === "open"
@@ -306,13 +312,19 @@ export function MarketDetailClient({ market }: { market: MarketItem }) {
 
         {/* Right: Embedded BetModal */}
         <div className="lg:col-span-5">
-          <BetModal
-            market={liveMarket}
-            embedded
-            onConfirmed={async () => {
-              await Promise.all([refetchMarket(), refetchPosition()]);
-            }}
-          />
+          {market.refundBound ? (
+            <div className="border border-[#26262A] bg-[#161618] p-4 font-mono text-xs text-[#A1A1AA]">
+              Betting is closed on this market because it can only refund. Open the markets list to trade a current pair.
+            </div>
+          ) : (
+            <BetModal
+              market={liveMarket}
+              embedded
+              onConfirmed={async () => {
+                await Promise.all([refetchMarket(), refetchPosition()]);
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

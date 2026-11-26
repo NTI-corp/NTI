@@ -227,6 +227,8 @@ export interface MarketItem {
   cutoffAt: string;
   settleAt: string;
   status: "open" | "locked" | "settled" | "refunded";
+  /** The oracle series moved on after this market opened, so settlement is certain to refund. */
+  refundBound?: boolean;
   outcome: "side_a" | "side_b" | "refund" | null;
   poolAEth: number;
   poolBEth: number;
