@@ -17,6 +17,10 @@ export function RecentLaunches({ launches }: { launches: RecentLaunchItem[] }) {
         <span className="text-[#F5F5F7]">Recent launches · watching</span>
         <span className="text-[#71717A]">Alert at 1 ETH liquidity</span>
       </div>
+      <p className="border-b border-[#1F1F23] px-4 py-2 text-[11px] text-[#71717A]">
+        New launches start with an empty curve, and a token gets a narrative only once a tracked KOL mentions it, so most
+        rows stay blank until someone buys or posts.
+      </p>
       <div className="divide-y divide-[#1F1F23]">
         {launches.map((t) => (
           <div key={t.address} className="flex items-center justify-between gap-3 px-4 py-2 font-mono text-[11px]">
@@ -28,9 +32,11 @@ export function RecentLaunches({ launches }: { launches: RecentLaunchItem[] }) {
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-4 tabular-nums text-[#A1A1AA]">
-              <span>{t.narrativeLabel ?? "unclassified"}</span>
+              <span className={t.narrativeLabel ? "" : "text-[#71717A]"}>{t.narrativeLabel ?? "no KOL mention yet"}</span>
               <span>{t.graduated ? "graduated" : "bonding curve"}</span>
-              <span>{t.liquidityEth.toFixed(4)} ETH</span>
+              <span className={t.liquidityEth > 0 ? "" : "text-[#71717A]"}>
+                {t.liquidityEth > 0 ? `${t.liquidityEth.toFixed(4)} ETH` : t.graduated ? "no pool data" : "no buys yet"}
+              </span>
               <span className="text-[#71717A]">{age(t.createdAt)}</span>
             </div>
           </div>
