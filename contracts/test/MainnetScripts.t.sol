@@ -6,6 +6,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {DeployMainnet} from "../script/DeployMainnet.s.sol";
 import {SwapTokenMainnet} from "../script/SwapTokenMainnet.s.sol";
+import {HardenStakingMainnet} from "../script/HardenStakingMainnet.s.sol";
 import {NTIPrelaunchToken} from "../src/NTIPrelaunchToken.sol";
 import {NTIRegistry} from "../src/NTIRegistry.sol";
 import {OracleCommit} from "../src/OracleCommit.sol";
@@ -20,6 +21,12 @@ contract DeployHarness is DeployMainnet {
 }
 
 contract SwapHarness is SwapTokenMainnet {
+    function _broadcaster() internal pure override returns (address) {
+        return DEFAULT_SENDER;
+    }
+}
+
+contract HardenHarness is HardenStakingMainnet {
     function _broadcaster() internal pure override returns (address) {
         return DEFAULT_SENDER;
     }
@@ -117,6 +124,14 @@ contract MainnetScriptsTest is Test {
         prelaunch.faucet();
         assertEq(prelaunch.balanceOf(makeAddr("alice")), 10_000e18);
 
+        // Hardening the unstake cooldown is refused while the prelaunch token is still in place: the token swap
+        // needs the short cooldown, so the real one comes after it.
+        vm.setEnv("COOLDOWN_DAYS", "7");
+        vm.setEnv("LOCK", "1");
+        HardenStakingMainnet early = new HardenHarness();
+        vm.expectRevert(bytes("registry is not frozen: swap to the real token first"));
+        early.run();
+
         // A token with the wrong supply is refused.
         SupplyToken wrong = new SupplyToken(42e18);
         vm.setEnv("NTI_TOKEN_ADDRESS", vm.toString(address(wrong)));
@@ -132,5 +147,21 @@ contract MainnetScriptsTest is Test {
         swap.run();
         assertEq(registry.nti(), address(real));
         assertTrue(registry.frozen());
+
+        // After the swap the real cooldown is applied and locked; out of range days and a second run are refused.
+        vm.setEnv("COOLDOWN_DAYS", "45");
+        HardenStakingMainnet bad = new HardenHarness();
+        vm.expectRevert(bytes("COOLDOWN_DAYS must be 1..30"));
+        bad.run();
+
+        vm.setEnv("COOLDOWN_DAYS", "7");
+        HardenStakingMainnet harden = new HardenHarness();
+        harden.run();
+        assertEq(staking.COOLDOWN_DURATION(), 7 days);
+        assertTrue(staking.timingsLocked());
+
+        HardenStakingMainnet again = new HardenHarness();
+        vm.expectRevert(bytes("staking timings are already locked"));
+        again.run();
     }
 }

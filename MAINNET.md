@@ -140,6 +140,20 @@ token that is already set, locked stake, or a buyback adapter that is not in the
 bonding curve keeps the 40% buyback share parked in FeeRouter until `registry.setBuybackAdapter` is called later.
 Retune `RADAR_MIN_STAKE`, the dispute bond, the validator minimum stake and the tier discounts to the live price.
 
+### Then set the real unstake cooldown (after the swap, never before)
+
+The prelaunch cooldown is 10 seconds so the swap above can clear all stake quickly. Once the real token is in and the
+registry is frozen, replace it with 7 days and lock it:
+
+```powershell
+$env:COOLDOWN_DAYS = "7"
+$env:LOCK = "1"                        # optional: the timing can never change again
+forge script contracts/script/HardenStakingMainnet.s.sol:HardenStakingMainnet --root contracts --rpc-url $env:RPC_URL_MAINNET --private-key $env:DEPLOYER_PRIVATE_KEY --broadcast
+```
+
+The script refuses to run while the registry is not frozen (set `ALLOW_BEFORE_SWAP=1` only to skip that on purpose),
+a cooldown outside 1 to 30 days, timings that are already locked, and a broadcaster without the staking admin role.
+
 ## Upgrades (fix or change a contract without redeploying it)
 
 Every protocol contract is an ERC-1967 proxy with UUPS upgrade logic: the address, the storage (stakes, markets,
