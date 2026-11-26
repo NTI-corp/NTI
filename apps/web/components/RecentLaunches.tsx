@@ -1,4 +1,5 @@
 import type { RecentLaunchItem } from "@/lib/types";
+import { TokenLogo } from "@/components/ui/TokenLogo";
 
 function age(iso: string): string {
   const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
@@ -19,9 +20,12 @@ export function RecentLaunches({ launches }: { launches: RecentLaunchItem[] }) {
       <div className="divide-y divide-[#1F1F23]">
         {launches.map((t) => (
           <div key={t.address} className="flex items-center justify-between gap-3 px-4 py-2 font-mono text-[11px]">
-            <div className="min-w-0">
-              <span className="font-semibold text-[#F5F5F7]">${t.symbol}</span>{" "}
-              <span className="truncate text-[#8A8A93]">{t.name}</span>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <TokenLogo symbol={t.symbol} imageUrl={t.imageUrl} size={22} />
+              <div className="min-w-0">
+                <span className="font-semibold text-[#F5F5F7]">${t.symbol}</span>{" "}
+                <span className="truncate text-[#8A8A93]">{t.name}</span>
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-4 tabular-nums text-[#A1A1AA]">
               <span>{t.narrativeLabel ?? "unclassified"}</span>

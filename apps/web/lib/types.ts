@@ -353,4 +353,5 @@ export interface RecentLaunchItem {
   graduated: boolean;
   liquidityEth: number;
   narrativeLabel: string | null;
+  imageUrl?: string | null;
 }

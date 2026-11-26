@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatRelativeTime, formatSignedBps, truncateHex } from "@/lib/format";
 import type { RadarAlertItem } from "@/lib/types";
+import { TokenLogo } from "@/components/ui/TokenLogo";
 
 interface RadarFeedProps {
   alerts: RadarAlertItem[];
@@ -99,6 +100,7 @@ export function RadarFeed({
 
                     {alert.token && (
                       <div className="flex flex-wrap items-center gap-2">
+                        <TokenLogo symbol={alert.token.symbol ?? "TOKEN"} size={20} />
                         <span className="font-medium text-[#F5F5F7]">
                           ${alert.token.symbol ?? "TOKEN"}
                         </span>

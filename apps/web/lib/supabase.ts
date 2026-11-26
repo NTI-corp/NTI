@@ -7,6 +7,7 @@ import {
   readGovernorStates,
   readLiveGrantRoundsFromChain,
   readLiveMarketsFromChain,
+  readPonsLogos,
 } from "./onchain";
 import type {
   BasketItem,
@@ -691,15 +692,23 @@ export async function fetchRecentLaunches(limit = 25): Promise<RecentLaunchItem[
     `tokens?select=address,symbol,name,created_at,graduated,liquidity_eth,narrative_id&source=eq.pons_v2&order=created_at.desc&limit=${limit}`,
     "anon",
   );
-  return (rows ?? []).map((r) => ({
-    address: normalizeHex(r.address) ?? r.address,
-    symbol: r.symbol,
-    name: r.name,
-    createdAt: r.created_at,
-    graduated: r.graduated,
-    liquidityEth: Number(r.liquidity_eth ?? 0),
-    narrativeLabel: r.narrative_id ? (NARRATIVE_BY_ID.get(r.narrative_id)?.label ?? null) : null,
-  }));
+  const addresses = (rows ?? [])
+    .map((r) => normalizeHex(r.address) ?? r.address)
+    .filter((a): a is Address => isAddress(a, { strict: false }));
+  const logos = await readPonsLogos(addresses);
+  return (rows ?? []).map((r) => {
+    const address = normalizeHex(r.address) ?? r.address;
+    return {
+      address,
+      symbol: r.symbol,
+      name: r.name,
+      createdAt: r.created_at,
+      graduated: r.graduated,
+      liquidityEth: Number(r.liquidity_eth ?? 0),
+      narrativeLabel: r.narrative_id ? (NARRATIVE_BY_ID.get(r.narrative_id)?.label ?? null) : null,
+      imageUrl: logos[address.toLowerCase()] ?? null,
+    };
+  });
 }
 
 export async function fetchRadarAlerts(params: {

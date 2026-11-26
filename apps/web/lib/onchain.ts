@@ -488,3 +488,46 @@ export async function readLiveGrantRoundsFromChain(): Promise<GrantRoundItem[] |
     return null;
   }
 }
+
+const ponsLogoAbi = parseAbi(["function logo() view returns (string)"]);
+const LOGO_CID = /^[A-Za-z0-9]{46,100}$/;
+
+/** A bare `ipfs://CID` becomes our cached logo route; an https URL is kept; anything else is dropped. */
+function logoUrl(raw: string): string | null {
+  const value = raw.trim();
+  if (value.startsWith("ipfs://")) {
+    const cid = value.slice("ipfs://".length).replace(/^ipfs\//, "");
+    return LOGO_CID.test(cid) ? `/api/token-logo/${cid}` : null;
+  }
+  if (/^https:\/\//i.test(value)) return value;
+  return null;
+}
+
+async function readPonsLogosUncached(addresses: Address[]): Promise<Record<string, string>> {
+  const { client } = getServerPublicClient();
+  const results = await client.multicall({
+    allowFailure: true,
+    contracts: addresses.map((address) => ({ address, abi: ponsLogoAbi, functionName: "logo" as const })),
+  });
+  const out: Record<string, string> = {};
+  results.forEach((r, i) => {
+    if (r.status !== "success" || typeof r.result !== "string") return;
+    const url = logoUrl(r.result);
+    if (url) out[addresses[i]!.toLowerCase()] = url;
+  });
+  return out;
+}
+
+// A token's logo never changes once launched, so an hour of caching is plenty. A failed read throws inside the
+// wrapper and is not cached.
+const cachedPonsLogos = unstable_cache(readPonsLogosUncached, ["pons-logos-v2"], { revalidate: 3600 });
+
+/** Logo image URL per token address (lower case) for Pons tokens; missing entries simply have no logo. */
+export async function readPonsLogos(addresses: Address[]): Promise<Record<string, string>> {
+  if (addresses.length === 0) return {};
+  try {
+    return await cachedPonsLogos([...addresses].map((a) => a.toLowerCase() as Address).sort());
+  } catch {
+    return {};
+  }
+}
