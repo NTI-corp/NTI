@@ -78,7 +78,8 @@ export function TokenLogo({
         alt={key}
         width={size}
         height={size}
-        loading="lazy"
+        // Bundled icons are tiny, so they load at once; remote logos wait until they are near the screen.
+        loading={LOCAL_TOKEN_ICONS[key] ? "eager" : "lazy"}
         referrerPolicy="no-referrer"
         onError={() => setFailed(true)}
         className={`h-full w-full ${padded ? "object-contain" : "object-cover"}`}
