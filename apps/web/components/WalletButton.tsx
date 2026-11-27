@@ -123,14 +123,12 @@ export function WalletButton() {
     };
   }, [menuOpen, modalOpen, pendingConnectorId]);
 
-  // Dedupe EIP-6963 connectors and suppress generic "Injected" when named EIP-6963 providers exist
+  // Only named wallets: the generic "Injected" entry is never listed; wallets that are not installed
+  // appear as install links below.
   const availableConnectors = useMemo(() => {
-    const eip6963 = connectors.filter(
-      (c) => c.id !== "injected" && c.type !== "injected",
-    );
-    const list = eip6963.length > 0 ? eip6963 : connectors;
+    const named = connectors.filter((c) => c.id !== "injected" && c.type !== "injected");
     const seen = new Set<string>();
-    return list.filter((c) => {
+    return named.filter((c) => {
       const key = `${c.id}:${c.name}`.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
