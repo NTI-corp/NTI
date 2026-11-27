@@ -11,6 +11,7 @@ import { formatCompactNumber, formatCountdown, formatEth, formatBpsPercent, trun
 import { useChainAction } from "@/lib/useChainAction";
 import type { GrantRoundItem } from "@/lib/types";
 import { SegmentedTabs } from "@/components/ui/SegmentedTabs";
+import { PollsPanel } from "@/components/PollsPanel";
 
 interface GrantsClientProps {
   rounds: GrantRoundItem[];
@@ -107,6 +108,7 @@ export function GrantsClient({ rounds, awaitingDeployment = false }: GrantsClien
   if (!round) {
     return (
       <div className="space-y-4">
+        <PollsPanel />
         <EmptyState
           icon={Sprout}
           kicker="Ecosystem grants"
