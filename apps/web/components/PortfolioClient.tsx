@@ -112,10 +112,10 @@ export function PortfolioClient({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="relative flex flex-wrap items-end justify-between gap-5 overflow-hidden border border-[#303327] bg-[#151712] px-5 py-6 sm:px-7">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-3.5">
         <div>
-          <p className="kicker">Trade · Live on-chain wallet telemetry</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#F5F5F7] sm:text-4xl">Your portfolio<span className="text-[#CCFF00]">.</span></h1>
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#71717A]">Trade · Live on-chain wallet telemetry</p>
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#F5F5F7]">Portfolio</h1>
           <p className="mt-1 text-xs text-[#8A8A93]">
             {isConnected && address
               ? `Reading live balances & positions for ${truncateHex(address, 8, 6)} on Chain ${chainId}.`

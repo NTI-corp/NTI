@@ -149,13 +149,13 @@ export function MarketsListClient({
       )}
 
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-5 border border-[#303327] bg-[#151712] px-5 py-6 sm:px-7">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-3.5">
         <div>
           <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
             Narrative Markets · Fixed-Horizon Parimutuel
           </span>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#F5F5F7] sm:text-4xl">
-            Pair markets<span className="text-[#CCFF00]">.</span>
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#F5F5F7]">
+            Pair Markets
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#71717A]">
             Settled from finalized on-chain oracle indexes. Zero leverage; gross refunds on ties or invalid settlement epochs.

@@ -17,20 +17,15 @@ async function BasketsContent() {
 
   return (
     <div className="tab-panel-enter space-y-6 pb-8">
-      <header className="relative overflow-hidden border border-[#34392a] bg-[#161b12]">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-32 h-72 w-72 rounded-full border border-[#b8f221]/10 shadow-[0_0_100px_rgba(190,255,0,0.05)]" />
-        <div className="relative grid gap-7 px-5 py-7 sm:px-8 sm:py-9 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div>
-            <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#b4cb7c]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ccff00]" /> Robinhood Chain · On-chain vaults
-            </div>
-            <h1 className="mt-4 max-w-2xl text-3xl font-semibold tracking-[-0.04em] text-[#f5f5f7] sm:text-5xl">A basket for<br /><span className="text-[#ccff00]">your conviction.</span></h1>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-[#a5ac9f]">Explore tokens grouped by narrative. Deposit ETH into a vault to receive basket shares; redeem those shares to exit.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-8 border-t border-[#3b4330] pt-4 font-mono lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
-            <div><div className="text-[10px] uppercase tracking-wider text-[#89927f]">Vaults</div><div className="mt-1 text-2xl text-[#f5f5f7]">{awaitingDeployment ? "—" : baskets.length}</div></div>
-            <div><div className="text-[10px] uppercase tracking-wider text-[#89927f]">Total vault value</div><div className="mt-1 text-2xl text-[#f5f5f7]">{awaitingDeployment ? "—" : formatEth(totalValue, 4)}</div></div>
-          </div>
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-3.5">
+        <div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#71717A]">Narrative Baskets · On-chain vaults</span>
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#F5F5F7]">Baskets</h1>
+          <p className="mt-0.5 max-w-2xl text-xs text-[#71717A]">Explore tokens grouped by narrative. Deposit ETH to receive basket shares and redeem them to exit.</p>
+        </div>
+        <div className="flex gap-6 font-mono text-[10px] text-[#71717A]">
+          <span>VAULTS <span className="text-[#F5F5F7]">{awaitingDeployment ? "—" : baskets.length}</span></span>
+          <span>TOTAL VALUE <span className="text-[#F5F5F7]">{awaitingDeployment ? "—" : formatEth(totalValue, 4)}</span></span>
         </div>
       </header>
 
