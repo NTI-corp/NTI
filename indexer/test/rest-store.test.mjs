@@ -237,6 +237,22 @@ test("REST replay preserves history, resolves timestamps, and projects same-bloc
   assert.deepEqual(lookedUp, [105n]);
 });
 
+test("stored replay scopes epochs and validators by the active oracle deployment", async () => {
+  const commit = { epochId: 9001, seriesId: 1, datasetHash: hash, configHash: hash, arweaveTx: hash };
+  const { tables, store } = rest({
+    chain_events: [
+      event("EpochCommitted", commit, 200, 0, oldAddress),
+      event("EpochCommitted", { ...commit, epochId: 9002 }, 201, 0, address),
+      event("ValidatorJoined", { validator: address }, 202, 0, oldAddress),
+      event("ValidatorJoined", { validator: oldAddress }, 203, 0, address),
+    ].map(stored),
+  });
+  await indexer.replayStoredEvents(store, { chainId, activeContracts: { oracleCommit: address } });
+  assert.deepEqual(tables.epochs.map((row) => row.epoch_id).sort(), [9002]);
+  assert.deepEqual(tables.validators.map((row) => row.address), [bytea(oldAddress)]);
+  assert.equal(tables.chain_events.length, 4);
+});
+
 test("stored replay scopes market, grant and dispute children by deployed contract", async () => {
   const bet = { marketId: "1", bettor: address, side: 0, grossAmount: "100", netAmount: "98", feeAmount: "2" };
   const claim = { marketId: "1", bettor: address, payout: "98" };

@@ -35,6 +35,8 @@ const ACTIVE_MIRROR_TABLES = {
   disputes: "dispute",
   registry_state: "registry",
   staking_tiers: "staking",
+  epochs: "oracleCommit",
+  validators: "oracleCommit",
 } as const satisfies Record<string, keyof ProtocolAddresses>;
 
 export interface StoredReplayOptions {
