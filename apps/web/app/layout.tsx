@@ -34,7 +34,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://nti-nine.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://narrativeindex.tech";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

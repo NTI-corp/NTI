@@ -278,10 +278,91 @@ interface DexMarketInfo {
 const dexCache = new Map<string, { expiresAt: number; data: DexMarketInfo | null }>();
 const DEX_CACHE_TTL_MS = 5 * 60 * 1000;
 
+const logoCache = new Map<string, { expiresAt: number; url: string | null }>();
+const LOGO_HIT_TTL_MS = 24 * 60 * 60 * 1000;
+const LOGO_MISS_TTL_MS = 30 * 60 * 1000;
+
+async function fetchFallbackTokenLogo(symbol: string): Promise<string | null> {
+  const key = symbol.toUpperCase();
+  const cached = logoCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.url;
+
+  // 1) Fast, rate-limit-free CDN for major L1s, blue-chips, and stablecoins.
+  const coinCapUrl = `https://assets.coincap.io/assets/icons/${key.toLowerCase()}@2x.png`;
+  try {
+    const head = await fetch(coinCapUrl, {
+      method: "HEAD",
+      cache: "no-store",
+      signal: AbortSignal.timeout(2_000),
+    });
+    if (head.ok) {
+      logoCache.set(key, { expiresAt: Date.now() + LOGO_HIT_TTL_MS, url: coinCapUrl });
+      return coinCapUrl;
+    }
+  } catch {
+    // Fall through to CoinGecko search.
+  }
+
+  // 2) CoinGecko search fallback for newer tokens, ecosystem coins, and tokenized stocks.
+  try {
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(key)}`,
+      {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(2_500),
+      },
+    );
+    if (res.ok) {
+      const json = (await res.json()) as {
+        coins?: Array<{
+          symbol?: string;
+          market_cap_rank?: number | null;
+          large?: string;
+          thumb?: string;
+        }>;
+      };
+      const matches = (json.coins ?? []).filter(
+        (c) => (c.symbol ?? "").toUpperCase() === key && (c.large || c.thumb),
+      );
+      matches.sort(
+        (a, b) =>
+          (a.market_cap_rank ?? Number.MAX_SAFE_INTEGER) -
+          (b.market_cap_rank ?? Number.MAX_SAFE_INTEGER),
+      );
+      const url = matches[0]?.large ?? matches[0]?.thumb ?? null;
+      logoCache.set(key, {
+        expiresAt: Date.now() + (url ? LOGO_HIT_TTL_MS : LOGO_MISS_TTL_MS),
+        url,
+      });
+      return url;
+    }
+  } catch {
+    // Ignore transient lookup failures.
+  }
+
+  logoCache.set(key, { expiresAt: Date.now() + LOGO_MISS_TTL_MS, url: null });
+  return null;
+}
+
 async function fetchDexMarketInfo(symbol: string): Promise<DexMarketInfo | null> {
   const key = symbol.toUpperCase();
   const cached = dexCache.get(key);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+  let best:
+    | {
+        chainId?: string;
+        url?: string;
+        priceUsd?: string;
+        baseToken?: { symbol?: string; name?: string };
+        liquidity?: { usd?: number };
+        volume?: { h24?: number };
+        priceChange?: { h24?: number };
+        txns?: { h24?: { buys?: number; sells?: number } };
+        info?: { imageUrl?: string };
+      }
+    | undefined;
 
   try {
     const res = await fetch(
@@ -292,44 +373,36 @@ async function fetchDexMarketInfo(symbol: string): Promise<DexMarketInfo | null>
         signal: AbortSignal.timeout(3_000),
       },
     );
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      pairs?: Array<{
-        chainId?: string;
-        url?: string;
-        priceUsd?: string;
-        baseToken?: { symbol?: string; name?: string };
-        liquidity?: { usd?: number };
-        volume?: { h24?: number };
-        priceChange?: { h24?: number };
-        txns?: { h24?: { buys?: number; sells?: number } };
-        info?: { imageUrl?: string };
-      }>;
-    };
-    const pairs = (json.pairs ?? []).filter((pair) => {
-      if ((pair.baseToken?.symbol ?? "").toUpperCase() !== key) return false;
-      const liq = Number(pair.liquidity?.usd ?? 0);
-      const tx24 = Number(pair.txns?.h24?.buys ?? 0) + Number(pair.txns?.h24?.sells ?? 0);
-      return liq >= 50_000 && tx24 >= 20;
-    });
-    pairs.sort((a, b) => Number(b.volume?.h24 ?? 0) - Number(a.volume?.h24 ?? 0));
-    const best = pairs[0];
-    const data: DexMarketInfo | null = best
+    if (res.ok) {
+      const json = (await res.json()) as { pairs?: Array<NonNullable<typeof best>> };
+      const pairs = (json.pairs ?? []).filter((pair) => {
+        if ((pair.baseToken?.symbol ?? "").toUpperCase() !== key) return false;
+        const liq = Number(pair.liquidity?.usd ?? 0);
+        const tx24 = Number(pair.txns?.h24?.buys ?? 0) + Number(pair.txns?.h24?.sells ?? 0);
+        return liq >= 50_000 && tx24 >= 20;
+      });
+      pairs.sort((a, b) => Number(b.volume?.h24 ?? 0) - Number(a.volume?.h24 ?? 0));
+      best = pairs[0];
+    }
+  } catch {
+    // DexScreener timeout/error: still try fallback logo resolution below.
+  }
+
+  const imageUrl = best?.info?.imageUrl ?? (await fetchFallbackTokenLogo(key));
+  const data: DexMarketInfo | null =
+    best || imageUrl
       ? {
-          name: best.baseToken?.name ?? null,
-          chainId: best.chainId ?? null,
-          priceUsd: best.priceUsd != null && Number.isFinite(Number(best.priceUsd)) ? Number(best.priceUsd) : null,
-          volume24hUsd: best.volume?.h24 != null && Number.isFinite(Number(best.volume.h24)) ? Number(best.volume.h24) : null,
-          change24hPct: best.priceChange?.h24 != null && Number.isFinite(Number(best.priceChange.h24)) ? Number(best.priceChange.h24) : null,
-          dexUrl: best.url ?? null,
-          imageUrl: best.info?.imageUrl ?? null,
+          name: best?.baseToken?.name ?? null,
+          chainId: best?.chainId ?? null,
+          priceUsd: best?.priceUsd != null && Number.isFinite(Number(best.priceUsd)) ? Number(best.priceUsd) : null,
+          volume24hUsd: best?.volume?.h24 != null && Number.isFinite(Number(best.volume.h24)) ? Number(best.volume.h24) : null,
+          change24hPct: best?.priceChange?.h24 != null && Number.isFinite(Number(best.priceChange.h24)) ? Number(best.priceChange.h24) : null,
+          dexUrl: best?.url ?? null,
+          imageUrl,
         }
       : null;
-    dexCache.set(key, { expiresAt: Date.now() + DEX_CACHE_TTL_MS, data });
-    return data;
-  } catch {
-    return null;
-  }
+  dexCache.set(key, { expiresAt: Date.now() + DEX_CACHE_TTL_MS, data });
+  return data;
 }
 
 export async function fetchNarrativeHistory(
