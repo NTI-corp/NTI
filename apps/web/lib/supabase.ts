@@ -512,27 +512,45 @@ export async function fetchNarrativeHistory(
     .map(([symbol]) => symbol)
     .filter((symbol) => /^[A-Za-z0-9]+$/.test(symbol));
   const registryRows = tickerSymbols.length
-    ? await supabaseSelect<{ address: string; symbol: string | null; name: string | null }>(
-        `tokens?select=address,symbol,name&symbol=in.(${tickerSymbols.join(",")})`,
+    ? await supabaseSelect<{
+        address: string;
+        symbol: string | null;
+        name: string | null;
+        liquidity_eth: number | string | null;
+      }>(
+        `tokens?select=address,symbol,name,liquidity_eth&symbol=in.(${tickerSymbols.join(",")})`,
         "anon",
         "slow",
       )
     : [];
-  const registryBySymbol = new Map<string, Array<{ address: string; name: string | null }>>();
+  const registryBySymbol = new Map<
+    string,
+    Array<{ address: string; name: string | null; liquidity: number }>
+  >();
   for (const row of registryRows ?? []) {
     const key = (row.symbol ?? "").toUpperCase();
     const address = normalizeHex(row.address) ?? row.address;
     if (!key || !isAddress(address, { strict: false })) continue;
     const list = registryBySymbol.get(key) ?? [];
-    list.push({ address, name: row.name });
+    list.push({ address, name: row.name, liquidity: Number(row.liquidity_eth ?? 0) });
     registryBySymbol.set(key, list);
   }
   const resolvedTokens = await Promise.all(
     topTickers.map(([symbol, stat]) => {
       const candidates = new Set<string>(stat.contracts);
-      const registry = registryBySymbol.get(symbol.toUpperCase()) ?? [];
-      // Two on-chain tokens with the same ticker are ambiguous: only a contract in the post settles it.
-      if (registry.length === 1) candidates.add(registry[0]!.address);
+      // Spoof tokens reuse real symbols. Accept a registry entry only when the symbol is unique
+      // or one on-chain token has clearly dominant liquidity; never guess across chains.
+      const registry = [...(registryBySymbol.get(symbol.toUpperCase()) ?? [])].sort(
+        (a, b) => b.liquidity - a.liquidity,
+      );
+      const [top, second] = registry;
+      if (
+        top &&
+        (registry.length === 1 ||
+          (top.liquidity > 0 && (!second || top.liquidity >= second.liquidity * 10)))
+      ) {
+        candidates.add(top.address);
+      }
       return resolveRobinhoodToken(symbol, [...candidates]);
     }),
   );
