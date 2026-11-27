@@ -777,9 +777,9 @@ export async function fetchEpochDetail(epochId?: number): Promise<EpochDetailRes
   };
 }
 
-/** Newest Pons launches the discovery job is watching, including those still below the 1 ETH alert threshold. */
+/** Active/liquid on-chain tokens plus the newest Pons launches the discovery job is watching. */
 export async function fetchRecentLaunches(limit = 25): Promise<RecentLaunchItem[]> {
-  const rows = await supabaseSelect<{
+  type LaunchRow = {
     address: string;
     symbol: string;
     name: string;
@@ -787,15 +787,34 @@ export async function fetchRecentLaunches(limit = 25): Promise<RecentLaunchItem[
     graduated: boolean;
     liquidity_eth: number | string | null;
     narrative_id: number | null;
-  }>(
-    `tokens?select=address,symbol,name,created_at,graduated,liquidity_eth,narrative_id&source=eq.pons_v2&order=created_at.desc&limit=${limit}`,
-    "anon",
-  );
-  const addresses = (rows ?? [])
+    source: string | null;
+  };
+  const cols = "address,symbol,name,created_at,graduated,liquidity_eth,narrative_id,source";
+  const [activeRows, recentRows] = await Promise.all([
+    supabaseSelect<LaunchRow>(
+      `tokens?select=${cols}&or=(liquidity_eth.gt.0,graduated.eq.true,narrative_id.not.is.null)&order=liquidity_eth.desc,created_at.desc&limit=${limit}`,
+      "anon",
+    ),
+    supabaseSelect<LaunchRow>(
+      `tokens?select=${cols}&source=eq.pons_v2&order=created_at.desc&limit=${limit}`,
+      "anon",
+    ),
+  ]);
+
+  const byAddr = new Map<string, LaunchRow>();
+  for (const r of [...(activeRows ?? []), ...(recentRows ?? [])]) {
+    const key = (normalizeHex(r.address) ?? r.address).toLowerCase();
+    if (!byAddr.has(key)) byAddr.set(key, r);
+  }
+  const merged = [...byAddr.values()];
+
+  const ponsAddresses = merged
+    .filter((r) => r.source === "pons_v2" || r.source === "pons_v1")
     .map((r) => normalizeHex(r.address) ?? r.address)
     .filter((a): a is Address => isAddress(a, { strict: false }));
-  const logos = await readPonsLogos(addresses);
-  return (rows ?? []).map((r) => {
+  const logos = await readPonsLogos(ponsAddresses);
+
+  return merged.map((r) => {
     const address = normalizeHex(r.address) ?? r.address;
     return {
       address,
