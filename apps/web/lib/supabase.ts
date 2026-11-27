@@ -182,6 +182,16 @@ function mapNarrative(
   };
 }
 
+async function lastFinalVelocity(narrativeId: number): Promise<{ epochId: number; vBps: number } | null> {
+  const rows = await supabaseSelect<{ epoch_id: number; v_bps: number | null; v_flag: VFlag }>(
+    `narrative_epoch?select=epoch_id,narrative_id,v_bps,v_flag,epochs!inner(status)&epochs.status=eq.final&narrative_id=eq.${narrativeId}&v_bps=not.is.null&v_flag=is.null&order=epoch_id.desc&limit=1`,
+  );
+  const row = rows?.[0];
+  return row && row.v_bps !== null && row.v_flag === null
+    ? { epochId: row.epoch_id, vBps: row.v_bps }
+    : null;
+}
+
 function mapHistory(epochs: DbEpochRow[], rows: DbNarrativeEpochRow[]): HistoryPoint[] {
   const byEpoch = new Map(rows.map((row) => [row.epoch_id, row]));
   const history: HistoryPoint[] = [];
@@ -256,6 +266,11 @@ export async function fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
     const latest = rows.find((row) => row.epoch_id === latestFinalRow?.epoch_id && row.narrative_id === meta.id);
     if (latest) snapshot.narratives.push(mapNarrative(meta, latest));
   }
+  await Promise.all(snapshot.narratives.map(async (n) => {
+    n.lastFinalVelocity = n.vBps !== null && n.vFlag === null && latestFinalEpoch
+      ? { epochId: latestFinalEpoch.epochId, vBps: n.vBps }
+      : await lastFinalVelocity(n.narrativeId);
+  }));
   if (latestFinalEpoch && snapshot.narratives.length !== NARRATIVES.length) {
     return { ...snapshot, dataSource: "unavailable", narratives: [] };
   }
@@ -368,7 +383,7 @@ export async function fetchNarrativeHistory(
         : [];
     return { epochs, neRows };
   };
-  const [{ finals, latestFinalRow, contribRows, postRows }, { epochs, neRows }, tokenRows] = await Promise.all([
+  const [{ finals, latestFinalRow, contribRows, postRows }, { epochs, neRows }, tokenRows, lastVelocity] = await Promise.all([
     chainA(),
     chainB(),
     supabaseSelect<TokenRow>(
@@ -376,6 +391,7 @@ export async function fetchNarrativeHistory(
       "anon",
       "slow",
     ),
+    lastFinalVelocity(meta.id),
   ]);
   const latestFinalEpoch = latestFinalRow ? mapEpoch(latestFinalRow) : null;
 
@@ -506,6 +522,7 @@ export async function fetchNarrativeHistory(
     dataSource: epochs && finals && neRows ? "supabase" : "unavailable",
     narrative: meta,
     latestFinalEpoch,
+    lastFinalVelocity: lastVelocity,
     series,
     contributors,
     tokens,

@@ -30,6 +30,9 @@ export default async function NarrativeDetailPage({
     fetchBasketsData(),
   ]);
   const latest = [...data.series].reverse().find((p) => !p.incomplete) ?? null;
+  const velocity = latest?.vBps != null
+    ? { epochId: latest.epochId, vBps: latest.vBps }
+    : data.lastFinalVelocity ?? null;
   const matchingBasket = basketsData.baskets.find((b) => b.narrativeId === meta.id) ?? null;
 
   return (
@@ -112,16 +115,18 @@ export default async function NarrativeDetailPage({
           <div className="text-[10px] text-[#71717A]">24H VELOCITY V_n</div>
           <div
             className={`mt-1 text-xl font-semibold ${
-              latest?.vBps === null || latest?.vBps === undefined
+              velocity === null
                 ? "text-[#E2A856]"
-                : latest.vBps >= 0
+                : velocity.vBps >= 0
                   ? "text-[#4ADE80]"
                   : "text-[#EF4444]"
             }`}
           >
-            {latest ? formatSignedBps(latest.vBps, latest.vFlag) : "—"}
+            {velocity ? formatSignedBps(velocity.vBps) : "—"}
           </div>
-          <div className="text-[11px] text-[#8A8A93]">6-epoch lag (24h)</div>
+          <div className="text-[11px] text-[#8A8A93]">
+            {velocity ? `Final epoch #${velocity.epochId}${velocity.epochId !== latest?.epochId ? " · latest available" : ""}` : "No finalized velocity yet"}
+          </div>
         </div>
 
         <div className="panel-surface p-3.5">

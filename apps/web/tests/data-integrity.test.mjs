@@ -58,6 +58,12 @@ function supabase(t, tables) {
     if (status?.startsWith("eq.")) rows = rows.filter((row) => row.status === status.slice(3));
     const narrative = url.searchParams.get("narrative_id");
     if (narrative?.startsWith("eq.")) rows = rows.filter((row) => row.narrative_id === Number(narrative.slice(3)));
+    if (url.searchParams.get("v_bps") === "not.is.null") rows = rows.filter((row) => row.v_bps != null);
+    if (url.searchParams.get("v_flag") === "is.null") rows = rows.filter((row) => row.v_flag === null);
+    if (url.searchParams.get("epochs.status") === "eq.final") {
+      const finals = new Set((tables.epochs ?? []).filter((row) => row.status === "final").map((row) => row.epoch_id));
+      rows = rows.filter((row) => finals.has(row.epoch_id));
+    }
     const userId = url.searchParams.get("user_id");
     if (userId?.startsWith("in.(") && userId.endsWith(")")) {
       const allowed = new Set(userId.slice(4, -1).split(","));
@@ -158,6 +164,9 @@ test("history preserves official velocity and never fabricates velocity across a
   const latest = data.series.find((p) => p.epochId === 707);
   assert.equal(latest?.vBps, null);
   assert.equal(latest?.vFlag, "incomplete_gap");
+  assert.deepEqual(data.lastFinalVelocity, { epochId: 704, vBps: 1600 });
+  const snapshot = await fetchIndexesSnapshot();
+  assert.deepEqual(snapshot.narratives[0].lastFinalVelocity, { epochId: 704, vBps: 1600 });
 });
 
 test("post and contributor IDs are requested as text and returned without rounding", async (t) => {

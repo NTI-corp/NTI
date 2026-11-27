@@ -10,6 +10,8 @@ export type EpochStatus =
 
 export type VFlag = "too_small" | "series_break" | "incomplete_gap" | null;
 
+export interface FinalVelocity { epochId: number; vBps: number }
+
 export interface EpochSummary {
   epochId: number;
   seriesId: number;
@@ -34,6 +36,7 @@ export interface NarrativeIndexItem {
   iBps: number;
   vBps: number | null;
   vFlag: VFlag;
+  lastFinalVelocity?: FinalVelocity | null;
   weightedPosts: number;
 }
 
@@ -123,6 +126,7 @@ export interface NarrativeHistoryResponse {
     description: string;
   };
   latestFinalEpoch: EpochSummary | null;
+  lastFinalVelocity?: FinalVelocity | null;
   series: HistoryPoint[];
   contributors: ContributorRow[];
   tokens: TokenItem[];
