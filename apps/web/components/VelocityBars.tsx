@@ -2,10 +2,11 @@ import Link from "next/link";
 import { formatSignedBps } from "@/lib/format";
 import type { NarrativeIndexItem } from "@/lib/types";
 
-/** Diverging bars: 24h mindshare velocity per sector. Suppressed values stay muted. */
+/** Diverging bars use the latest finalized velocity available for each narrative. */
 export function VelocityBars({ narratives }: { narratives: NarrativeIndexItem[] }) {
-  const rows = [...narratives].sort((a, b) => (b.vBps ?? -Infinity) - (a.vBps ?? -Infinity));
-  const maxAbs = Math.max(1000, ...rows.map((n) => Math.abs(n.vBps ?? 0)));
+  const velocity = (n: NarrativeIndexItem) => n.vBps ?? n.lastFinalVelocity?.vBps ?? null;
+  const rows = [...narratives].sort((a, b) => (velocity(b) ?? -Infinity) - (velocity(a) ?? -Infinity));
+  const maxAbs = Math.max(1000, ...rows.map((n) => Math.abs(velocity(n) ?? 0)));
 
   return (
     <div className="border border-[#26262A] bg-[#161618]">
@@ -15,7 +16,8 @@ export function VelocityBars({ narratives }: { narratives: NarrativeIndexItem[] 
       </div>
       <ul className="divide-y divide-[#1F1F23]">
         {rows.map((n) => {
-          const v = n.vBps;
+          const v = velocity(n);
+          const priorEpoch = n.vBps === null ? n.lastFinalVelocity?.epochId : null;
           const width = v === null ? 0 : (Math.abs(v) / maxAbs) * 50;
           const up = (v ?? 0) >= 0;
           return (
@@ -45,7 +47,10 @@ export function VelocityBars({ narratives }: { narratives: NarrativeIndexItem[] 
                     v === null ? "text-[#52525B]" : up ? "text-[#4ADE80]" : "text-[#EF4444]"
                   }`}
                 >
-                  {v === null ? "warming" : formatSignedBps(v, n.vFlag)}
+                  {v === null ? "warming" : formatSignedBps(v)}
+                  {priorEpoch != null && (
+                    <span className="block whitespace-nowrap text-[9px] text-[#71717A]">FINAL #{priorEpoch}</span>
+                  )}
                 </span>
               </Link>
             </li>
