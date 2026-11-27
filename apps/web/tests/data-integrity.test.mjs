@@ -43,6 +43,8 @@ function supabase(t, tables) {
           : [],
       });
     }
+    if (url.host === "assets.coincap.io") return new Response(null, { status: 404 });
+    if (url.host === "api.coingecko.com") return Response.json({ coins: [] });
     assert.equal(url.host, "db.example");
     const table = url.pathname.split("/").at(-1);
     const selected = url.searchParams.get("select") ?? "";

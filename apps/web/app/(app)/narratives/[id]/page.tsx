@@ -178,7 +178,7 @@ export default async function NarrativeDetailPage({
               Related Tokens · KOL Mentions
             </h3>
             <p className="font-mono text-[11px] text-[#8A8A93]">
-              Tickers mentioned by top KOLs in {meta.label}. Logos appear only when the ticker resolves to a Robinhood contract (post or verified registry).
+              Tickers mentioned by top KOLs in {meta.label}. Logos come from a verified Robinhood contract when one exists, otherwise from a recognized major-asset icon; price is shown only for on-chain Robinhood tokens.
             </p>
           </div>
           {!data.mentionedTokens || data.mentionedTokens.length === 0 ? (

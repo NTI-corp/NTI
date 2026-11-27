@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
 import { encodeAbiParameters, isAddress, keccak256, maxUint256, stringToHex, type Address, type Hex } from "viem";
 import { getActiveChainId, getProtocolAddresses } from "./contracts";
-import { resolveRobinhoodToken, tickerContractFromPost } from "./ticker-logo";
+import { resolveRobinhoodToken, resolveSymbolLogo, tickerContractFromPost } from "./ticker-logo";
 import {
   readLiveBasketsFromChain,
   readGovernorStates,
@@ -536,7 +536,7 @@ export async function fetchNarrativeHistory(
     registryBySymbol.set(key, list);
   }
   const resolvedTokens = await Promise.all(
-    topTickers.map(([symbol, stat]) => {
+    topTickers.map(async ([symbol, stat]) => {
       const candidates = new Set<string>(stat.contracts);
       // Spoof tokens reuse real symbols. Accept a registry entry only when the symbol is unique
       // or one on-chain token has clearly dominant liquidity; never guess across chains.
@@ -551,7 +551,19 @@ export async function fetchNarrativeHistory(
       ) {
         candidates.add(top.address);
       }
-      return resolveRobinhoodToken(symbol, [...candidates]);
+      const onchain = await resolveRobinhoodToken(symbol, [...candidates]);
+      if (onchain) return { ...onchain, source: "robinhood" as const };
+      // Not a Robinhood token: keep the KOL mention, show a recognized major-asset icon only.
+      const major = await resolveSymbolLogo(symbol);
+      if (!major) return null;
+      return {
+        address: null,
+        name: major.name,
+        imageUrl: major.imageUrl,
+        priceUsd: null,
+        dexUrl: null,
+        source: "symbol" as const,
+      };
     }),
   );
   const mentionedTokens: MentionedTokenItem[] = topTickers.map(([symbol, stat], index) => {
@@ -562,7 +574,7 @@ export async function fetchNarrativeHistory(
       mentions: stat.mentions,
       kolCount: stat.kols.size,
       weightedQ: Number(stat.weightedQ.toFixed(2)),
-      chainId: token ? "robinhood" : null,
+      chainId: token?.source === "robinhood" ? "robinhood" : null,
       priceUsd: token?.priceUsd ?? null,
       volume24hUsd: null,
       change24hPct: null,
