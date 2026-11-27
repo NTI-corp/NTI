@@ -108,11 +108,7 @@ def kols_for_fetch_snapshot(
 ) -> list[KolProfile]:
     """Use captured fetch order and only profiles still active at commit time."""
     active_by_id = {profile.user_id: profile for profile in kols if profile.active}
-    return [
-        active_by_id[user_id]
-        for user_id in due_user_ids
-        if user_id in active_by_id
-    ]
+    return [active_by_id[user_id] for user_id in due_user_ids if user_id in active_by_id]
 
 
 def engine_kols_for_fetch_snapshot(
@@ -177,8 +173,18 @@ async def prepare_commit(
         os.environ.get("CLASSIFIER_PROMPT_VERSION", "v2"),
         ENGINE_VERSION,
     )
-    omission_enabled = os.environ.get("VALIDATOR_OMISSION_CHECK", "0") == "1"
-    provenance["omission_mode"] = "independent_pool" if omission_enabled else "disabled"
+    # off: no check. shadow: validator 1 re-reads a small seeded sample and records the overlap,
+    # never blocking a commit (provenance stays "disabled", so the series does not change).
+    # enforce: all three validators check and refuse to sign below the minimum overlap.
+    omission_mode = os.environ.get("VALIDATOR_OMISSION_MODE", "").strip().lower()
+    if not omission_mode:
+        omission_mode = (
+            "enforce" if os.environ.get("VALIDATOR_OMISSION_CHECK", "0") == "1" else "off"
+        )
+    if omission_mode not in {"off", "shadow", "enforce"}:
+        raise RuntimeError("VALIDATOR_OMISSION_MODE must be off, shadow or enforce")
+    omission_enabled = omission_mode != "off"
+    provenance["omission_mode"] = "independent_pool" if omission_mode == "enforce" else "disabled"
     mirror = SupabaseStorageMirror(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"])
     prior = await storage.select(
         "epochs",
@@ -253,9 +259,10 @@ async def prepare_commit(
         if not pool_path.is_absolute():
             pool_path = repo_root / pool_path
         pool = AccountPool.from_file(pool_path, state_path=repo_root / "data/state/x_budget.json")
-        if len(pool.validator_accounts()) < 3:
+        needed = 3 if omission_mode == "enforce" else 1
+        if len(pool.validator_accounts()) < needed:
             raise RuntimeError(
-                "Independent omission verification requires three dedicated X accounts"
+                f"Omission verification ({omission_mode}) requires {needed} dedicated X account(s)"
             )
     validators = [
         ValidatorNode(
@@ -268,8 +275,13 @@ async def prepare_commit(
                 account_pool=pool,
                 pool_key=f"validator_{i}",
             )
-            if omission_enabled
+            if omission_mode == "enforce" or (omission_mode == "shadow" and i == 0)
             else None,
+            omission_enforce=omission_mode == "enforce",
+            omission_fraction=float(os.environ.get("VALIDATOR_OMISSION_SHADOW_FRACTION", "0.05"))
+            if omission_mode == "shadow"
+            else None,
+            omission_log=repo_root / "data/state/omission.jsonl" if omission_enabled else None,
         )
         for i, key in enumerate(keys)
     ]

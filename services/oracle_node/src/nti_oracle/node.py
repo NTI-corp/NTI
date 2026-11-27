@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 import httpx
 from nti_core.config import NTIConfig
@@ -22,7 +24,7 @@ from nti_oracle.dataset import (
     reconstruct_window,
     tx_id_to_bytes32,
 )
-from nti_oracle.omission import run_omission_check
+from nti_oracle.omission import OmissionCheckReport, run_omission_check
 from nti_oracle.signing import (
     SignedAttestation,
     encode_v_vector_solidity,
@@ -95,6 +97,9 @@ class ValidatorNode:
         chain_id: int,
         verifying_contract: str,
         validator_source: PostSource | None = None,
+        omission_enforce: bool = True,
+        omission_fraction: float | None = None,
+        omission_log: Path | None = None,
     ) -> None:
         from eth_account import Account
 
@@ -104,6 +109,32 @@ class ValidatorNode:
         self._chain_id = chain_id
         self._verifying_contract = verifying_contract
         self._source = validator_source
+        # Shadow mode (omission_enforce=False) records the overlap but never blocks a commit.
+        self._omission_enforce = omission_enforce
+        self._omission_fraction = omission_fraction
+        self._omission_log = omission_log
+
+    def _record_omission(self, report: OmissionCheckReport) -> None:
+        if self._omission_log is None:
+            return
+        row = {
+            "at": datetime.now(UTC).isoformat(),
+            "epoch_id": report.epoch_id,
+            "sampled_kols": len(report.sampled_user_ids),
+            "operator_posts": report.operator_post_count,
+            "validator_posts": report.validator_post_count,
+            "overlap": round(report.overlap, 4),
+            "missing": len(report.missing_post_ids),
+            "extra": len(report.extra_post_ids),
+            "passed": report.passed,
+            "enforced": self._omission_enforce,
+        }
+        try:
+            self._omission_log.parent.mkdir(parents=True, exist_ok=True)
+            with self._omission_log.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row) + "\n")
+        except OSError:
+            pass
 
     async def verify_and_sign(
         self,
@@ -176,11 +207,12 @@ class ValidatorNode:
                 epoch_id=header.epoch_id,
                 window_start=window_start_dt,
                 boundary=boundary_dt,
-                sample_fraction=self._cfg.validator.sample_fraction,
+                sample_fraction=self._omission_fraction or self._cfg.validator.sample_fraction,
                 min_overlap=self._cfg.validator.min_overlap,
             )
             overlap = omission.overlap
-            if not omission.passed:
+            self._record_omission(omission)
+            if not omission.passed and self._omission_enforce:
                 return ValidationDecision(
                     approved=False,
                     validator=self.address,

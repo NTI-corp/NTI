@@ -14,6 +14,7 @@ from nti_fetcher.storage import SupabaseStorage
 from nti_discovery import pons
 from nti_discovery.runner import DiscoveryConfig, DiscoveryRunner, build_market_source
 from nti_discovery.testnet import TESTNET_CHAIN_ID, TestnetDiscoveryRunner
+from nti_discovery.token_labeler import GeminiTokenLabeler
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -112,7 +113,12 @@ def main() -> int:
         market = build_market_source(
             not args.no_dex and os.environ.get("DISCOVERY_DEX", "1") == "1"
         )
-        runner = DiscoveryRunner(rpc, storage, market, cfg)
+        labeler = (
+            GeminiTokenLabeler.from_env()
+            if not args.dry_run and os.environ.get("DISCOVERY_NAME_LABELS", "1") == "1"
+            else None
+        )
+        runner = DiscoveryRunner(rpc, storage, market, cfg, labeler=labeler)
     print(json.dumps(asyncio.run(runner.run()), indent=2))
     return 0
 

@@ -17,6 +17,7 @@ from typing import Any, Protocol
 
 from nti_discovery import pons
 from nti_discovery.dex import DexScreenerClient, TokenMarket, liquidity_eth
+from nti_discovery.token_labeler import TokenLabeler
 from nti_discovery.token_radar import (
     DiscoveredToken,
     generate_new_token_alerts,
@@ -28,6 +29,8 @@ MAX_ENRICH = 200
 MAX_NARRATIVE_LOOKUPS = 50
 POSTS_PER_TOKEN = 50
 RISING_V_BPS = 1_000
+LABEL_MIN_LIQUIDITY_ETH = Decimal(1)
+MAX_LABELS_PER_RUN = 20
 
 
 class Storage(Protocol):
@@ -164,12 +167,72 @@ class DiscoveryRunner:
         config: DiscoveryConfig,
         *,
         now: datetime | None = None,
+        labeler: TokenLabeler | None = None,
     ) -> None:
         self._rpc = rpc
         self._storage = storage
         self._market = market
         self._cfg = config
         self._now = now or datetime.now(UTC)
+        self._labeler = labeler
+        self._label_attempts: set[str] = set()
+
+    # --- name/symbol labels -----------------------------------------------------------------
+
+    def _labeled_path(self) -> Path | None:
+        path = self._cfg.state_path
+        return None if path is None else path.with_name("discovery-labeled.json")
+
+    def _load_label_attempts(self) -> set[str]:
+        path = self._labeled_path()
+        if path is None or not path.exists():
+            return set(self._label_attempts)
+        try:
+            return {str(a) for a in json.loads(path.read_text())}
+        except (ValueError, OSError, TypeError):
+            return set(self._label_attempts)
+
+    def _save_label_attempts(self, attempts: set[str]) -> None:
+        self._label_attempts = attempts
+        path = self._labeled_path()
+        if path is None:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(sorted(attempts)))
+        tmp.replace(path)
+
+    async def _label_by_name(self, tokens: dict[str, DiscoveredToken]) -> int:
+        """Label unattributed tokens that cleared the Radar liquidity bar, from name and symbol.
+
+        Each token is asked once. A model failure leaves it for the next run; a "none" answer
+        is remembered.
+        """
+        if self._labeler is None:
+            return 0
+        attempts = self._load_label_attempts()
+        due = [
+            t
+            for t in tokens.values()
+            if t.narrative_id is None
+            and t.liquidity_eth >= LABEL_MIN_LIQUIDITY_ETH
+            and t.address not in attempts
+            and (t.symbol or t.name)
+        ][:MAX_LABELS_PER_RUN]
+        if not due:
+            return 0
+        answers = await self._labeler.label([(t.address, t.symbol, t.name) for t in due])
+        if answers is None:
+            return 0
+        labeled = 0
+        for tok in due:
+            attempts.add(tok.address)
+            nid = answers.get(tok.address)
+            if nid is not None:
+                tokens[tok.address] = replace(tok, narrative_id=nid)
+                labeled += 1
+        self._save_label_attempts(attempts)
+        return labeled
 
     # --- checkpoint -------------------------------------------------------------------------
 
@@ -438,6 +501,11 @@ class DiscoveryRunner:
             nid = await self._infer_narrative(tok)
             if nid is not None:
                 tokens[tok.address] = replace(tokens[tok.address], narrative_id=nid)
+        # Name/symbol fallback for tokens no KOL mentioned, only once they hold real liquidity.
+        try:
+            name_labels = await self._label_by_name(tokens)
+        except Exception:  # noqa: BLE001 - labels are best effort; the scan result must still be saved
+            name_labels = 0
 
         await self._storage.upsert(
             "tokens", [_token_to_row(t) for t in tokens.values()], on_conflict="address"
@@ -463,6 +531,7 @@ class DiscoveryRunner:
             "tracked_tokens": len(tokens),
             "market_data": market_status,
             "alerts_created": alerts_created,
+            "name_labels": name_labels,
             "ecosystem_tokens": ecosystem,
         }
 
