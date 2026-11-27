@@ -27,12 +27,12 @@ async function BasketsContent() {
         </div>
       )}
 
-      <div className="border-b border-[#26262A] pb-3.5">
+      <div className="border border-[#303327] bg-[#151712] px-5 py-6 sm:px-7">
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#71717A]">
           Narrative Baskets · ERC-20 Spot Vaults
         </span>
-        <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#F5F5F7]">
-          Baskets
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#F5F5F7] sm:text-4xl">
+          Narrative baskets<span className="text-[#CCFF00]">.</span>
         </h1>
         <p className="mt-0.5 max-w-2xl text-xs text-[#71717A]">
           Each basket holds admin-whitelisted tokens with{" "}
@@ -44,6 +44,21 @@ async function BasketsContent() {
         </p>
       </div>
 
+      <div className="grid grid-cols-2 border border-[#262a22] bg-[#11130f] font-mono sm:grid-cols-3">
+        <div className="border-r border-[#262a22] px-4 py-3">
+          <div className="text-[10px] uppercase tracking-wider text-[#8a9080]">Available vaults</div>
+          <div className="mt-1 text-xl tabular-nums text-[#f5f5f7]">{awaitingDeployment ? "—" : baskets.length}</div>
+        </div>
+        <div className="border-r border-[#262a22] px-4 py-3">
+          <div className="text-[10px] uppercase tracking-wider text-[#8a9080]">Combined vault value</div>
+          <div className="mt-1 text-xl tabular-nums text-[#f5f5f7]">{awaitingDeployment ? "—" : formatEth(baskets.reduce((sum, b) => sum + b.tvlEth, 0), 4)}</div>
+        </div>
+        <div className="col-span-2 border-t border-[#262a22] px-4 py-3 sm:col-span-1 sm:border-t-0">
+          <div className="text-[10px] uppercase tracking-wider text-[#8a9080]">Network</div>
+          <div className="mt-1 text-sm text-[#CCFF00]">Robinhood Chain</div>
+        </div>
+      </div>
+
       {baskets.length === 0 ? (
         <EmptyState
           icon={Layers}
@@ -53,7 +68,7 @@ async function BasketsContent() {
           steps={["Admin whitelists tokens", "Factory deploys the vault", "Deposit ETH, receive basket shares"]}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {baskets.map((b) => {
             const capPct =
               b.tvlCapEth > 0 ? Math.min(100, (b.tvlEth / b.tvlCapEth) * 100) : 0;
@@ -61,7 +76,7 @@ async function BasketsContent() {
               <Link
                 key={b.id}
                 href={`/baskets/${b.id}`}
-                className="group flex flex-col justify-between border border-[#26262A] bg-[#161618] transition-colors hover:border-[#3A3A40] hover:bg-[#1E1E21]"
+                className="group flex flex-col justify-between border border-[#30322b] bg-[#161815] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#CCFF00]/35"
               >
                 <div>
                   <div className="flex items-center justify-between border-b border-[#1F1F23] bg-[#111113] px-4 py-2 font-mono text-[10.5px]">

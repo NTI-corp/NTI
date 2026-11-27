@@ -82,7 +82,7 @@ export function MarketsListClient({
   const visible = useMemo(
     () =>
       markets.filter((m) => {
-        if (filter !== "all" && m.status !== filter) return false;
+        if (filter !== "all" && (filter === "settled" ? !["settled", "refunded"].includes(m.status) : m.status !== filter)) return false;
         if (
           narrativeFilter !== null &&
           m.narrativeA !== narrativeFilter &&
@@ -149,16 +149,17 @@ export function MarketsListClient({
       )}
 
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#26262A] pb-4">
+      <div className="flex flex-wrap items-end justify-between gap-5 border border-[#303327] bg-[#151712] px-5 py-6 sm:px-7">
         <div>
           <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#71717A]">
             Narrative Markets · Fixed-Horizon Parimutuel
           </span>
-          <h1 className="mt-1 text-lg font-semibold tracking-tight text-[#F5F5F7]">
-            Pair Markets
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#F5F5F7] sm:text-4xl">
+            Pair markets<span className="text-[#CCFF00]">.</span>
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-[#71717A]">
-            Settled from finalized on-chain oracle indexes. Zero leverage; {markets[0]?.maxPoolEth ?? 5} ETH gross pool cap, {((markets[0]?.feeBps ?? 10) / 100).toFixed(3)}% fee (up to 50% staker discount), cutoff {markets[0]?.cutoffEpochs ?? 2} epochs before settlement, and gross refunds on ties or invalid settlement epochs.
+            Settled from finalized on-chain oracle indexes. Zero leverage; gross refunds on ties or invalid settlement epochs.
+            {markets[0] && ` Pool cap ${markets[0].maxPoolEth} ETH · fee ${(markets[0].feeBps / 100).toFixed(3)}% · cutoff ${markets[0].cutoffEpochs} epochs before settlement.`}
           </p>
         </div>
 
@@ -187,6 +188,20 @@ export function MarketsListClient({
             {createOpen ? "CLOSE CREATOR" : "+ CREATE MARKET"}
           </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 border border-[#262a22] bg-[#11130f] font-mono sm:grid-cols-4">
+        {[
+          ["Recent markets (up to 30)", markets.length],
+          ["Open", markets.filter((m) => m.status === "open").length],
+          ["Betting closed", markets.filter((m) => m.status === "locked").length],
+          ["Finalized / refunded", markets.filter((m) => m.status === "settled" || m.status === "refunded").length],
+        ].map(([label, value]) => (
+          <div key={label} className="border-r border-b border-[#262a22] px-4 py-3 last:border-r-0 sm:border-b-0">
+            <div className="text-[10px] uppercase tracking-wider text-[#8a9080]">{label}</div>
+            <div className="mt-1 text-xl tabular-nums text-[#f5f5f7]">{awaitingDeployment ? "—" : value}</div>
+          </div>
+        ))}
       </div>
 
       {/* Sector Filter Bar */}
@@ -342,16 +357,16 @@ export function MarketsListClient({
         >
           {visible.map((m) => {
             const totalPool = m.poolAEth + m.poolBEth;
-            const pctA = totalPool > 0 ? Math.round((m.poolAEth / totalPool) * 100) : 50;
-            const pctB = 100 - pctA;
+            const pctA = totalPool > 0 ? Math.round((m.poolAEth / totalPool) * 100) : 0;
+            const pctB = totalPool > 0 ? 100 - pctA : 0;
             const relA = m.currentIA !== null && m.baseIA > 0 ? m.currentIA / m.baseIA : null;
             const relB = m.currentIB !== null && m.baseIB > 0 ? m.currentIB / m.baseIB : null;
-            const delta = relA !== null && relB !== null ? relA - relB : null;
+            const delta = m.status !== "refunded" && relA !== null && relB !== null ? relA - relB : null;
 
             return (
               <div
                 key={m.marketId}
-                className="flex flex-col justify-between border border-[#26262A] bg-[#161618] p-4 transition-colors hover:border-[#3A3A40]"
+                className="flex flex-col justify-between border border-[#30322b] bg-[#161815] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#CCFF00]/35"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
@@ -407,7 +422,7 @@ export function MarketsListClient({
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] text-[#71717A]">LIVE Δ LEAD</div>
+                      <div className="text-[10px] text-[#71717A]">{m.status === "open" || m.status === "locked" ? "CURRENT Δ LEAD" : "SETTLEMENT Δ"}</div>
                       <div
                         className={
                           delta !== null && delta > 0
@@ -427,13 +442,13 @@ export function MarketsListClient({
                   <div className="mt-3">
                     <div className="mb-1 flex justify-between font-mono text-[11px] tabular-nums">
                       <span className="text-[#4ADE80]">
-                        A: {formatEth(m.poolAEth, 3)} ({pctA}%)
+                        A: {formatEth(m.poolAEth, 3)} {totalPool > 0 ? `(${pctA}%)` : ""}
                       </span>
                       <span className="text-[#71717A]">
                         TOTAL {formatEth(totalPool, 3)} / {m.maxPoolEth} ETH CAP
                       </span>
                       <span className="text-[#CCFF00]">
-                        B: {formatEth(m.poolBEth, 3)} ({pctB}%)
+                        B: {formatEth(m.poolBEth, 3)} {totalPool > 0 ? `(${pctB}%)` : ""}
                       </span>
                     </div>
                     <div className="flex h-2 w-full overflow-hidden bg-[#232325]">

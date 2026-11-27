@@ -8,5 +8,5 @@ export default async function PortfolioPage() {
     fetchBasketsData(),
     fetchMarketsData(),
   ]);
-  return <PortfolioClient baskets={basketsRes.baskets} markets={marketsRes.markets} />;
+  return <PortfolioClient baskets={basketsRes.baskets} markets={marketsRes.markets} basketsUnavailable={basketsRes.awaitingDeployment} marketsUnavailable={marketsRes.awaitingDeployment} />;
 }

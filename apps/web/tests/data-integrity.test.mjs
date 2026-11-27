@@ -317,6 +317,25 @@ test("a two-epoch market with zero cutoff epochs uses its contract betting windo
   assert.equal(market.cutoffAt, market.settleAt);
 });
 
+test("a refunded market without a finalized settlement epoch does not display current indexes as settlement", async (t) => {
+  const extraAbi = parseAbi(["function BET_CUTOFF_EPOCHS() view returns (uint32)"]);
+  rpc(t, [
+    { abi: narrativeMarketAbi, results: {
+      nextMarketId: 2n, maxPoolPerMarket: parseEther("5"),
+      markets: [1, 2, 5, 7, 2, 0n, 0n, 0n, 0n, 0n, 3, true],
+      BET_CUTOFF_EPOCHS: 0, BASE_FEE_BPS: 10n, SETTLE_TIMEOUT: 172800n,
+    } },
+    { abi: extraAbi, results: { BET_CUTOFF_EPOCHS: 0 } },
+    { abi: oracleCommitAbi, results: {
+      epochBoundary: 1795000000n, finalIndex: 850, epochStatus: 4,
+    } },
+  ]);
+  const [market] = await readLiveMarketsFromChain(new Map([[1, 1100], [2, 1200]]));
+  assert.equal(market.status, "refunded");
+  assert.equal(market.currentIA, null);
+  assert.equal(market.currentIB, null);
+});
+
 test("an ended grants vote remains eligible for finalize until the on-chain flag changes", async (t) => {
   rpc(t, [
     { abi: grantsAbi, results: {

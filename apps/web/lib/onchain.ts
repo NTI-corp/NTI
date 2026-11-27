@@ -177,8 +177,8 @@ async function readLiveMarketsUncached(
         maxPoolEth: Number(formatEther(maxPoolWei)),
         baseIA,
         baseIB,
-        currentIA: settledIndex ? settleIA : currentIndexByNarrative.get(narrativeA) ?? null,
-        currentIB: settledIndex
+        currentIA: settled ? settleIA : currentIndexByNarrative.get(narrativeA) ?? null,
+        currentIB: settled
           ? settleIB
           : narrativeB === 0 ? 1000 : currentIndexByNarrative.get(narrativeB) ?? null,
         seriesId,
