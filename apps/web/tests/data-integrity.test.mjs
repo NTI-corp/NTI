@@ -45,6 +45,11 @@ function supabase(t, tables) {
     }
     assert.equal(url.host, "db.example");
     const table = url.pathname.split("/").at(-1);
+    const selected = url.searchParams.get("select") ?? "";
+    if (["posts", "kol_contribution", "kols", "kol_narratives"].includes(table) && selected.includes("user_id")) {
+      assert.match(selected, /user_id::text/);
+    }
+    if (table === "posts" && selected.includes("tweet_id")) assert.match(selected, /tweet_id::text/);
     let rows = tables[table] ?? [];
     if (rows === "unavailable") return Response.json({}, { status: 503 });
     const id = url.searchParams.get("epoch_id");
@@ -107,7 +112,7 @@ test("history shows incomplete epochs and series breaks even without narrative r
   const data = await fetchNarrativeHistory(1);
   assert.deepEqual(
     data.series.map(({ epochId, vBps, vFlag, seriesBreak }) => [epochId, vBps, vFlag, seriesBreak]),
-    [[1, 10, null, false], [2, null, "incomplete_gap", false], [3, null, "series_break", true]],
+    [[1, 10, null, false], [2, null, "incomplete_gap", false], [3, 10, null, false]],
   );
 });
 
@@ -133,8 +138,48 @@ test("top influential posts stay aligned with the narrative top contributors and
   assert.ok(!data.topPosts.some((p) => "body" in p));
   assert.deepEqual(
     data.mentionedTokens?.map((tok) => [tok.symbol, tok.mentions, tok.kolCount, tok.priceUsd]),
-    [["TAO", 3, 2, 250.5], ["VIRTUAL", 1, 1, null]],
+    [["TAO", 3, 2, null], ["VIRTUAL", 1, 1, null]],
   );
+});
+
+test("history preserves official velocity and never fabricates velocity across a gap", async (t) => {
+  const oldRows = narrativeRows(704);
+  oldRows[0].v_bps = 1600;
+  const latestRows = narrativeRows(707);
+  latestRows[0].v_bps = null;
+  latestRows[0].v_flag = "incomplete_gap";
+  supabase(t, {
+    epochs: [final(704, 2), { ...final(705), status: "incomplete", series_id: 0 },
+      { ...final(706), status: "incomplete", series_id: 0 }, final(707, 2)],
+    narrative_epoch: [...oldRows, ...latestRows],
+  });
+  const data = await fetchNarrativeHistory(1);
+  assert.equal(data.series.find((p) => p.epochId === 704)?.vBps, 1600);
+  const latest = data.series.find((p) => p.epochId === 707);
+  assert.equal(latest?.vBps, null);
+  assert.equal(latest?.vFlag, "incomplete_gap");
+});
+
+test("post and contributor IDs are requested as text and returned without rounding", async (t) => {
+  supabase(t, {
+    epochs: [final(10)], narrative_epoch: narrativeRows(10),
+    kol_contribution: [{ epoch_id: 10, narrative_id: 1, user_id: "968865251348291585", share_bps: 300, capped: false, kols: { handle: "example", followers: 100 } }],
+    posts: [{ tweet_id: "2125674998136500561", user_id: "968865251348291585", created_at: "2026-11-23T12:00:00Z", body: "$ABC", kols: { handle: "example", followers: 100 }, post_engagement: [{ likes: 2 }], classifications: [{ q: { "1": 1 } }] }],
+  });
+  const originalFetch = globalThis.fetch;
+  const queries = [];
+  t.mock.method(globalThis, "fetch", async (input, options) => {
+    const url = new URL(input.toString());
+    queries.push(url);
+    return originalFetch(input, options);
+  });
+  const result = await fetchNarrativeHistory(1);
+  const posts = queries.find((url) => url.pathname.endsWith("/posts"));
+  const contrib = queries.find((url) => url.pathname.endsWith("/kol_contribution"));
+  assert.match(posts.searchParams.get("select"), /tweet_id::text,user_id::text/);
+  assert.match(contrib.searchParams.get("select"), /user_id::text/);
+  assert.equal(result.topPosts[0]?.tweetId, "2125674998136500561");
+  assert.equal(result.contributors[0]?.userId, "968865251348291585");
 });
 
 test("a packed local locator reconstructs the verifiable public archive path", async (t) => {

@@ -164,26 +164,10 @@ function mapEpoch(r: DbEpochRow): EpochSummary {
   };
 }
 
-function computeFallbackVelocityBps(series: HistoryPoint[], index: number): number | null {
-  const current = series[index];
-  if (!current || current.incomplete || current.iBps <= 0) return null;
-  const finals = series.slice(0, index + 1).filter((p) => !p.incomplete && p.iBps > 0);
-  if (finals.length < 2) return null;
-  const lag = finals.length > 6 ? finals[finals.length - 7]! : finals[0]!;
-  if (lag.iBps <= 0) return null;
-  const raw = Math.round(((current.iBps - lag.iBps) / lag.iBps) * 10_000);
-  return Math.max(-10_000, Math.min(50_000, raw));
-}
-
 function mapNarrative(
   meta: (typeof NARRATIVES)[number],
   row: DbNarrativeEpochRow,
-  series?: HistoryPoint[],
 ): NarrativeIndexItem {
-  let vBps = row.v_bps;
-  if (vBps === null && (row.v_flag === "series_break" || row.v_flag === null) && series && series.length > 0) {
-    vBps = computeFallbackVelocityBps(series, series.length - 1);
-  }
   return {
     narrativeId: meta.id,
     slug: meta.slug,
@@ -192,7 +176,7 @@ function mapNarrative(
     sN: Number(row.s_n),
     mBps: row.m_bps,
     iBps: row.i_bps,
-    vBps,
+    vBps: row.v_bps,
     vFlag: row.v_flag,
     weightedPosts: Number(row.weighted_posts),
   };
@@ -207,9 +191,8 @@ function mapHistory(epochs: DbEpochRow[], rows: DbNarrativeEpochRow[]): HistoryP
     const row = byEpoch.get(epoch.epoch_id);
     const incomplete = epoch.status === "incomplete";
     const seriesBreak = row?.v_flag === "series_break" ||
-      (previous !== undefined && epoch.series_id !== previous.series_id);
-    const vFlag: VFlag = seriesBreak ? "series_break" :
-      incomplete || previous?.status === "incomplete" ? "incomplete_gap" : row?.v_flag ?? null;
+      (!incomplete && previous !== undefined && previous.status === "final" && epoch.series_id !== previous.series_id);
+    const vFlag: VFlag = incomplete ? "incomplete_gap" : row?.v_flag ?? null;
     previous = epoch;
     if (!incomplete && !row) continue;
 
@@ -227,13 +210,6 @@ function mapHistory(epochs: DbEpochRow[], rows: DbNarrativeEpochRow[]): HistoryP
       incomplete,
       finalizedAt: epoch.finalized_at,
     });
-  }
-  // During a 6-epoch series re-baseline, show a continuous 24h delta in the UI instead of blank dashes.
-  for (let i = 0; i < history.length; i += 1) {
-    const pt = history[i]!;
-    if (!pt.incomplete && pt.vBps === null && (pt.vFlag === "series_break" || pt.vFlag === null)) {
-      pt.vBps = computeFallbackVelocityBps(history, i);
-    }
   }
   return history;
 }
@@ -278,7 +254,7 @@ export async function fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
     const series = mapHistory(relevant, rows.filter((row) => row.narrative_id === meta.id));
     snapshot.recentSeries[meta.id] = series;
     const latest = rows.find((row) => row.epoch_id === latestFinalRow?.epoch_id && row.narrative_id === meta.id);
-    if (latest) snapshot.narratives.push(mapNarrative(meta, latest, series));
+    if (latest) snapshot.narratives.push(mapNarrative(meta, latest));
   }
   if (latestFinalEpoch && snapshot.narratives.length !== NARRATIVES.length) {
     return { ...snapshot, dataSource: "unavailable", narratives: [] };
@@ -293,146 +269,6 @@ const TICKER_STOPWORDS = new Set([
   "TBH", "WTF", "SMH", "LFG", "GM", "GN", "ATH", "ATL", "ETF", "SEC", "FED", "GDP", "CPI",
 ]);
 
-interface DexMarketInfo {
-  name: string | null;
-  chainId: string | null;
-  priceUsd: number | null;
-  volume24hUsd: number | null;
-  change24hPct: number | null;
-  dexUrl: string | null;
-  imageUrl: string | null;
-}
-
-const dexCache = new Map<string, { expiresAt: number; data: DexMarketInfo | null }>();
-const DEX_CACHE_TTL_MS = 5 * 60 * 1000;
-
-const logoCache = new Map<string, { expiresAt: number; url: string | null }>();
-const LOGO_HIT_TTL_MS = 24 * 60 * 60 * 1000;
-const LOGO_MISS_TTL_MS = 30 * 60 * 1000;
-
-async function fetchFallbackTokenLogo(symbol: string): Promise<string | null> {
-  const key = symbol.toUpperCase();
-  const cached = logoCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.url;
-
-  // 1) Fast, rate-limit-free CDN for major L1s, blue-chips, and stablecoins.
-  const coinCapUrl = `https://assets.coincap.io/assets/icons/${key.toLowerCase()}@2x.png`;
-  try {
-    const head = await fetch(coinCapUrl, {
-      method: "HEAD",
-      cache: "no-store",
-      signal: AbortSignal.timeout(2_000),
-    });
-    if (head.ok) {
-      logoCache.set(key, { expiresAt: Date.now() + LOGO_HIT_TTL_MS, url: coinCapUrl });
-      return coinCapUrl;
-    }
-  } catch {
-    // Fall through to CoinGecko search.
-  }
-
-  // 2) CoinGecko search fallback for newer tokens, ecosystem coins, and tokenized stocks.
-  try {
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(key)}`,
-      {
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-        signal: AbortSignal.timeout(2_500),
-      },
-    );
-    if (res.ok) {
-      const json = (await res.json()) as {
-        coins?: Array<{
-          symbol?: string;
-          market_cap_rank?: number | null;
-          large?: string;
-          thumb?: string;
-        }>;
-      };
-      const matches = (json.coins ?? []).filter(
-        (c) => (c.symbol ?? "").toUpperCase() === key && (c.large || c.thumb),
-      );
-      matches.sort(
-        (a, b) =>
-          (a.market_cap_rank ?? Number.MAX_SAFE_INTEGER) -
-          (b.market_cap_rank ?? Number.MAX_SAFE_INTEGER),
-      );
-      const url = matches[0]?.large ?? matches[0]?.thumb ?? null;
-      logoCache.set(key, {
-        expiresAt: Date.now() + (url ? LOGO_HIT_TTL_MS : LOGO_MISS_TTL_MS),
-        url,
-      });
-      return url;
-    }
-  } catch {
-    // Ignore transient lookup failures.
-  }
-
-  logoCache.set(key, { expiresAt: Date.now() + LOGO_MISS_TTL_MS, url: null });
-  return null;
-}
-
-async function fetchDexMarketInfo(symbol: string): Promise<DexMarketInfo | null> {
-  const key = symbol.toUpperCase();
-  const cached = dexCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.data;
-
-  let best:
-    | {
-        chainId?: string;
-        url?: string;
-        priceUsd?: string;
-        baseToken?: { symbol?: string; name?: string };
-        liquidity?: { usd?: number };
-        volume?: { h24?: number };
-        priceChange?: { h24?: number };
-        txns?: { h24?: { buys?: number; sells?: number } };
-        info?: { imageUrl?: string };
-      }
-    | undefined;
-
-  try {
-    const res = await fetch(
-      `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(key)}`,
-      {
-        headers: { Accept: "application/json" },
-        cache: "no-store",
-        signal: AbortSignal.timeout(3_000),
-      },
-    );
-    if (res.ok) {
-      const json = (await res.json()) as { pairs?: Array<NonNullable<typeof best>> };
-      const pairs = (json.pairs ?? []).filter((pair) => {
-        if ((pair.baseToken?.symbol ?? "").toUpperCase() !== key) return false;
-        const liq = Number(pair.liquidity?.usd ?? 0);
-        const tx24 = Number(pair.txns?.h24?.buys ?? 0) + Number(pair.txns?.h24?.sells ?? 0);
-        return liq >= 50_000 && tx24 >= 20;
-      });
-      pairs.sort((a, b) => Number(b.volume?.h24 ?? 0) - Number(a.volume?.h24 ?? 0));
-      best = pairs[0];
-    }
-  } catch {
-    // DexScreener timeout/error: still try fallback logo resolution below.
-  }
-
-  const imageUrl = best?.info?.imageUrl ?? (await fetchFallbackTokenLogo(key));
-  const data: DexMarketInfo | null =
-    best || imageUrl
-      ? {
-          name: best?.baseToken?.name ?? null,
-          chainId: best?.chainId ?? null,
-          priceUsd: best?.priceUsd != null && Number.isFinite(Number(best.priceUsd)) ? Number(best.priceUsd) : null,
-          volume24hUsd: best?.volume?.h24 != null && Number.isFinite(Number(best.volume.h24)) ? Number(best.volume.h24) : null,
-          change24hPct: best?.priceChange?.h24 != null && Number.isFinite(Number(best.priceChange.h24)) ? Number(best.priceChange.h24) : null,
-          dexUrl: best?.url ?? null,
-          imageUrl,
-        }
-      : null;
-  dexCache.set(key, { expiresAt: Date.now() + DEX_CACHE_TTL_MS, data });
-  return data;
-}
-
 export async function fetchNarrativeHistory(
   narrativeId: number,
   fromEpoch?: number,
@@ -445,7 +281,7 @@ export async function fetchNarrativeHistory(
   if (Number.isSafeInteger(toEpoch)) filters.push(`epoch_id=lte.${toEpoch}`);
 
   type ContribRow = {
-    user_id: number;
+    user_id: string;
     share_bps: number;
     capped: boolean;
     kols?: {
@@ -501,7 +337,7 @@ export async function fetchNarrativeHistory(
     const latestFinalRow = finals?.[0];
     const contribRows = latestFinalRow
       ? await supabaseSelect<ContribRow>(
-          `kol_contribution?select=user_id,share_bps,capped,kols(handle,followers,display_name,avatar_url)&epoch_id=eq.${latestFinalRow.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
+          `kol_contribution?select=user_id::text,share_bps,capped,kols(handle,followers,display_name,avatar_url)&epoch_id=eq.${latestFinalRow.epoch_id}&narrative_id=eq.${meta.id}&order=share_bps.desc&limit=20`,
           "service",
           "slow",
         )
@@ -509,7 +345,7 @@ export async function fetchNarrativeHistory(
     const contributorIds = (contribRows ?? []).map((c) => String(c.user_id));
     const postsFilter = contributorIds.length > 0 ? `&user_id=in.(${contributorIds.join(",")})` : "";
     const postRows = await supabaseSelect<PostRow>(
-      `posts?select=tweet_id,user_id,created_at,body,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications!inner(q)${postsFilter}&order=created_at.desc&limit=400`,
+      `posts?select=tweet_id::text,user_id::text,created_at,body,kols(handle,followers,display_name,avatar_url),post_engagement(likes,reposts,quotes,replies,fetched_at),classifications!inner(q)${postsFilter}&order=created_at.desc&limit=400`,
       "service",
       "slow",
     );
@@ -650,26 +486,20 @@ export async function fetchNarrativeHistory(
     .sort((a, b) => b[1].weightedQ - a[1].weightedQ || b[1].kols.size - a[1].kols.size || b[1].mentions - a[1].mentions)
     .slice(0, 8);
 
-  const marketInfos = await Promise.all(
-    topTickers.map(([symbol]) => fetchDexMarketInfo(symbol)),
-  );
-
-  const mentionedTokens: MentionedTokenItem[] = topTickers.map(([symbol, stat], idx) => {
-    const market = marketInfos[idx] ?? null;
-    return {
-      symbol,
-      name: market?.name ?? null,
-      mentions: stat.mentions,
-      kolCount: stat.kols.size,
-      weightedQ: Number(stat.weightedQ.toFixed(2)),
-      chainId: market?.chainId ?? null,
-      priceUsd: market?.priceUsd ?? null,
-      volume24hUsd: market?.volume24hUsd ?? null,
-      change24hPct: market?.change24hPct ?? null,
-      dexUrl: market?.dexUrl ?? null,
-      imageUrl: market?.imageUrl ?? null,
-    };
-  });
+  // A ticker alone does not identify a token or trading pair.
+  const mentionedTokens: MentionedTokenItem[] = topTickers.map(([symbol, stat]) => ({
+    symbol,
+    name: null,
+    mentions: stat.mentions,
+    kolCount: stat.kols.size,
+    weightedQ: Number(stat.weightedQ.toFixed(2)),
+    chainId: null,
+    priceUsd: null,
+    volume24hUsd: null,
+    change24hPct: null,
+    dexUrl: null,
+    imageUrl: null,
+  }));
 
   return {
     awaitingFirstEpoch: finals !== null && !latestFinalEpoch,
@@ -1175,7 +1005,7 @@ export async function fetchKolLeaderboard(): Promise<KolLeaderboardResponse> {
       h_k: number;
       poll_tier: number;
     }>(
-      "kols?select=user_id,handle,display_name,avatar_url,followers,r_k,h_k,poll_tier&active=eq.true&order=followers.desc&limit=1000&offset=0",
+      "kols?select=user_id::text,handle,display_name,avatar_url,followers,r_k,h_k,poll_tier&active=eq.true&order=followers.desc&limit=1000&offset=0",
       "service",
     ),
     supabaseSelect<{
@@ -1188,15 +1018,15 @@ export async function fetchKolLeaderboard(): Promise<KolLeaderboardResponse> {
       h_k: number;
       poll_tier: number;
     }>(
-      "kols?select=user_id,handle,display_name,avatar_url,followers,r_k,h_k,poll_tier&active=eq.true&order=followers.desc&limit=1000&offset=1000",
+      "kols?select=user_id::text,handle,display_name,avatar_url,followers,r_k,h_k,poll_tier&active=eq.true&order=followers.desc&limit=1000&offset=1000",
       "service",
     ),
     supabaseSelect<{ user_id: number | string; narrative_id: number }>(
-      "kol_narratives?select=user_id,narrative_id&limit=1000&offset=0",
+      "kol_narratives?select=user_id::text,narrative_id&limit=1000&offset=0",
       "service",
     ),
     supabaseSelect<{ user_id: number | string; narrative_id: number }>(
-      "kol_narratives?select=user_id,narrative_id&limit=1000&offset=1000",
+      "kol_narratives?select=user_id::text,narrative_id&limit=1000&offset=1000",
       "service",
     ),
   ]);

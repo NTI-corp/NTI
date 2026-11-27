@@ -173,7 +173,7 @@ export default async function NarrativeDetailPage({
               Related Tokens · KOL Mentions
             </h3>
             <p className="font-mono text-[11px] text-[#8A8A93]">
-              Auto-extracted from top KOL posts in {meta.label} · Live market data via DexScreener
+              Tickers mentioned by top KOLs in {meta.label}. A ticker alone does not identify a token or price.
             </p>
           </div>
           {!data.mentionedTokens || data.mentionedTokens.length === 0 ? (

@@ -46,7 +46,7 @@ export function LiveTickerBar({
                   <span className="uppercase tracking-[0.06em] text-[#F5F5F7]">{n.label}</span>
                   <span className="text-[#A1A1AA]">{formatBpsPercent(n.iBps, 1)}</span>
                   <span className={n.vBps === null ? "text-[#52525B]" : up ? "text-[#4ADE80]" : "text-[#EF4444]"}>
-                    {n.vBps === null ? "0 bps" : formatSignedBps(n.vBps, n.vFlag)}
+                    {formatSignedBps(n.vBps, n.vFlag)}
                   </span>
                 </Link>
               );
