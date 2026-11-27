@@ -2,6 +2,8 @@
   "note": "Real Robinhood Chain tokens that discovery cannot find by scanning Pons launches. Liquidity and activity are read from DexScreener every run; only the narrative is curated here. USDG is left out until the official address is confirmed (two tokens carry that name).",
   "tokens": [
     {"address": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", "symbol": "NVDA", "name": "NVIDIA Robinhood Token", "narrative_id": 3},
+    {"address": "0xbbB6c29bCc3a1028A2B54310DF73F4F7A3bcB373", "symbol": "ANT", "name": "Anthropic Robinhood Token", "narrative_id": 3},
+    {"address": "0xc6911796042b15d7Fa4F6CDe69e245DdCd3d9c31", "symbol": "VIRTUAL", "name": "Virtuals Protocol", "narrative_id": 2},
     {"address": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C", "symbol": "SPY", "name": "SPDR S&P 500 ETF Trust Robinhood Token", "narrative_id": 3},
     {"address": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b", "symbol": "COIN", "name": "Coinbase Robinhood Token", "narrative_id": 3},
     {"address": "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa", "symbol": "SPCX", "name": "Space Exploration Technologies Class A Robinhood Token", "narrative_id": 3},

@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { NARRATIVES, NARRATIVE_BY_ID } from "@nti/sdk";
 import { encodeAbiParameters, isAddress, keccak256, maxUint256, stringToHex, type Address, type Hex } from "viem";
 import { getActiveChainId, getProtocolAddresses } from "./contracts";
+import { resolveRobinhoodToken, tickerContractFromPost } from "./ticker-logo";
 import {
   readLiveBasketsFromChain,
   readGovernorStates,
@@ -421,7 +422,7 @@ export async function fetchNarrativeHistory(
   }));
 
   const scoredPosts: Array<{ influence: number; item: TopPostItem }> = [];
-  const tickerStats = new Map<string, { mentions: number; weightedQ: number; kols: Set<string> }>();
+  const tickerStats = new Map<string, { mentions: number; weightedQ: number; kols: Set<string>; contracts: Set<string> }>();
   for (const p of postRows ?? []) {
     const clsList = p.classifications ?? [];
     let bestQ = 0;
@@ -440,10 +441,12 @@ export async function fetchNarrativeHistory(
         const sym = match[1]?.toUpperCase();
         if (!sym || TICKER_STOPWORDS.has(sym) || seenInPost.has(sym)) continue;
         seenInPost.add(sym);
-        const prev = tickerStats.get(sym) ?? { mentions: 0, weightedQ: 0, kols: new Set<string>() };
+        const prev = tickerStats.get(sym) ?? { mentions: 0, weightedQ: 0, kols: new Set<string>(), contracts: new Set<string>() };
         prev.mentions += 1;
         prev.weightedQ += bestQ;
         prev.kols.add(String(p.user_id));
+        const address = tickerContractFromPost(p.body, sym);
+        if (address) prev.contracts.add(address);
         tickerStats.set(sym, prev);
       }
     }
@@ -503,20 +506,52 @@ export async function fetchNarrativeHistory(
     .sort((a, b) => b[1].weightedQ - a[1].weightedQ || b[1].kols.size - a[1].kols.size || b[1].mentions - a[1].mentions)
     .slice(0, 8);
 
-  // A ticker alone does not identify a token or trading pair.
-  const mentionedTokens: MentionedTokenItem[] = topTickers.map(([symbol, stat]) => ({
-    symbol,
-    name: null,
-    mentions: stat.mentions,
-    kolCount: stat.kols.size,
-    weightedQ: Number(stat.weightedQ.toFixed(2)),
-    chainId: null,
-    priceUsd: null,
-    volume24hUsd: null,
-    change24hPct: null,
-    dexUrl: null,
-    imageUrl: null,
-  }));
+  // A ticker alone does not identify a token. Resolve only against Robinhood Chain market data:
+  // contracts named in the post first, then the verified token registry when the symbol is unique.
+  const tickerSymbols = topTickers
+    .map(([symbol]) => symbol)
+    .filter((symbol) => /^[A-Za-z0-9]+$/.test(symbol));
+  const registryRows = tickerSymbols.length
+    ? await supabaseSelect<{ address: string; symbol: string | null; name: string | null }>(
+        `tokens?select=address,symbol,name&symbol=in.(${tickerSymbols.join(",")})`,
+        "anon",
+        "slow",
+      )
+    : [];
+  const registryBySymbol = new Map<string, Array<{ address: string; name: string | null }>>();
+  for (const row of registryRows ?? []) {
+    const key = (row.symbol ?? "").toUpperCase();
+    const address = normalizeHex(row.address) ?? row.address;
+    if (!key || !isAddress(address, { strict: false })) continue;
+    const list = registryBySymbol.get(key) ?? [];
+    list.push({ address, name: row.name });
+    registryBySymbol.set(key, list);
+  }
+  const resolvedTokens = await Promise.all(
+    topTickers.map(([symbol, stat]) => {
+      const candidates = new Set<string>(stat.contracts);
+      const registry = registryBySymbol.get(symbol.toUpperCase()) ?? [];
+      // Two on-chain tokens with the same ticker are ambiguous: only a contract in the post settles it.
+      if (registry.length === 1) candidates.add(registry[0]!.address);
+      return resolveRobinhoodToken(symbol, [...candidates]);
+    }),
+  );
+  const mentionedTokens: MentionedTokenItem[] = topTickers.map(([symbol, stat], index) => {
+    const token = resolvedTokens[index];
+    return {
+      symbol,
+      name: token?.name ?? null,
+      mentions: stat.mentions,
+      kolCount: stat.kols.size,
+      weightedQ: Number(stat.weightedQ.toFixed(2)),
+      chainId: token ? "robinhood" : null,
+      priceUsd: token?.priceUsd ?? null,
+      volume24hUsd: null,
+      change24hPct: null,
+      dexUrl: token?.dexUrl ?? null,
+      imageUrl: token?.imageUrl ?? null,
+    };
+  });
 
   return {
     awaitingFirstEpoch: finals !== null && !latestFinalEpoch,

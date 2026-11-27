@@ -42,16 +42,18 @@ export function TokenLogo({
   imageUrl,
   size = 24,
   className = "",
+  useSymbolIcon = true,
 }: {
   symbol: string;
   imageUrl?: string | null;
   size?: number;
   className?: string;
+  useSymbolIcon?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const key = symbol.replace(/^\$/, "").toUpperCase();
-  const src = LOCAL_TOKEN_ICONS[key] ?? imageUrl ?? null;
-  const padded = SVG_PADDED.has(key);
+  const src = (useSymbolIcon ? LOCAL_TOKEN_ICONS[key] : null) ?? imageUrl ?? null;
+  const padded = useSymbolIcon && SVG_PADDED.has(key);
 
   if (!src || failed) {
     return (
@@ -79,7 +81,7 @@ export function TokenLogo({
         width={size}
         height={size}
         // Bundled icons are tiny, so they load at once; remote logos wait until they are near the screen.
-        loading={LOCAL_TOKEN_ICONS[key] ? "eager" : "lazy"}
+        loading={useSymbolIcon && LOCAL_TOKEN_ICONS[key] ? "eager" : "lazy"}
         referrerPolicy="no-referrer"
         onError={() => setFailed(true)}
         className={`h-full w-full ${padded ? "object-contain" : "object-cover"}`}

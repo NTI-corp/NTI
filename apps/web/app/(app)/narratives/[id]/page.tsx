@@ -178,7 +178,7 @@ export default async function NarrativeDetailPage({
               Related Tokens · KOL Mentions
             </h3>
             <p className="font-mono text-[11px] text-[#8A8A93]">
-              Tickers mentioned by top KOLs in {meta.label}. A ticker alone does not identify a token or price.
+              Tickers mentioned by top KOLs in {meta.label}. Logos appear only when the ticker resolves to a Robinhood contract (post or verified registry).
             </p>
           </div>
           {!data.mentionedTokens || data.mentionedTokens.length === 0 ? (
@@ -209,7 +209,7 @@ export default async function NarrativeDetailPage({
                     className="flex items-center justify-between gap-3 px-4 py-3 font-mono text-xs tabular-nums"
                   >
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <TokenLogo symbol={tok.symbol} imageUrl={tok.imageUrl} size={26} />
+                      <TokenLogo symbol={tok.symbol} imageUrl={tok.imageUrl} size={26} useSymbolIcon={false} />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-[#F5F5F7]">${tok.symbol}</span>
