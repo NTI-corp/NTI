@@ -7,6 +7,7 @@ import {
   readGovernorStates,
   readLiveGrantRoundsFromChain,
   readLiveMarketsFromChain,
+  readMarketById,
   readPonsLogos,
 } from "./onchain";
 import type {
@@ -861,6 +862,20 @@ export async function fetchMarketsData(): Promise<{ awaitingDeployment: boolean;
       latestSeries !== null && (m.status === "open" || m.status === "locked") && latestSeries > m.seriesId,
   }));
   return { awaitingDeployment: markets === null, markets: flagged };
+}
+
+/** Detail pages must not 404 just because the cached market list is stale. */
+export async function fetchMarketById(marketId: number): Promise<MarketItem | null> {
+  const snapshot = await fetchIndexesSnapshot();
+  const indexes = new Map(snapshot.narratives.map((item) => [item.narrativeId, item.iBps]));
+  const market = await readMarketById(marketId, indexes);
+  if (!market) return null;
+  const latestSeries = snapshot.latestFinalEpoch?.seriesId ?? null;
+  const refundBound =
+    latestSeries !== null &&
+    (market.status === "open" || market.status === "locked") &&
+    latestSeries > market.seriesId;
+  return { ...market, refundBound };
 }
 
 export async function fetchBasketsData(): Promise<{ awaitingDeployment: boolean; baskets: BasketItem[] }> {

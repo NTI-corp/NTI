@@ -112,13 +112,85 @@ export async function readGovernorStates(ids: bigint[]): Promise<Array<GovernorC
   }
 }
 
+type MarketReadParams = {
+  maxPoolWei: bigint;
+  cutoffEpochs: number;
+  feeBps: number;
+  settleTimeout: bigint;
+};
+
+async function readMarketItem(
+  client: PublicClient,
+  marketAddress: Address,
+  oracleAddress: Address,
+  marketId: number,
+  currentIndexByNarrative: Map<number, number>,
+  { maxPoolWei, cutoffEpochs, feeBps, settleTimeout }: MarketReadParams,
+): Promise<MarketItem> {
+  const market = { address: marketAddress, abi: narrativeMarketAbi } as const;
+  const oracle = { address: oracleAddress, abi: oracleCommitAbi } as const;
+  const [narrativeA, narrativeB, baseEpoch, settleEpoch, seriesId,
+    pool0Net, pool1Net, pool0Gross, pool1Gross, , outcomeNum, settled] = await client.readContract({
+    ...market, functionName: "markets", args: [BigInt(marketId)],
+  });
+  const [cutoffAt, settleAt, baseIA, baseIB, settleStatus] = await Promise.all([
+    client.readContract({ ...oracle, functionName: "epochBoundary", args: [settleEpoch - cutoffEpochs] }),
+    client.readContract({ ...oracle, functionName: "epochBoundary", args: [settleEpoch] }),
+    client.readContract({ ...oracle, functionName: "finalIndex", args: [baseEpoch, narrativeA] }),
+    narrativeB === 0 ? Promise.resolve(1000) :
+      client.readContract({ ...oracle, functionName: "finalIndex", args: [baseEpoch, narrativeB] }),
+    client.readContract({ ...oracle, functionName: "epochStatus", args: [settleEpoch] }),
+  ]);
+  const settledIndex = settled && settleStatus === 3;
+  const [settleIA, settleIB] = settledIndex
+    ? await Promise.all([
+        client.readContract({ ...oracle, functionName: "finalIndex", args: [settleEpoch, narrativeA] }),
+        narrativeB === 0
+          ? Promise.resolve(1000)
+          : client.readContract({ ...oracle, functionName: "finalIndex", args: [settleEpoch, narrativeB] }),
+      ])
+    : [null, null];
+  const outcome = outcomeNum === 1 ? "side_a" : outcomeNum === 2 ? "side_b" :
+    outcomeNum === 3 ? "refund" : null;
+  return {
+    marketId,
+    narrativeA,
+    narrativeB,
+    narrativeALabel: NARRATIVE_BY_ID.get(narrativeA)?.label ?? `Narrative #${narrativeA}`,
+    narrativeBLabel: narrativeB === 0 ? "All-Narrative Average" :
+      NARRATIVE_BY_ID.get(narrativeB)?.label ?? `Narrative #${narrativeB}`,
+    baseEpoch,
+    settleEpoch,
+    horizonLabel: `${settleEpoch - baseEpoch} epochs`,
+    cutoffAt: new Date(Number(cutoffAt) * 1000).toISOString(),
+    settleAt: new Date(Number(settleAt) * 1000).toISOString(),
+    status: settled ? outcome === "refund" ? "refunded" : "settled" :
+      Date.now() >= Number(cutoffAt) * 1000 ? "locked" : "open",
+    outcome,
+    poolAEth: Number(formatEther(pool0Gross)),
+    poolBEth: Number(formatEther(pool1Gross)),
+    maxPoolEth: Number(formatEther(maxPoolWei)),
+    baseIA,
+    baseIB,
+    currentIA: settled ? settleIA : currentIndexByNarrative.get(narrativeA) ?? null,
+    currentIB: settled
+      ? settleIB
+      : narrativeB === 0 ? 1000 : currentIndexByNarrative.get(narrativeB) ?? null,
+    seriesId,
+    poolANetEth: Number(formatEther(pool0Net)),
+    poolBNetEth: Number(formatEther(pool1Net)),
+    cutoffEpochs: Number(cutoffEpochs),
+    feeBps: Number(feeBps),
+    settleTimeoutHours: Number(settleTimeout) / 3600,
+  };
+}
+
 async function readLiveMarketsUncached(
   currentIndexByNarrative: Map<number, number>,
 ): Promise<MarketItem[] | null> {
   const { addresses, client } = getServerPublicClient();
   if (!addresses.narrativeMarket || !addresses.oracleCommit) return null;
   const market = { address: addresses.narrativeMarket, abi: narrativeMarketAbi } as const;
-  const oracle = { address: addresses.oracleCommit, abi: oracleCommitAbi } as const;
 
   try {
     const nextId = await client.readContract({ ...market, functionName: "nextMarketId" });
@@ -130,70 +202,52 @@ async function readLiveMarketsUncached(
       client.readContract({ ...market, functionName: "BASE_FEE_BPS" }),
       client.readContract({ ...market, functionName: "SETTLE_TIMEOUT" }),
     ]);
+    const params = { maxPoolWei, cutoffEpochs, feeBps, settleTimeout };
     const ids = Array.from({ length: Math.min(30, count) }, (_, offset) => count - offset);
 
     // A few markets at a time: reading all of them at once is a burst of RPC calls that a free node answers with 429.
-    const readMarket = async (marketId: number): Promise<MarketItem> => {
-      const [narrativeA, narrativeB, baseEpoch, settleEpoch, seriesId,
-        pool0Net, pool1Net, pool0Gross, pool1Gross, , outcomeNum, settled] = await client.readContract({
-        ...market, functionName: "markets", args: [BigInt(marketId)],
-      });
-      const [cutoffAt, settleAt, baseIA, baseIB, settleStatus] = await Promise.all([
-        client.readContract({ ...oracle, functionName: "epochBoundary", args: [settleEpoch - cutoffEpochs] }),
-        client.readContract({ ...oracle, functionName: "epochBoundary", args: [settleEpoch] }),
-        client.readContract({ ...oracle, functionName: "finalIndex", args: [baseEpoch, narrativeA] }),
-        narrativeB === 0 ? Promise.resolve(1000) :
-          client.readContract({ ...oracle, functionName: "finalIndex", args: [baseEpoch, narrativeB] }),
-        client.readContract({ ...oracle, functionName: "epochStatus", args: [settleEpoch] }),
-      ]);
-      const settledIndex = settled && settleStatus === 3;
-      const [settleIA, settleIB] = settledIndex
-        ? await Promise.all([
-            client.readContract({ ...oracle, functionName: "finalIndex", args: [settleEpoch, narrativeA] }),
-            narrativeB === 0
-              ? Promise.resolve(1000)
-              : client.readContract({ ...oracle, functionName: "finalIndex", args: [settleEpoch, narrativeB] }),
-          ])
-        : [null, null];
-      const outcome = outcomeNum === 1 ? "side_a" : outcomeNum === 2 ? "side_b" :
-        outcomeNum === 3 ? "refund" : null;
-      return {
+    const readMarket = (marketId: number) =>
+      readMarketItem(
+        client,
+        addresses.narrativeMarket!,
+        addresses.oracleCommit!,
         marketId,
-        narrativeA,
-        narrativeB,
-        narrativeALabel: NARRATIVE_BY_ID.get(narrativeA)?.label ?? `Narrative #${narrativeA}`,
-        narrativeBLabel: narrativeB === 0 ? "All-Narrative Average" :
-          NARRATIVE_BY_ID.get(narrativeB)?.label ?? `Narrative #${narrativeB}`,
-        baseEpoch,
-        settleEpoch,
-        horizonLabel: `${settleEpoch - baseEpoch} epochs`,
-        cutoffAt: new Date(Number(cutoffAt) * 1000).toISOString(),
-        settleAt: new Date(Number(settleAt) * 1000).toISOString(),
-        status: settled ? outcome === "refund" ? "refunded" : "settled" :
-          Date.now() >= Number(cutoffAt) * 1000 ? "locked" : "open",
-        outcome,
-        poolAEth: Number(formatEther(pool0Gross)),
-        poolBEth: Number(formatEther(pool1Gross)),
-        maxPoolEth: Number(formatEther(maxPoolWei)),
-        baseIA,
-        baseIB,
-        currentIA: settled ? settleIA : currentIndexByNarrative.get(narrativeA) ?? null,
-        currentIB: settled
-          ? settleIB
-          : narrativeB === 0 ? 1000 : currentIndexByNarrative.get(narrativeB) ?? null,
-        seriesId,
-        poolANetEth: Number(formatEther(pool0Net)),
-        poolBNetEth: Number(formatEther(pool1Net)),
-        cutoffEpochs: Number(cutoffEpochs),
-        feeBps: Number(feeBps),
-        settleTimeoutHours: Number(settleTimeout) / 3600,
-      };
-    };
+        currentIndexByNarrative,
+        params,
+      );
     const items: MarketItem[] = [];
     for (let i = 0; i < ids.length; i += MARKET_READ_CONCURRENCY) {
       items.push(...(await Promise.all(ids.slice(i, i + MARKET_READ_CONCURRENCY).map(readMarket))));
     }
     return items;
+  } catch {
+    return null;
+  }
+}
+
+/** Read one market straight from the chain, even when the cached list is stale. */
+export async function readMarketById(
+  marketId: number,
+  currentIndexByNarrative: Map<number, number>,
+): Promise<MarketItem | null> {
+  const { addresses, client } = getServerPublicClient();
+  if (!addresses.narrativeMarket || !addresses.oracleCommit) return null;
+  const market = { address: addresses.narrativeMarket, abi: narrativeMarketAbi } as const;
+  try {
+    const [maxPoolWei, cutoffEpochs, feeBps, settleTimeout] = await Promise.all([
+      client.readContract({ ...market, functionName: "maxPoolPerMarket" }),
+      client.readContract({ ...market, functionName: "BET_CUTOFF_EPOCHS" }),
+      client.readContract({ ...market, functionName: "BASE_FEE_BPS" }),
+      client.readContract({ ...market, functionName: "SETTLE_TIMEOUT" }),
+    ]);
+    return await readMarketItem(
+      client,
+      addresses.narrativeMarket,
+      addresses.oracleCommit,
+      marketId,
+      currentIndexByNarrative,
+      { maxPoolWei, cutoffEpochs, feeBps, settleTimeout },
+    );
   } catch {
     return null;
   }
