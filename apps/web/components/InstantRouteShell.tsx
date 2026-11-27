@@ -63,6 +63,13 @@ function getRouteMeta(path: string): RouteShellMeta {
         subtitle: "Admin-whitelisted Uniswap V3 vaults priced by 30-minute TWAP.",
         layout: "grid3",
       };
+    case "/portfolio":
+      return {
+        eyebrow: "TRADE · WALLET POSITIONS",
+        title: "Portfolio",
+        subtitle: "Loading balances, basket shares, and market positions.",
+        layout: "split",
+      };
     case "/grants":
       return {
         eyebrow: "PROTOCOL · PUBLIC GOODS",

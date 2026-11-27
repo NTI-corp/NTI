@@ -149,8 +149,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (url.pathname === "/" || url.pathname.startsWith("/api/")) return;
       setOptimisticPath(url.pathname);
     };
-    document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    // Next.js handles Link clicks before they reach a bubbling document listener.
+    // Capture the intent first so the destination shell appears immediately.
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, []);
 
   useEffect(() => {
