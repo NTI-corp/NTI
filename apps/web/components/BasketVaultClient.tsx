@@ -126,7 +126,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
 
   useEffect(() => {
     let mounted = true;
-    void estimateTxGas(publicClient, { fallbackGasLimit: 240_000n }).then((est) => {
+    void estimateTxGas(publicClient, { fallbackGasLimit: BASKET_TX_GAS }).then((est) => {
       if (mounted) setGasEst(est);
     });
     return () => {
@@ -175,6 +175,9 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
   const exceedsTvlCap = maxTvlWei > 0n && navWei + amtWei > maxTvlWei;
   const insufficientEth = mode === "deposit" && isConnected && amtWei > ethBalanceWei;
   const insufficientShares = mode === "redeem" && isConnected && amtWei > userSharesWei;
+  const vaultReadsReady = navOnChain !== undefined && totalSupplyOnChain !== undefined &&
+    (mode !== "deposit" || (pausedOnChain !== undefined && maxTvlOnChain !== undefined && constituentsOnChain !== undefined));
+  const walletReadsReady = mode === "deposit" ? ethBalanceData !== undefined : userSharesOnChain !== undefined;
 
   async function handleExecute() {
     setValidationError(null);
@@ -184,6 +187,10 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
     }
     if (!isConnected || !address) {
       setValidationError("Connect an EVM wallet first.");
+      return;
+    }
+    if (!vaultReadsReady || !walletReadsReady) {
+      setValidationError("Vault or wallet data is unavailable. Wait for it to load and try again.");
       return;
     }
     if (amtWei <= 0n) {
@@ -312,7 +319,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
               Your Shares
             </div>
             <div className="mt-0.5 text-base font-semibold text-[#CCFF00]">
-              {isConnected ? `${Number(formatEther(userSharesWei)).toFixed(4)}` : "—"}
+              {isConnected && userSharesOnChain !== undefined ? `${Number(formatEther(userSharesWei)).toFixed(4)}` : "—"}
             </div>
           </div>
           <div>
@@ -417,6 +424,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                 </label>
                 <button
                   type="button"
+                  disabled={!isConnected || !walletReadsReady}
                   onClick={() => {
                     if (mode === "deposit") {
                       const safeEth = Math.max(0, Number(formatEther(ethBalanceWei)) - 0.005);
@@ -428,7 +436,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
                   className="text-[10px] text-[#CCFF00] hover:underline tabular-nums"
                 >
                   MAX:{" "}
-                  {mode === "deposit"
+                  {!isConnected || !walletReadsReady ? "—" : mode === "deposit"
                     ? `${Number(formatEther(ethBalanceWei)).toFixed(4)} ETH`
                     : `${Number(formatEther(userSharesWei)).toFixed(4)} ${basket.symbol}`}
                 </button>
@@ -524,7 +532,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
 
             <button
               type="button"
-              disabled={isBusy || !isConnected || depositBlocked || redeemBlocked}
+              disabled={isBusy || !isConnected || !vaultReadsReady || !walletReadsReady || depositBlocked || redeemBlocked}
               onClick={() => void handleExecute()}
               className={`w-full py-2.5 font-mono text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
                 mode === "deposit"
@@ -534,6 +542,8 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
             >
               {!isConnected
                 ? "CONNECT WALLET"
+                : !vaultReadsReady || !walletReadsReady
+                  ? "LOADING VAULT DATA"
                 : mode === "deposit" && !allocationConfigured
                   ? "ALLOCATION PENDING ON-CHAIN SETUP"
                   : mode === "deposit" && isPaused
@@ -550,7 +560,7 @@ export function BasketVaultClient({ basket }: BasketVaultClientProps) {
             </button>
 
             <p className="text-[11px] leading-relaxed text-[#71717A]">
-              Depositors absorb swap slippage via (navAfter − navBefore) / navBefore share minting with dead-shares inflation protection. Redeem stays open even if vault deposits are paused.
+              Deposits and redemptions swap through the basket assets. The final amount depends on execution prices and your slippage setting. Redemptions remain open when deposits are paused.
             </p>
           </div>
         </div>
