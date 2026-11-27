@@ -636,6 +636,20 @@ async def _run_monitor(args: argparse.Namespace) -> dict[str, Any]:
             }
         except Exception:  # noqa: BLE001 - alert timing is best effort; keep the old behaviour
             finished_by_epoch = None
+    omission_status: str | None = None
+    omission_error_type: str | None = None
+    omission_epoch_id: int | None = None
+    try:
+        omission_path = REPO_ROOT / "data" / "state" / "omission.jsonl"
+        rows = omission_path.read_text(encoding="utf-8").splitlines()
+        if rows:
+            last = json.loads(rows[-1])
+            omission_status = str(last.get("status")) if last.get("status") else None
+            omission_error_type = str(last.get("error_type")) if last.get("error_type") else None
+            raw_epoch = last.get("epoch_id")
+            omission_epoch_id = int(raw_epoch) if raw_epoch is not None else None
+    except (OSError, ValueError):
+        pass
     inputs = MonitorInputs(
         now=now_unix(),
         genesis_timestamp=state.genesis_timestamp,
@@ -645,6 +659,9 @@ async def _run_monitor(args: argparse.Namespace) -> dict[str, Any]:
         fetch_failure_pct=fetch_pct,
         fetch_epoch_id=fetch_epoch,
         fetch_finished_unix=finished_by_epoch,
+        omission_status=omission_status,
+        omission_error_type=omission_error_type,
+        omission_epoch_id=omission_epoch_id,
     )
     result = await run_monitor(
         inputs,

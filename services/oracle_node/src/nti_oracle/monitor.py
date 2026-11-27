@@ -36,6 +36,10 @@ class MonitorInputs:
     fetch_epoch_id: int | None
     # epoch id -> unix time its complete fetch evidence was recorded (None: unknown, old behaviour)
     fetch_finished_unix: dict[int, int] | None = None
+    # latest omission-check row: "error" when the shadow/enforce read failed, else None
+    omission_status: str | None = None
+    omission_error_type: str | None = None
+    omission_epoch_id: int | None = None
 
 
 def default_min_eth(chain_id: int) -> Decimal:
@@ -84,6 +88,14 @@ class _GatedNotifier(TelegramNotifier):
             self.sent.append(text)
             await self._inner.send(text)
 
+    async def send_with_key(self, key: str, text: str) -> bool:
+        """Send once per explicit key inside the deduper cooldown; returns True when sent."""
+        if not self._deduper.allow(key, self._now):
+            return False
+        self.sent.append(text)
+        await self._inner.send(text)
+        return True
+
 
 async def run_monitor(
     inputs: MonitorInputs,
@@ -129,6 +141,17 @@ async def run_monitor(
             inputs.fetch_epoch_id, inputs.fetch_failure_pct, failover_used=False
         ):
             findings.append("fetch_failures")
+
+    # A failed omission read does not block commits in shadow mode, so without this alert the
+    # coverage gap stays silent (that is how epochs 124705/124706 were lost unnoticed).
+    if inputs.omission_status == "error":
+        error = inputs.omission_error_type or "unknown"
+        text = (
+            f"[NTI ALERT] Omission check failing ({error}); commits still go through, "
+            "but validator coverage is unmeasured."
+        )
+        if await gated.send_with_key(f"omission_error:{error}", text):
+            findings.append("omission_error")
 
     deduper.save()
     return {"role": "monitor", "findings": findings, "alerts_sent": len(gated.sent)}

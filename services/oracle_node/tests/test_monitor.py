@@ -23,6 +23,9 @@ def inputs(now: int, last_processed: int, latest_final: int, **kw: object) -> Mo
         fetch_failure_pct=kw.get("fetch_failure_pct"),  # type: ignore[arg-type]
         fetch_epoch_id=kw.get("fetch_epoch_id"),  # type: ignore[arg-type]
         fetch_finished_unix=kw.get("fetch_finished_unix"),  # type: ignore[arg-type]
+        omission_status=kw.get("omission_status"),  # type: ignore[arg-type]
+        omission_error_type=kw.get("omission_error_type"),  # type: ignore[arg-type]
+        omission_epoch_id=kw.get("omission_epoch_id"),  # type: ignore[arg-type]
     )
 
 
@@ -76,6 +79,27 @@ def test_fetch_failure_alert() -> None:
     sink: list[str] = []
     res = run(inputs(100 * EPOCH + 60, 99, 99, fetch_failure_pct=4.5, fetch_epoch_id=100), sink)
     assert res["findings"] == ["fetch_failures"]
+
+
+def test_omission_failure_alerts_once_per_error_type(tmp_path: Path) -> None:
+    state = tmp_path / "alerts.json"
+    now = 100 * EPOCH + 60
+    gap = {"omission_status": "error", "omission_error_type": "AccountPoolExhaustedError"}
+    sink: list[str] = []
+    first = run(inputs(now, 99, 99, **gap), sink, AlertDeduper(state, cooldown_seconds=3600))
+    assert "omission_error" in first["findings"]
+    assert any("Omission check failing" in m for m in sink)
+    again: list[str] = []
+    repeat = run(
+        inputs(now + 600, 99, 99, **gap), again, AlertDeduper(state, cooldown_seconds=3600)
+    )
+    assert repeat["alerts_sent"] == 0 and again == []
+
+
+def test_healthy_omission_does_not_alert() -> None:
+    sink: list[str] = []
+    res = run(inputs(100 * EPOCH + 60, 99, 99, omission_status=None), sink)
+    assert res["findings"] == [] and sink == []
 
 
 def test_deduper_suppresses_repeats_within_cooldown(tmp_path: Path) -> None:
