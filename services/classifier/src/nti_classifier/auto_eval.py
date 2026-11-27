@@ -160,11 +160,12 @@ def main() -> int:
     parser.add_argument("--prompt", default=os.environ.get("CLASSIFIER_PROMPT_VERSION", "v2"))
     parser.add_argument("--no-second-model", action="store_true")
     parser.add_argument("--second-gemini-model", help="use another Gemini model as the second")
+    parser.add_argument("--primary-gemini-model", help="override the primary Gemini model")
     args = parser.parse_args()
 
     url, key = os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_KEY"]
     posts = asyncio.run(sample_posts(url, key, args.samples, args.seed))
-    primary = GeminiAdapter()
+    primary = GeminiAdapter(model=args.primary_gemini_model)
     second: LLM | None
     if args.no_second_model:
         second = None

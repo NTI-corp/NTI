@@ -164,7 +164,26 @@ function mapEpoch(r: DbEpochRow): EpochSummary {
   };
 }
 
-function mapNarrative(meta: (typeof NARRATIVES)[number], row: DbNarrativeEpochRow): NarrativeIndexItem {
+function computeFallbackVelocityBps(series: HistoryPoint[], index: number): number | null {
+  const current = series[index];
+  if (!current || current.incomplete || current.iBps <= 0) return null;
+  const finals = series.slice(0, index + 1).filter((p) => !p.incomplete && p.iBps > 0);
+  if (finals.length < 2) return null;
+  const lag = finals.length > 6 ? finals[finals.length - 7]! : finals[0]!;
+  if (lag.iBps <= 0) return null;
+  const raw = Math.round(((current.iBps - lag.iBps) / lag.iBps) * 10_000);
+  return Math.max(-10_000, Math.min(50_000, raw));
+}
+
+function mapNarrative(
+  meta: (typeof NARRATIVES)[number],
+  row: DbNarrativeEpochRow,
+  series?: HistoryPoint[],
+): NarrativeIndexItem {
+  let vBps = row.v_bps;
+  if (vBps === null && (row.v_flag === "series_break" || row.v_flag === null) && series && series.length > 0) {
+    vBps = computeFallbackVelocityBps(series, series.length - 1);
+  }
   return {
     narrativeId: meta.id,
     slug: meta.slug,
@@ -173,7 +192,7 @@ function mapNarrative(meta: (typeof NARRATIVES)[number], row: DbNarrativeEpochRo
     sN: Number(row.s_n),
     mBps: row.m_bps,
     iBps: row.i_bps,
-    vBps: row.v_bps,
+    vBps,
     vFlag: row.v_flag,
     weightedPosts: Number(row.weighted_posts),
   };
@@ -208,6 +227,13 @@ function mapHistory(epochs: DbEpochRow[], rows: DbNarrativeEpochRow[]): HistoryP
       incomplete,
       finalizedAt: epoch.finalized_at,
     });
+  }
+  // During a 6-epoch series re-baseline, show a continuous 24h delta in the UI instead of blank dashes.
+  for (let i = 0; i < history.length; i += 1) {
+    const pt = history[i]!;
+    if (!pt.incomplete && pt.vBps === null && (pt.vFlag === "series_break" || pt.vFlag === null)) {
+      pt.vBps = computeFallbackVelocityBps(history, i);
+    }
   }
   return history;
 }
@@ -252,7 +278,7 @@ export async function fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
     const series = mapHistory(relevant, rows.filter((row) => row.narrative_id === meta.id));
     snapshot.recentSeries[meta.id] = series;
     const latest = rows.find((row) => row.epoch_id === latestFinalRow?.epoch_id && row.narrative_id === meta.id);
-    if (latest) snapshot.narratives.push(mapNarrative(meta, latest));
+    if (latest) snapshot.narratives.push(mapNarrative(meta, latest, series));
   }
   if (latestFinalEpoch && snapshot.narratives.length !== NARRATIVES.length) {
     return { ...snapshot, dataSource: "unavailable", narratives: [] };
