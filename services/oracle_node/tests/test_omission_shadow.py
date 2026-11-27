@@ -11,8 +11,9 @@ from eth_account import Account
 from nti_core.config import load_config
 from nti_core.types import KolProfile
 from nti_engine.models import PrevEpochState
+from nti_fetcher.accounts import AccountPoolExhaustedError
 from nti_fetcher.adapters import InMemoryMockSource
-from nti_fetcher.protocol import RawPost
+from nti_fetcher.protocol import PostSource, RawPost
 from nti_oracle.dataset import ZERO_HASH, LocalFileUploader
 from nti_oracle.node import ConsensusError, OperatorNode, ValidatorNode
 from test_oracle import CONFIG_PATH, _sample_kols, _sample_posts
@@ -21,7 +22,13 @@ CONTRACT = "0x2222222222222222222222222222222222222222"
 BOUNDARY = 1_760_000_000
 
 
-async def commit(tmp_path: Path, *, enforce: bool, log: Path | None) -> None:
+async def commit(
+    tmp_path: Path,
+    *,
+    enforce: bool,
+    log: Path | None,
+    source: PostSource | None = None,
+) -> None:
     cfg = load_config(CONFIG_PATH)
     boundary_dt = datetime.fromtimestamp(BOUNDARY, tz=UTC)
     kols = _sample_kols(20)
@@ -48,7 +55,7 @@ async def commit(tmp_path: Path, *, enforce: bool, log: Path | None) -> None:
         ]
         for p in posts
     }
-    source = InMemoryMockSource(name="val_pool", timelines=timelines)
+    validator_source = source or InMemoryMockSource(name="val_pool", timelines=timelines)
     accounts = [Account.create() for _ in range(3)]
     validators = [
         ValidatorNode(
@@ -56,12 +63,12 @@ async def commit(tmp_path: Path, *, enforce: bool, log: Path | None) -> None:
             cfg=cfg,
             chain_id=46630,
             verifying_contract=CONTRACT,
-            validator_source=source,
+            validator_source=validator_source if enforce or idx == 0 else None,
             omission_enforce=enforce,
             omission_fraction=1.0,
             omission_log=log,
         )
-        for a in accounts
+        for idx, a in enumerate(accounts)
     ]
     operator = OperatorNode(
         cfg=cfg,
@@ -99,3 +106,39 @@ async def test_shadow_mode_records_the_gap_but_the_epoch_still_commits(tmp_path:
 async def test_enforce_mode_blocks_the_same_commit(tmp_path: Path) -> None:
     with pytest.raises(ConsensusError):
         await commit(tmp_path, enforce=True, log=tmp_path / "omission.jsonl")
+
+
+@pytest.mark.asyncio
+async def test_shadow_mode_does_not_block_when_validator_source_fails(tmp_path: Path) -> None:
+    class UnavailableSource:
+        name = "validator_pool"
+
+        async def user_timeline(self, user_id: int, since_id: int | None, limit: int = 20):
+            raise AccountPoolExhaustedError("All accounts exhausted in pool validator_0")
+
+    log = tmp_path / "omission.jsonl"
+    await commit(tmp_path, enforce=False, log=log, source=UnavailableSource())
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
+    assert len(rows) == 1
+    assert rows[0]["epoch_id"] == 100
+    assert rows[0]["status"] == "error"
+    assert rows[0]["error_type"] == "AccountPoolExhaustedError"
+    assert rows[0]["error"] == "All accounts exhausted in pool validator_0"
+    assert rows[0]["enforced"] is False
+
+
+@pytest.mark.asyncio
+async def test_enforce_mode_still_fails_closed_when_validator_source_fails(tmp_path: Path) -> None:
+    class UnavailableSource:
+        name = "validator_pool"
+
+        async def user_timeline(self, user_id: int, since_id: int | None, limit: int = 20):
+            raise AccountPoolExhaustedError("All accounts exhausted in pool validator_0")
+
+    with pytest.raises(AccountPoolExhaustedError):
+        await commit(
+            tmp_path,
+            enforce=True,
+            log=tmp_path / "omission.jsonl",
+            source=UnavailableSource(),
+        )

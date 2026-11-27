@@ -136,6 +136,24 @@ class ValidatorNode:
         except OSError:
             pass
 
+    def _record_omission_failure(self, epoch_id: int, error: Exception) -> None:
+        if self._omission_log is None:
+            return
+        row = {
+            "at": datetime.now(UTC).isoformat(),
+            "epoch_id": epoch_id,
+            "status": "error",
+            "error_type": type(error).__name__,
+            "error": str(error),
+            "enforced": False,
+        }
+        try:
+            self._omission_log.parent.mkdir(parents=True, exist_ok=True)
+            with self._omission_log.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row) + "\n")
+        except OSError:
+            pass
+
     async def verify_and_sign(
         self,
         *,
@@ -199,33 +217,40 @@ class ValidatorNode:
 
         overlap = 1.0
         if self._source is not None:
-            omission = await run_omission_check(
-                kols=kol_profiles,
-                operator_post_ids_by_kol=op_ids_by_kol,
-                validator_source=self._source,
-                prev_commit_hash=prev_commit_hash,
-                epoch_id=header.epoch_id,
-                window_start=window_start_dt,
-                boundary=boundary_dt,
-                sample_fraction=self._omission_fraction or self._cfg.validator.sample_fraction,
-                min_overlap=self._cfg.validator.min_overlap,
-            )
-            overlap = omission.overlap
-            self._record_omission(omission)
-            if not omission.passed and self._omission_enforce:
-                return ValidationDecision(
-                    approved=False,
-                    validator=self.address,
+            try:
+                omission = await run_omission_check(
+                    kols=kol_profiles,
+                    operator_post_ids_by_kol=op_ids_by_kol,
+                    validator_source=self._source,
+                    prev_commit_hash=prev_commit_hash,
                     epoch_id=header.epoch_id,
-                    max_delta_bps=delta_bps,
-                    overlap=omission.overlap,
-                    attestation=None,
-                    reason=(
-                        f"Omission check failed: overlap={omission.overlap:.4f} "
-                        f"< {self._cfg.validator.min_overlap:.2f} "
-                        f"(missing={len(omission.missing_post_ids)})"
-                    ),
+                    window_start=window_start_dt,
+                    boundary=boundary_dt,
+                    sample_fraction=self._omission_fraction or self._cfg.validator.sample_fraction,
+                    min_overlap=self._cfg.validator.min_overlap,
                 )
+            except Exception as exc:
+                if self._omission_enforce:
+                    raise
+                overlap = 0.0
+                self._record_omission_failure(header.epoch_id, exc)
+            else:
+                overlap = omission.overlap
+                self._record_omission(omission)
+                if not omission.passed and self._omission_enforce:
+                    return ValidationDecision(
+                        approved=False,
+                        validator=self.address,
+                        epoch_id=header.epoch_id,
+                        max_delta_bps=delta_bps,
+                        overlap=omission.overlap,
+                        attestation=None,
+                        reason=(
+                            f"Omission check failed: overlap={omission.overlap:.4f} "
+                            f"< {self._cfg.validator.min_overlap:.2f} "
+                            f"(missing={len(omission.missing_post_ids)})"
+                        ),
+                    )
 
         if delta_bps >= self._cfg.validator.max_delta_bps:
             return ValidationDecision(
