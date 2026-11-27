@@ -126,7 +126,7 @@ V_n = NULL if:
           </div>
           <div className="flex flex-wrap gap-2 font-mono text-[10.5px]">
             <span className="border border-[#26262A] bg-[#0D0D0E] px-2.5 py-1 text-[#CCFF00]">
-              MODEL: {config.modelVersion}
+              ENGINE: AI CLASSIFIER
             </span>
             <span className="border border-[#26262A] bg-[#0D0D0E] px-2.5 py-1 text-[#4ADE80]">
               PROMPT: {config.promptVersion}

@@ -289,6 +289,8 @@ export async function fetchIndexesSnapshot(): Promise<IndexesSnapshot> {
 const TICKER_REGEX = /\$([A-Za-z][A-Za-z0-9]{1,9})\b/g;
 const TICKER_STOPWORDS = new Set([
   "USD", "EUR", "GBP", "JPY", "CNY", "AUD", "CAD", "CHF", "KRW", "INR", "IDR",
+  "EZPZ", "LMAO", "LMFAO", "FOMO", "WAGMI", "NGMI", "DYOR", "NFA", "IMO", "IMHO",
+  "TBH", "WTF", "SMH", "LFG", "GM", "GN", "ATH", "ATL", "ETF", "SEC", "FED", "GDP", "CPI",
 ]);
 
 interface DexMarketInfo {
