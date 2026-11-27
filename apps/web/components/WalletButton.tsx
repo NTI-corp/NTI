@@ -126,7 +126,9 @@ export function WalletButton() {
   // Only named wallets: the generic "Injected" entry is never listed; wallets that are not installed
   // appear as install links below.
   const availableConnectors = useMemo(() => {
-    const named = connectors.filter((c) => c.id !== "injected" && c.type !== "injected");
+    // EIP-6963 wallets (MetaMask, Rabby, etc.) also use type "injected"; only hide wagmi's
+    // unnamed fallback connector so discovered wallets remain selectable.
+    const named = connectors.filter((c) => c.id !== "injected");
     const seen = new Set<string>();
     return named.filter((c) => {
       const key = `${c.id}:${c.name}`.toLowerCase();
