@@ -11,11 +11,16 @@ from eth_account import Account
 from nti_core.config import load_config
 from nti_core.types import KolProfile
 from nti_engine.models import PrevEpochState
-from nti_fetcher.accounts import AccountPoolExhaustedError
+from nti_fetcher.accounts import (
+    AccountPool,
+    AccountPoolExhaustedError,
+    XAccount,
+)
 from nti_fetcher.adapters import InMemoryMockSource
 from nti_fetcher.protocol import PostSource, RawPost
 from nti_oracle.dataset import ZERO_HASH, LocalFileUploader
 from nti_oracle.node import ConsensusError, OperatorNode, ValidatorNode
+from nti_oracle.operator import validator_source_pool_key
 from test_oracle import CONFIG_PATH, _sample_kols, _sample_posts
 
 CONTRACT = "0x2222222222222222222222222222222222222222"
@@ -91,6 +96,32 @@ async def commit(
         prev_commit_hash=ZERO_HASH,
         validators=validators,
     )
+
+
+def test_shadow_mode_rotates_over_the_whole_validator_pool() -> None:
+    assert [validator_source_pool_key("shadow", i) for i in range(3)] == ["validator"] * 3
+    assert [validator_source_pool_key("enforce", i) for i in range(3)] == [
+        "validator_0",
+        "validator_1",
+        "validator_2",
+    ]
+
+
+def test_shadow_pool_survives_one_exhausted_account() -> None:
+    pool = AccountPool(
+        {
+            "validator": [
+                XAccount("val0", "", "", "validator"),
+                XAccount("val1", "", "", "validator"),
+                XAccount("val2", "", "", "validator"),
+            ]
+        }
+    )
+    pool.record_request("val0", 800)
+    with pytest.raises(AccountPoolExhaustedError):
+        pool.acquire("validator_0")
+    chosen = pool.acquire("validator")
+    assert chosen.username in {"val1", "val2"}
 
 
 @pytest.mark.asyncio

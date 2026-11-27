@@ -123,6 +123,17 @@ def engine_kols_for_fetch_snapshot(
     ]
 
 
+def validator_source_pool_key(mode: str, index: int) -> str:
+    """Pick the X account pool an omission-checking validator draws from.
+
+    Enforce mode must keep each validator on its own account so their reads stay
+    independent. Shadow mode is a measurement only, so it may rotate over the
+    whole validator pool; pinning it to one account let a single burned account
+    ("All accounts exhausted in pool validator_0") disable the check for days.
+    """
+    return "validator" if mode == "shadow" else f"validator_{index}"
+
+
 async def prepare_commit(
     *,
     epoch_id: int,
@@ -273,7 +284,7 @@ async def prepare_commit(
             validator_source=TwscrapeSource(
                 db_path=db_path,
                 account_pool=pool,
-                pool_key=f"validator_{i}",
+                pool_key=validator_source_pool_key(omission_mode, i),
             )
             if omission_mode == "enforce" or (omission_mode == "shadow" and i == 0)
             else None,
