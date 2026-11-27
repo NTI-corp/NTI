@@ -2,6 +2,7 @@ import {
   BaseError,
   ContractFunctionRevertedError,
   createPublicClient,
+  fallback,
   formatEther,
   http,
   parseAbi,
@@ -28,20 +29,39 @@ import type { BasketItem, GovernorProposalItem, GrantRoundItem, MarketItem } fro
 function getServerPublicClient() {
   const chainId = getActiveChainId();
   const chain = getChain(chainId);
+  const defaultUrl = chain.rpcUrls.default.http[0] ?? "";
+  const configured = (
+    (chainId === 46630 ? process.env.RPC_URL_TESTNET : process.env.RPC_URL_MAINNET) ?? defaultUrl
+  )
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean);
+  // A single free Alchemy key answers reads with 429 under load, blanking every chain-backed page.
+  // Keep the configured endpoint first, then public fallbacks that serve the same chain.
+  const urls = [
+    ...new Set([
+      ...configured,
+      ...(chainId === 4663
+        ? ["https://robinhood.drpc.org", "https://robinhood-rpc.publicnode.com"]
+        : []),
+    ]),
+  ];
+  if (urls.length === 0) urls.push(defaultUrl);
+  const transports = urls.map((url) =>
+    http(url, {
+      timeout: 10_000,
+      retryCount: 1,
+      // JSON-RPC is a POST; caching it for 15s made a freshly created market invisible and
+      // turned every detail page into a 404. Chain reads must always be fresh.
+      fetchOptions: { cache: "no-store" } as RequestInit,
+    }),
+  );
   return {
     chainId,
     addresses: getProtocolAddresses(chainId),
     client: createPublicClient({
       chain,
-      transport: http(
-        (chainId === 46630 ? process.env.RPC_URL_TESTNET : process.env.RPC_URL_MAINNET) ??
-          chain.rpcUrls.default.http[0],
-        {
-          timeout: 10_000,
-          retryCount: 2,
-          fetchOptions: { next: { revalidate: 15 } } as RequestInit,
-        },
-      ),
+      transport: transports.length > 1 ? fallback(transports) : transports[0]!,
     }),
   };
 }
