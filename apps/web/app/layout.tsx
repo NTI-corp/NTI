@@ -59,8 +59,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    site: "@NTI_Index",
-    creator: "@NTI_Index",
+    site: "@NarrativeIdx",
+    creator: "@NarrativeIdx",
     title: "NTI | AI-priced crypto mindshare",
     description:
       "Autonomous AI scoring across 1,500+ X KOLs every 4 hours. Verifiable onchain indexes, pair markets & TWAP baskets on Robinhood Chain (4663).",

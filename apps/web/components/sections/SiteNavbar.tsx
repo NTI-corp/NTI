@@ -529,11 +529,11 @@ export function SiteNavbar() {
             {/* Desktop Right CTA (`textStagger`) + X + Mobile Toggle */}
             <div className="flex items-center gap-[0.65em]">
               <a
-                href="https://x.com/NTI_Index"
+                href="https://x.com/NarrativeIdx"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="NTI on X"
-                title="NTI on X (@NTI_Index)"
+                title="NTI on X (@NarrativeIdx)"
                 className="hidden md:flex items-center justify-center w-[2.375em] h-[2.375em] bg-[#222529] border border-[#343940] hover:bg-[#CCFF00] hover:border-[#CCFF00] text-white hover:text-black transition-colors shrink-0"
               >
                 <XIcon className="w-[0.95em] h-[0.95em]" />
@@ -880,14 +880,14 @@ export function SiteNavbar() {
                 {GET_STARTED_CTA.label}
               </a>
               <a
-                href="https://x.com/NTI_Index"
+                href="https://x.com/NarrativeIdx"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center justify-center gap-[0.55em] w-full bg-[#222529] border border-[#343940] hover:border-[#CCFF00] text-white py-[0.85em] font-mono text-[0.875em] transition-colors"
               >
                 <XIcon className="w-[0.95em] h-[0.95em]" />
-                <span>@NTI_Index</span>
+                <span>@NarrativeIdx</span>
                 <ExternalArrowIcon className="w-[0.65em] h-[0.65em] opacity-70" />
               </a>
             </div>

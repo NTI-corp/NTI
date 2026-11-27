@@ -361,7 +361,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Explorer ↗
               </a>
               <a
-                href="https://x.com/NTI_Index"
+                href="https://x.com/NarrativeIdx"
                 target="_blank"
                 rel="noreferrer noopener"
                 className="inline-flex items-center gap-1 transition-colors hover:text-[#F5F5F7]"
@@ -553,13 +553,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Explorer ↗
               </a>
               <a
-                href="https://x.com/NTI_Index"
+                href="https://x.com/NarrativeIdx"
                 target="_blank"
                 rel="noreferrer noopener"
                 className="inline-flex items-center gap-1.5 hover:text-[#F5F5F7]"
               >
                 <XIcon className="h-2.5 w-2.5" />
-                <span>@NTI_Index ↗</span>
+                <span>@NarrativeIdx ↗</span>
               </a>
               <Link href="/" className="hover:text-[#F5F5F7]">
                 Landing
