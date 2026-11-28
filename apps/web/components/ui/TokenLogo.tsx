@@ -56,10 +56,19 @@ export function TokenLogo({
   const padded = useSymbolIcon && SVG_PADDED.has(key);
 
   if (!src || failed) {
+    // No logo anywhere: a stable per-token color keeps the list scannable instead of a row of grey boxes.
+    let hash = 0;
+    for (const ch of key) hash = (hash * 31 + ch.charCodeAt(0)) % 360;
     return (
       <span
-        style={{ width: size, height: size }}
-        className={`inline-flex shrink-0 items-center justify-center border border-[#26262A] bg-[#111113] font-mono text-[9px] font-semibold uppercase text-[#A1A1AA] ${className}`}
+        style={{
+          width: size,
+          height: size,
+          backgroundColor: `hsl(${hash} 40% 16%)`,
+          color: `hsl(${hash} 75% 72%)`,
+          borderColor: `hsl(${hash} 40% 28%)`,
+        }}
+        className={`inline-flex shrink-0 items-center justify-center border font-mono text-[9px] font-semibold uppercase ${className}`}
         aria-hidden="true"
       >
         {key.slice(0, 2)}

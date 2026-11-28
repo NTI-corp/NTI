@@ -551,8 +551,40 @@ export async function fetchNarrativeHistory(
       ) {
         candidates.add(top.address);
       }
-      const onchain = await resolveRobinhoodToken(symbol, [...candidates]);
-      if (onchain) return { ...onchain, source: "robinhood" as const };
+      const candidateList = [...candidates];
+      const onchain = await resolveRobinhoodToken(symbol, candidateList);
+      // A verified contract with no DexScreener logo still carries its own `logo()`: bound to the
+      // contract, so it cannot borrow another chain's icon for the same ticker.
+      const contractLogos = candidateList.length
+        ? await readPonsLogos(candidateList.filter((a) => isAddress(a, { strict: false })) as Address[])
+        : {};
+      const contractLogo = (...addresses: Array<string | undefined>): string | null => {
+        for (const a of addresses) {
+          const url = a ? contractLogos[a.toLowerCase()] : undefined;
+          if (url) return url;
+        }
+        return null;
+      };
+      if (onchain) {
+        return {
+          ...onchain,
+          imageUrl: onchain.imageUrl ?? contractLogo(onchain.address, ...candidateList),
+          source: "robinhood" as const,
+        };
+      }
+      // Registry token (verified contract, no DexScreener pair yet): show its on-chain logo and name.
+      const registryName = registry[0]?.name ?? null;
+      const registryLogo = contractLogo(...candidateList);
+      if (registryLogo) {
+        return {
+          address: null,
+          name: registryName,
+          imageUrl: registryLogo,
+          priceUsd: null,
+          dexUrl: null,
+          source: "robinhood" as const,
+        };
+      }
       // Not a Robinhood token: keep the KOL mention, show a recognized major-asset icon only.
       const major = await resolveSymbolLogo(symbol);
       if (!major) return null;
